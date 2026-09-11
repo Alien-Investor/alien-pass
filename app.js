@@ -143,6 +143,7 @@ const T = {
   "gen.noset":{de:"Mindestens einen Zeichensatz wählen.",en:"Select at least one character set."},
   "bk.done":{de:"Backup gespeichert: {n}",en:"Backup saved: {n}"},
   "bk.doneNative":{de:"Backup geschrieben nach Dokumente: {n}",en:"Backup written to Documents: {n}"},
+  "bk.doneShare":{de:"Backup über den Teilen-Dialog bereitgestellt: {n} — dort ein Ziel wählen (Dateien, Syncthing …).",en:"Backup offered via the share sheet: {n} — pick a destination there (Files, Syncthing …)."},
   "bk.failed":{de:"Backup fehlgeschlagen: {e}",en:"Backup failed: {e}"},
   "bk.none":{de:"⚠ Noch kein Backup. Sicherung → Backup erstellen.",en:"⚠ No backup yet. Backup → Create backup."},
   "bk.stale":{de:"⚠ Letztes Backup vor {d} Tagen — seitdem {n} Änderung(en).",en:"⚠ Last backup {d} days ago — {n} change(s) since."},
@@ -533,15 +534,17 @@ const App = (function(){
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
   function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
-  let clipDue=false;   // Löschen war fällig, konnte aber (Hintergrund/kein Fokus) noch nicht ausgeführt werden
-  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); clipDue=false; const s=settings().clipClear; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
+  let clipDue=false, clipTries=0;   // Löschen war fällig, konnte aber (Hintergrund/kein Fokus) noch nicht ausgeführt werden
+  const CLIP_MAX_TRIES=600;          // ~10 min Wiederholung im Vordergrund, dann aufgeben (Android leert spätestens nach 1 h selbst)
+  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); clipDue=false; clipTries=0; const s=settings().clipClear; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
   // Besitz erst aufgeben, wenn der Write bestätigt ist. Chromium lehnt writeText ohne Fokus ab (Document is not focused),
   // Android blockt Hintergrund-Writes → dann nur vormerken und beim Zurückkehren / nächsten Tick erneut versuchen.
   function clearClip(){
     if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; }
     if(!clipOwnedAt) return; clipDue=true;
+    if(++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipDue=false; return; }
     if(document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus())){ clipTimer=setTimeout(clearClip,1000); return; }
-    const ok=()=>{ clipOwnedAt=0; clipDue=false; };
+    const ok=()=>{ clipOwnedAt=0; clipDue=false; clipTries=0; };
     const retry=()=>{ if(fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
     let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(' '); }catch(_){ p=null; }
     if(p&&p.then) p.then(ok,retry); else retry();
@@ -698,8 +701,10 @@ const App = (function(){
     try{
       const raw=localStorage.getItem(LS_KEY); const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
       // Erst die Datei schreiben — der Backup-Stempel darf nur nach Erfolg gesetzt werden
-      try{ if(isNative){ await nativeSaveAndShare(name, raw, 'DOCUMENTS', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneNative',{n:name}); }
-           else { downloadFile(name, raw, 'application/octet-stream'); $('bk-msg').textContent=tr('bk.done',{n:name}); } }
+      try{ if(isNative){
+             try{ await nativeSaveAndShare(name, raw, 'DOCUMENTS', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneNative',{n:name}); }
+             catch(e1){ await nativeSaveAndShare(name, raw, 'CACHE', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneShare',{n:name}); }   // ältere Androids ohne Documents-Zugriff: nur via Teilen
+           } else { downloadFile(name, raw, 'application/octet-stream'); $('bk-msg').textContent=tr('bk.done',{n:name}); } }
       catch(e){ $('bk-msg').textContent=tr('bk.failed',{e:String(e&&e.message||e)}); return; }
       if(!VAULT) return;
       const before={lastBackup:VAULT.meta.lastBackup,lastBackupCount:VAULT.meta.lastBackupCount};
