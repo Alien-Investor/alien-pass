@@ -542,8 +542,8 @@ const App = (function(){
   function clearClip(){
     if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; }
     if(!clipOwnedAt) return; clipDue=true;
+    if(document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus())){ clipTimer=setTimeout(clearClip,1000); return; }   // im Hintergrund zählt kein Versuch
     if(++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipDue=false; return; }
-    if(document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus())){ clipTimer=setTimeout(clearClip,1000); return; }
     const ok=()=>{ clipOwnedAt=0; clipDue=false; clipTries=0; };
     const retry=()=>{ if(fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
     let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(' '); }catch(_){ p=null; }
