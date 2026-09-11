@@ -2,7 +2,7 @@
 
 Lokaler, verschlüsselter **Passwort-Manager** für Android / GrapheneOS.
 Läuft komplett **offline** — keine Cloud, kein Server, kein Konto, keine Telemetrie.
-Die App hat **keine einzige Berechtigung**, nicht einmal Internet. Deine Passwörter verlassen das Gerät nie im Klartext.
+Die App fordert **keine Android-Berechtigung** an, nicht einmal Internet. Deine Passwörter verlassen das Gerät nie im Klartext.
 
 Schwester-App des [Sachwert-Tresors](https://codeberg.org/Alien-Investor/sachwert-tresor) — gleiche Architektur, gleiche Härtung, gleicher Alien-Investor-Stil.
 
@@ -43,11 +43,11 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
 
 - **Einträge**: Titel, Nutzername/E-Mail, Passwort, URL, Notizen, optional TOTP, Favorit. Suche über Titel, Nutzer und URL.
 - **Detailansicht** mit Kopier-Buttons; Passwörter erscheinen nur auf Anfrage.
-- **Zwischenablage mit Auto-Löschen** (15/30/60 s): beim Ablauf, beim Zurückkehren in die App und beim Sperren.
+- **Zwischenablage mit Auto-Löschen** (15/30/60 s): beim Ablauf, beim Zurückkehren in die App (sobald die Zeit abgelaufen ist oder ein Löschen im Hintergrund fehlschlug) und beim Sperren.
 - **Passwort-Generator**: Zeichen-Modus (8–64 Zeichen, Zeichensätze wählbar, ohne verwechselbare Zeichen)
   und **Diceware** (EFF Large Wordlist, 7.776 Wörter, ~12,9 Bit je Wort). Entropie-Anzeige, kein Modulo-Bias.
 - **TOTP pro Eintrag** (RFC 6238; SHA-1/256/512, 6–8 Stellen, beliebige Periode) mit Restlaufzeit.
-- **Passwort-Gesundheit**: markiert wiederverwendete, kurze (< 12) und alte (> 2 Jahre) Passwörter — rein lokal.
+- **Passwort-Gesundheit**: markiert wiederverwendete, kurze (< 12) und seit über zwei Jahren unveränderte Einträge — rein lokal.
 - **Auto-Lock**: nach Inaktivität (1–15 min oder aus) und im Hintergrund (sofort / 30 s / 1 min / 5 min).
 - **Verschlüsseltes Backup** (`.vault`) und **Zusammenführen** zwischen Geräten: je Eintrag gewinnt
   die neuere Änderung, Löschungen werden ein Jahr lang mitgeführt. Die Datei darf eine andere
@@ -65,11 +65,17 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   Salt) sind als AAD mitauthentisiert — Manipulation fällt auf. Beim Passphrase-Wechsel wird auch der DEK erneuert.
 - **Import-Grenzen**: Eine fremde `.vault` darf keine beliebigen Argon2-Parameter erzwingen
   (8–256 MiB, 1–16 Durchgänge, Arbeitsbudget), keine Übergröße, keine Fremdfelder. Alle Inhalte laufen durch
-  eine Feld-Whitelist — auch der lokale Tresor beim Entsperren.
-- **Keine INTERNET-Permission**: Die Android-App fordert keine Berechtigung an. Dass sie nicht nach Hause funken
-  *kann*, erzwingt das Betriebssystem — im Manifest der APK nachprüfbar.
+  eine Feld-Whitelist — auch der lokale Tresor beim Entsperren. Höchstens 10.000 aktive Einträge; Löschmarken
+  zählen nicht mit und werden auf 2.000 begrenzt, damit eine fremde Datei den Tresor nicht zufüllen kann.
+- **Keine INTERNET-Permission**: Die Android-App fordert keine Berechtigung von dir oder vom System an — kein Internet,
+  keine Dateien, keine Kontakte. Dass sie nicht nach Hause funken *kann*, erzwingt das Betriebssystem — im Manifest der
+  APK nachprüfbar. Dort steht nur eine von AndroidX automatisch erzeugte, selbst definierte Signatur-Berechtigung
+  (`org.alieninvestor.pass.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`), die app-interne Broadcast-Empfänger nicht exportiert;
+  sie gibt keiner anderen App Zugriff und erscheint nicht in den Android-Berechtigungen.
 - **FLAG_SECURE**: keine Screenshots, kein Screen-Recording, keine Vorschau im App-Switcher.
-  **allowBackup=false**: Tresor-Daten landen in keinem ADB-/Cloud-Backup.
+  **allowBackup=false** verhindert ADB- und Cloud-Backups; **data_extraction_rules.xml** schließt zusätzlich den
+  Gerät-zu-Gerät-Transfer aus (Android 12+ ignoriert dort `allowBackup`, auch Seedvault-D2D). Backups machst nur du
+  selbst über die verschlüsselte `.vault`-Datei.
 - **Content-Security-Policy** mit `connect-src 'none'` und ohne `unsafe-inline`: kein Netz, kein Inline-Script.
   Einzige Ergänzung gegenüber dem Sachwert-Tresor ist `'wasm-unsafe-eval'` — Chromium verlangt den Token für
   jede WebAssembly-Kompilierung (Argon2). Er erlaubt ausschließlich WASM, kein String-Eval.
@@ -81,6 +87,7 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   ```
   vendor/hash-wasm/argon2.umd.min.js   dcec617a2e1b700fa132d1583a186cb70611113395e869f2dd6cc82b415d3094
   vendor/eff/eff_large_wordlist.txt    addd35536511597a02fa0a9ff1e5284677b8883b83e986e43f15a3db996b903e
+  vendor/eff/eff-wordlist.js           b7ccf3dd6958efa9000d8d68c63ebfdbab4a98493cf2fbcd25e1fc31ba57a6b7  (aus der .txt erzeugt, im Build gegengeprüft)
   ```
 - **Grenzen, ehrlich benannt**: Android zeigt beim Kopieren eine System-Vorschau der Zwischenablage; im
   Hintergrund kann die App die Zwischenablage nicht leeren (Android tut es nach 1 h selbst). Passwort und

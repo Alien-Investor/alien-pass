@@ -15,7 +15,7 @@ const region = src.slice(a, z);
 const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
-    normalizeTotp,otpauthUri,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,
+    normalizeTotp,otpauthUri,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
     parseCsv,csvMap,csvRowToEntry};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
@@ -197,6 +197,28 @@ console.log('\n[8] CSV-Parser + Import-Mapping');
   ok(V.csvRowToEntry(bm,br[2],Date.now()).pass===''&&V.csvRowToEntry(bm,br[3],Date.now())===null,'Bitwarden: note ok, card übersprungen');
   const gen='Website;Login;Passwort\nfoo.de;ich;pw\n'; let gr=V.parseCsv(gen,','); if(gr[0].length<2) gr=V.parseCsv(gen,';'); const gm=V.csvMap(gr[0]); ok(gm&&gm.fmt==='generic'&&V.csvRowToEntry(gm,gr[1],Date.now()).title==='foo.de','generisches Semikolon-CSV (Website/Login/Passwort)');
   ok(V.csvMap(['a','b'])===null,'unbekannte Kopfzeile → null');
+}
+
+console.log('\n[9] Audit-Fixes: Tombstone-Cap, Live-Cap, canon() verschachtelt');
+{
+  const now=Date.now(); const T=(i,ageDays)=>({id:(1e15+i).toString(16).padStart(16,'0').slice(-16),title:'',user:'',pass:'',url:'',notes:'',totp:null,fav:false,created:new Date(now-ageDays*86400000).toISOString(),updated:new Date(now-ageDays*86400000).toISOString(),deleted:new Date(now-ageDays*86400000).toISOString()});
+  const L=(i)=>E({id:(2e15+i).toString(16).padStart(16,'0').slice(-16),title:'L'+i});
+  // 9.990 frische Tombstones + 10 live → sanitizeEntries wirft NICHT mehr, Tombstones auf MAX_TOMBSTONES gekappt (neueste bleiben)
+  const flood=[...Array.from({length:9990},(_,i)=>T(i,i%300)), ...Array.from({length:10},(_,i)=>L(i))];
+  let d=null, threw=false; try{ d=V.sanitizeEntries(flood,now); }catch(e){ threw=true; }
+  ok(!threw&&d&&V.liveCount(d)===10,'Tombstone-Flut: Unlock wirft nicht, 10 Live-Einträge bleiben');
+  ok(d.filter(e=>e.deleted).length===V.MAX_TOMBSTONES,'Tombstones auf MAX_TOMBSTONES ('+V.MAX_TOMBSTONES+') gekappt');
+  const keptAges=d.filter(e=>e.deleted).map(e=>Math.round((now-Date.parse(e.deleted))/86400000)); ok(Math.max(...keptAges)<=Math.min(...flood.filter(e=>e.deleted).map(e=>Math.round((now-Date.parse(e.deleted))/86400000)).sort((a,b)=>b-a).slice(0,9990-V.MAX_TOMBSTONES)),'älteste Tombstones weichen zuerst');
+  // 10.000 live + 500 Tombstones öffnet; 10.001 live wirft
+  d=V.sanitizeEntries([...Array.from({length:10000},(_,i)=>L(i)),...Array.from({length:500},(_,i)=>T(i,1))],now); ok(V.liveCount(d)===10000,'10.000 live + 500 Tombstones: ok');
+  threw=false; try{ V.sanitizeEntries(Array.from({length:10001},(_,i)=>L(i)),now); }catch(e){ threw=e.message==='toomany'; } ok(threw,'10.001 live → toomany');
+  // Merge-Zähler nennt Löschmarken
+  const m=V.mergeEntries([L(1)],[T(5,0),T(6,0)]); ok(m.tombstonesIn===2&&m.added===0,'mergeEntries meldet tombstonesIn=2');
+  // canon() verschachtelt: nur-TOTP-Unterschied bei gleichem updated ist kommutativ
+  const A=E({id:'abababababababab',updated:'2026-06-01T00:00:00.000Z',totp:V.normalizeTotp('JBSWY3DPEHPK3PXP')}), B=E({id:'abababababababab',updated:'2026-06-01T00:00:00.000Z',totp:V.normalizeTotp('GEZDGNBVGY3TQOJQ')});
+  ok(V.canon(A)!==V.canon(B),'canon() unterscheidet verschachtelte totp-Objekte');
+  ok(V.mergeEntries([A],[B]).entries[0].totp.secret===V.mergeEntries([B],[A]).entries[0].totp.secret,'Merge bei nur-TOTP-Unterschied kommutativ');
+  ok(V.canon({b:1,a:{d:[1,{z:1,y:2}],c:null}})==='{"a":{"c":null,"d":[1,{"y":2,"z":1}]},"b":1}','canon() sortiert rekursiv, Arrays in Reihenfolge');
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

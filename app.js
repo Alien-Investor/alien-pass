@@ -53,8 +53,8 @@ const I18N = {
   "set.secTitle":"Security","set.autolock":"Lock after inactivity","set.off":"Off",
   "set.al1":"1 minute","set.al2":"2 minutes","set.al5":"5 minutes","set.al15":"15 minutes",
   "set.bgLock":"Lock in background after","set.bg0":"immediately","set.bg30":"30 seconds","set.bg60":"1 minute","set.bg300":"5 minutes",
-  "set.clip":"Clear clipboard after","set.c15":"15 seconds","set.c30":"30 seconds","set.c60":"1 minute","set.cOff":"never (not recommended)",
-  "set.clipNote":"Note: Android shows a system preview of the clipboard when copying and clears it by itself after one hour at the latest. The app additionally clears it after the chosen time, when you return to the app and when it locks.",
+  "set.clip":"Clear clipboard after","set.c15":"15 seconds","set.c30":"30 seconds","set.c60":"1 minute","set.cOff":"only on lock (not recommended)",
+  "set.clipNote":"Note: Android shows a system preview of the clipboard when copying and clears it by itself after one hour at the latest. The app additionally clears it after the chosen time, when you return to the app (once the time is up) and when it locks — while in the background it cannot access the clipboard.",
   "set.lockNow":"Lock now",
   "set.cpTitle":"Change passphrase","set.cpCur":"Current passphrase","set.cpNew":"New passphrase","set.cpRepeat":"Repeat","set.cpShow":"Show passphrases","set.cpBtn":"Change",
   "set.cpNote":"Changing the passphrase also rotates the internal data key. Backups exported earlier keep their old passphrase.",
@@ -78,13 +78,13 @@ const I18N = {
   "help.h5":"TOTP (2FA codes)",
   "help.l5":"<li>Each entry can hold a TOTP secret (Base32 or <code>otpauth://</code> link). The detail view shows the current code with remaining time.</li><li>Supports SHA-1/SHA-256/SHA-512, 6–8 digits, any period.</li><li><strong>Keep in mind:</strong> password and 2FA in the same vault weaken factor separation. For critical accounts (e-mail, exchange) keep the second factor in Aegis.</li>",
   "help.h6":"Password health",
-  "help.p6":"The list flags <strong>reused</strong> passwords, <strong>short</strong> ones (under 12 characters) and <strong>old</strong> ones (unchanged for over two years). Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
+  "help.p6":"The list flags <strong>reused</strong> passwords, <strong>short</strong> ones (under 12 characters) and entries <strong>unchanged for over two years</strong> (any edit resets that clock). Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
   "help.h7":"Backup & sync",
   "help.l7":"<li><strong>Create backup</strong> writes a <code>.vault</code> file (encrypted with your passphrase). It can safely go into Syncthing, onto a stick or into a backup.</li><li><strong>Import</strong> merges: per entry the newer change wins, deletions are carried over (for one year). The file may use a different passphrase — your local one stays.</li><li>With two devices: export on both regularly and import the other's backup. Both sides end up at the same state.</li><li>After a <strong>passphrase change</strong> older backups still open with their old passphrase.</li>",
   "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
   "help.l8":"<li><strong>Proton Pass:</strong> Settings → Export → format CSV (unencrypted). Move the file to the phone, pick it in Alien Pass under Backup → CSV.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv.</li><li>Login entries come over with title, user, password, URL, notes and TOTP. Plain notes arrive without a password.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext.</li>",
   "help.h9":"Security in detail",
-  "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app has not a single permission (no internet either), forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from system backups.</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker.</li><li><strong>Limits:</strong> no autofill, no biometrics (v1), no breach check. A passphrase cannot be recovered.</li>"
+  "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests no Android permission at all (no internet, no storage, no sensors — the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing), forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from cloud, adb and device-to-device backups (backup rules).</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker.</li><li><strong>Limits:</strong> no autofill, no biometrics (v1), no breach check. A passphrase cannot be recovered.</li>"
 };
 const T = {
   "err.setupShort":{de:"Mindestens 12 Zeichen.",en:"At least 12 characters."},
@@ -129,8 +129,8 @@ const T = {
   "list.empty":{de:"Noch keine Einträge.\nTippe auf + oder importiere unter „Sicherung“ aus Proton Pass, KeePassXC oder Bitwarden.",en:"No entries yet.\nTap + or import under “Backup” from Proton Pass, KeePassXC or Bitwarden."},
   "list.noMatch":{de:"Keine Treffer.",en:"No matches."},
   "health.ok":{de:"✓ Passwort-Gesundheit: keine Auffälligkeiten",en:"✓ Password health: nothing to report"},
-  "health.bad":{de:"⚠ {r} wiederverwendet · {w} kurz · {o} alt",en:"⚠ {r} reused · {w} short · {o} old"},
-  "badge.reused":{de:"doppelt",en:"reused"},"badge.weak":{de:"kurz",en:"short"},"badge.old":{de:"alt",en:"old"},
+  "health.bad":{de:"⚠ {r} wiederverwendet · {w} kurz · {o} lange unverändert",en:"⚠ {r} reused · {w} short · {o} long unchanged"},
+  "badge.reused":{de:"doppelt",en:"reused"},"badge.weak":{de:"kurz",en:"short"},"badge.old":{de:"unverändert >2 J.",en:"unchanged >2 y"},
   "d.user":{de:"Nutzername / E-Mail",en:"Username / e-mail"},"d.pass":{de:"Passwort",en:"Password"},"d.url":{de:"URL / App",en:"URL / app"},
   "d.totp":{de:"TOTP-Code",en:"TOTP code"},"d.notes":{de:"Notizen",en:"Notes"},
   "d.show":{de:"Anzeigen",en:"Show"},"d.hide":{de:"Verbergen",en:"Hide"},"d.copy":{de:"Kopieren",en:"Copy"},
@@ -147,7 +147,7 @@ const T = {
   "bk.none":{de:"⚠ Noch kein Backup. Sicherung → Backup erstellen.",en:"⚠ No backup yet. Backup → Create backup."},
   "bk.stale":{de:"⚠ Letztes Backup vor {d} Tagen — seitdem {n} Änderung(en).",en:"⚠ Last backup {d} days ago — {n} change(s) since."},
   "bk.readErr":{de:"Datei konnte nicht gelesen werden.",en:"Could not read the file."},
-  "bk.merged":{de:"Zusammengeführt: {a} neu, {u} aktualisiert, {d} gelöscht.",en:"Merged: {a} new, {u} updated, {d} deleted."},
+  "bk.merged":{de:"Zusammengeführt: {a} neu, {u} aktualisiert, {d} gelöscht ({t} Löschmarken in der Datei).",en:"Merged: {a} new, {u} updated, {d} deleted ({t} deletion markers in the file)."},
   "bk.mergeFail":{de:"Falsche Passphrase oder beschädigte Datei.",en:"Wrong passphrase or damaged file."},
   "csv.unknown":{de:"Format nicht erkannt — Kopfzeile braucht mindestens Titel/Name und Passwort.",en:"Format not recognised — header needs at least title/name and password."},
   "csv.done":{de:"{n} Einträge importiert ({f}), {s} Dubletten übersprungen, {b} Zeilen unbrauchbar. Jetzt die CSV-Datei löschen!",en:"{n} entries imported ({f}), {s} duplicates skipped, {b} rows unusable. Delete the CSV file now!"},
@@ -162,7 +162,7 @@ const T = {
 };
 const _qsLang = new URLSearchParams(window.location.search).get('lang');
 let LANG = (_qsLang==='de'||_qsLang==='en') ? _qsLang
-  : (localStorage.getItem(LANG_KEY) || ((navigator.language||'de').toLowerCase().indexOf('de')===0?'de':'en'));
+  : (['de','en'].includes(localStorage.getItem(LANG_KEY)) ? localStorage.getItem(LANG_KEY) : ((navigator.language||'de').toLowerCase().indexOf('de')===0?'de':'en'));
 const _i18nCache = new WeakMap();
 function tr(key, params){ const e=T[key]; let s=e?(e[LANG]!==undefined?e[LANG]:e.de):key; if(params) for(const k in params) s=s.split('{'+k+'}').join(String(params[k])); return s; }
 function applyI18n(){
@@ -253,7 +253,7 @@ function parseFile(raw){
 const VAULT_VERSION=1;
 const SETTINGS_ALLOWED={autolock:[0,1,2,5,15], bgLock:[0,30,60,300], clipClear:[0,15,30,60]};
 const SETTINGS_DEFAULT={autolock:2, bgLock:30, clipClear:30};
-const TOMBSTONE_DAYS=365;
+const TOMBSTONE_DAYS=365, MAX_TOMBSTONES=2000;   // Löschmarken zählen NICHT zum Eintrags-Cap, sind aber separat begrenzt
 function emptyVault(){ return {version:VAULT_VERSION, entries:[], settings:Object.assign({},SETTINGS_DEFAULT), meta:{lastBackup:null, lastBackupCount:0}}; }
 const ID_RE=/^[0-9a-f]{16}$/;
 const CAPS={title:200,user:200,pass:1000,url:2000,notes:10000,issuer:100,label:200};
@@ -297,12 +297,16 @@ function sanitizeEntry(e, now){
   return {id, title:str(e.title,CAPS.title), user:str(e.user,CAPS.user), pass:str(e.pass,CAPS.pass), url:str(e.url,CAPS.url),
           notes:str(e.notes,CAPS.notes), totp:normalizeTotp(e.totp), fav:e.fav===true, created, updated, deleted:null};
 }
-function canon(e){ return JSON.stringify(e, Object.keys(e).sort()); }
+// Kanonische Serialisierung ALLER Ebenen (Array-Replacer von JSON.stringify wäre nur eine Allowlist → totp:{})
+function canon(v){ if(v===undefined||v===null||typeof v!=='object') return JSON.stringify(v===undefined?null:v); if(Array.isArray(v)) return '['+v.map(canon).join(',')+']'; return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}'; }
+const liveCount=list=>list.reduce((n,e)=>n+(e.deleted?0:1),0);
 function ts(v){ const t=Date.parse(v); return Number.isFinite(t)?t:0; }
 // Deterministischer Gewinner: neueres updated; Gleichstand → Tombstone; sonst größerer kanonischer JSON-String.
 function winner(a,b){ const ta=ts(a.updated), tb=ts(b.updated); if(ta!==tb) return ta>tb?a:b; if(!!a.deleted!==!!b.deleted) return a.deleted?a:b; return canon(a)>=canon(b)?a:b; }
 function dedupeEntries(list){ const m=new Map(); for(const e of list){ const cur=m.get(e.id); m.set(e.id, cur?winner(cur,e):e); } return [...m.values()]; }
-function sanitizeEntries(list, now){ if(!Array.isArray(list)) return []; if(list.length>MAX_ENTRIES*2) throw new Error('toomany'); const out=[]; for(const e of list){ const s=sanitizeEntry(e,now); if(s) out.push(s); } const d=dedupeEntries(out); if(d.length>MAX_ENTRIES) throw new Error('toomany'); return d; }
+// Cap gilt nur für LIVE-Einträge; Tombstones werden gepurgt/gekappt statt gezählt (sonst könnte eine
+// fremde Datei den Tresor mit unsichtbaren Löschmarken bis an den Cap füllen und der nächste eigene Eintrag brickt ihn).
+function sanitizeEntries(list, now){ if(!Array.isArray(list)) return []; if(list.length>MAX_ENTRIES*4) throw new Error('toomany'); const out=[]; for(const e of list){ const s=sanitizeEntry(e,now); if(s) out.push(s); } const d=purgeTombstones(dedupeEntries(out), now); if(liveCount(d)>MAX_ENTRIES) throw new Error('toomany'); return d; }
 function sanitizeSettings(s){ const o={}; for(const k in SETTINGS_DEFAULT){ const v=s&&typeof s==='object'?Number(s[k]):NaN; o[k]=SETTINGS_ALLOWED[k].includes(v)?v:SETTINGS_DEFAULT[k]; } return o; }
 function sanitizeVault(v, now){
   if(!v||typeof v!=='object') throw new Error('format');
@@ -320,9 +324,11 @@ function mergeEntries(local, incoming){
     const w=winner(loc,inc); if(w===loc) continue;
     map.set(inc.id,inc); if(inc.deleted&&!loc.deleted) deleted++; else if(!inc.deleted) updated++;
   }
-  return {entries:[...map.values()], added, updated, deleted};
+  return {entries:[...map.values()], added, updated, deleted, tombstonesIn:incoming.reduce((n,e)=>n+(e.deleted?1:0),0)};
 }
-function purgeTombstones(entries, now){ now=now||Date.now(); return entries.filter(e=>!e.deleted || now-ts(e.deleted) < TOMBSTONE_DAYS*86400000); }
+function purgeTombstones(entries, now){ now=now||Date.now(); const kept=entries.filter(e=>!e.deleted || now-ts(e.deleted) < TOMBSTONE_DAYS*86400000);
+  const tombs=kept.filter(e=>e.deleted); if(tombs.length<=MAX_TOMBSTONES) return kept;
+  tombs.sort((a,b)=>ts(b.deleted)-ts(a.deleted)); const keep=new Set(tombs.slice(0,MAX_TOMBSTONES).map(e=>e.id)); return kept.filter(e=>!e.deleted||keep.has(e.id)); }
 function tombstone(e, nowIso){ return {id:e.id, title:'', user:'', pass:'', url:'', notes:'', totp:null, fav:false, created:e.created, updated:nowIso, deleted:nowIso}; }
 
 /* ---------- TOTP (RFC 6238; SHA1/256/512, 6–8 Stellen, Periode) ---------- */
@@ -422,11 +428,13 @@ const App = (function(){
 
   /* ---------- persistence ---------- */
   async function persist(){
-    VAULT.entries=purgeTombstones(VAULT.entries);
-    const body=await encryptBody(VAULT, DEK, KDF);
-    const s=serializeFile(KDF, WRAP, body);
+    const dek=DEK, kdf=KDF, wrap=WRAP, vault=VAULT;          // Schlüssel-Generation pinnen (lock/changePass während des await)
+    const entries=purgeTombstones(vault.entries);              // Purge erst NACH erfolgreichem Schreiben committen
+    const body=await encryptBody(Object.assign({},vault,{entries}), dek, kdf);
+    const s=serializeFile(kdf, wrap, body);
     try{ localStorage.setItem(LS_KEY, s); }
     catch(e){ toast(tr('err.saveFailed')); throw e; }
+    if(VAULT===vault) vault.entries=entries;
   }
   function fileErrMsg(e){ const c=e&&e.message; return tr(c==='newer'?'err.fileNewer':c==='kdfbounds'?'err.fileBounds':c==='toolarge'?'err.fileLarge':c==='toomany'?'err.tooMany':'err.fileFormat'); }
 
@@ -503,6 +511,7 @@ const App = (function(){
     $('f-fav').checked=false; err('add-err'); err('cp-err'); err('lock-err'); err('setup-err');
     document.querySelectorAll('input[data-showpass]').forEach(cb=>{ cb.checked=false; cb.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(f) f.type='password'; }); });
     hide('detail-overlay'); hide('help-overlay'); hide('import-pass-box');
+    doImportVault._busy=false; const ib=$('import-btn'); if(ib){ ib.disabled=false; }
   }
 
   /* ---------- Auto-Lock: Idle + Hintergrund (unabhängig voneinander) ---------- */
@@ -515,7 +524,7 @@ const App = (function(){
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){ hiddenAt=Date.now(); if(DEK&&settings().bgLock===0){ lock(); } return; }
     const away=hiddenAt?Date.now()-hiddenAt:0; hiddenAt=0;
-    if(clipOwnedAt&&settings().clipClear>0&&Date.now()-clipOwnedAt>=settings().clipClear*1000) clearClip();
+    if(clipOwnedAt&&(clipDue||(settings().clipClear>0&&Date.now()-clipOwnedAt>=settings().clipClear*1000))) clearClip();
     if(!DEK) return;
     const s=settings();
     if((s.bgLock>0&&away>s.bgLock*1000)||(s.autolock>0&&away>s.autolock*60000)){ lock(); toast(tr('toast.autolocked')); }
@@ -523,13 +532,24 @@ const App = (function(){
   });
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
-  function fallbackCopy(text){ try{ const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); ta.value=''; ta.remove(); return ok; }catch(_){ return false; } }
-  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); const s=settings().clipClear; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
-  function clearClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } if(!clipOwnedAt) return; clipOwnedAt=0; try{ const p=navigator.clipboard&&navigator.clipboard.writeText(' '); if(p&&p.catch) p.catch(()=>{}); }catch(_){} }
+  function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
+  let clipDue=false;   // Löschen war fällig, konnte aber (Hintergrund/kein Fokus) noch nicht ausgeführt werden
+  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); clipDue=false; const s=settings().clipClear; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
+  // Besitz erst aufgeben, wenn der Write bestätigt ist. Chromium lehnt writeText ohne Fokus ab (Document is not focused),
+  // Android blockt Hintergrund-Writes → dann nur vormerken und beim Zurückkehren / nächsten Tick erneut versuchen.
+  function clearClip(){
+    if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; }
+    if(!clipOwnedAt) return; clipDue=true;
+    if(document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus())){ clipTimer=setTimeout(clearClip,1000); return; }
+    const ok=()=>{ clipOwnedAt=0; clipDue=false; };
+    const retry=()=>{ if(fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
+    let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(' '); }catch(_){ p=null; }
+    if(p&&p.then) p.then(ok,retry); else retry();
+  }
   function copyText(text, whatKey){
     if(!text) return toast(tr('copy.empty'));
     const what=tr(whatKey), s=settings().clipClear;
-    const done=()=>{ armClip(); toast(s>0?tr('copy.done',{what,s}):tr('copy.doneNoClear',{what})); };
+    const done=()=>{ if(!DEK){ clipOwnedAt=Date.now(); clearClip(); return; } armClip(); toast(s>0?tr('copy.done',{what,s}):tr('copy.doneNoClear',{what})); };
     let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(text); }catch(_){ p=null; }
     if(p&&p.then) p.then(done).catch(()=>{ fallbackCopy(text)?done():toast(tr('copy.manual')); });
     else fallbackCopy(text)?done():toast(tr('copy.manual'));
@@ -537,6 +557,7 @@ const App = (function(){
 
   /* ---------- tabs ---------- */
   function tab(name){
+    if(name!=='add'&&editId){ editId=null; resetForm(); }   // sonst überschreibt „Neu“ später still den zuletzt bearbeiteten Eintrag
     document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
     document.querySelectorAll('.tabview').forEach(v=>v.classList.toggle('hidden',v.id!=='tab-'+name));
     if(name==='gen'&&!genValue) genNew();
@@ -600,9 +621,11 @@ const App = (function(){
     const idx=editId?VAULT.entries.findIndex(e=>e.id===editId):-1; const before=idx>=0?VAULT.entries[idx]:null;
     if(before) draft.created=before.created;
     const entry=sanitizeEntry(draft); if(!entry) return err('add-err',tr('err.titleReq'));
+    if(idx<0&&liveCount(VAULT.entries)>=MAX_ENTRIES) return err('add-err',tr('err.tooMany'));
+    const snapshot=VAULT.entries.slice();
     if(idx>=0) VAULT.entries[idx]=entry; else VAULT.entries.push(entry);
     persist().then(()=>{ toast(tr('toast.saved')); editId=null; resetForm(); tab('list'); })
-      .catch(()=>{ if(idx>=0) VAULT.entries[idx]=before; else VAULT.entries=VAULT.entries.filter(e=>e.id!==entry.id); });
+      .catch(()=>{ VAULT.entries=snapshot; });
   }
   function meterForm(){ renderMeter('f-pass','f-meter'); }
 
@@ -632,10 +655,10 @@ const App = (function(){
   function closeDetail(){ stopTotp(); hide('detail-overlay'); const b=$('d-body'); b.replaceChildren(); $('d-title').textContent=''; $('d-meta').textContent=''; currentId=null; }
   function toggleReveal(){ const e=byId(currentId), v=$('d-pass'), btn=$('d-reveal'); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?e.pass:'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
   function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:e[which]; copyText(val,'what.'+which); }
-  function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), before=e; const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(()=>{ VAULT.entries[idx]=before; }); }
+  function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(()=>{ VAULT.entries=snapshot; }); }
   function deleteCurrent(){ const e=byId(currentId); if(!e) return; if(!confirm(tr('confirm.delete',{t:e.title}))) return;
-    const idx=VAULT.entries.indexOf(e), before=e; VAULT.entries[idx]=tombstone(e, nowIso());
-    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.deleted')); }).catch(()=>{ VAULT.entries[idx]=before; }); }
+    const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); VAULT.entries[idx]=tombstone(e, nowIso());
+    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.deleted')); }).catch(()=>{ VAULT.entries=snapshot; }); }
   function startTotp(t){ stopTotp(); let lastCounter=-1; const tick=async()=>{ if(!DEK) return stopTotp(); const now=Date.now(), counter=Math.floor(now/1000/t.period), rem=totpRemaining(t,now);
       if(counter!==lastCounter){ lastCounter=counter; try{ lastCode=await totpCode(t,now); }catch(_){ lastCode=''; } const c=$('d-totp'); if(c) c.textContent=lastCode?lastCode.replace(/(\d{3})(?=\d)/g,'$1 '):'—'; }
       const bar=$('d-totp-bar'); if(bar){ bar.firstChild.style.width=(rem/t.period*100)+'%'; bar.classList.toggle('low',rem<=5); } };
@@ -671,14 +694,19 @@ const App = (function(){
   function downloadFile(name, content, type){ const blob=new Blob([content],{type:type||'application/octet-stream'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
   function renderBackupMsg(){ const m=$('bk-msg'); const lb=VAULT&&VAULT.meta.lastBackup; m.textContent=lb?(LANG==='de'?'Letztes Backup: ':'Last backup: ')+fmtDate(lb):''; }
   async function exportVault(){
-    if(!VAULT) return; const before={lastBackup:VAULT.meta.lastBackup,lastBackupCount:VAULT.meta.lastBackupCount};
-    VAULT.meta.lastBackup=nowIso(); VAULT.meta.lastBackupCount=VAULT.entries.length;
-    try{ await persist(); }catch(_){ VAULT.meta=Object.assign(VAULT.meta,before); return; }
-    const raw=localStorage.getItem(LS_KEY); const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
-    try{ if(isNative){ await nativeSaveAndShare(name, raw, 'DOCUMENTS', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneNative',{n:name}); }
-         else { downloadFile(name, raw, 'application/octet-stream'); $('bk-msg').textContent=tr('bk.done',{n:name}); } }
-    catch(e){ $('bk-msg').textContent=tr('bk.failed',{e:String(e&&e.message||e)}); }
-    renderBackupHint();
+    if(!VAULT||exportVault._busy) return; exportVault._busy=true;
+    try{
+      const raw=localStorage.getItem(LS_KEY); const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
+      // Erst die Datei schreiben — der Backup-Stempel darf nur nach Erfolg gesetzt werden
+      try{ if(isNative){ await nativeSaveAndShare(name, raw, 'DOCUMENTS', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneNative',{n:name}); }
+           else { downloadFile(name, raw, 'application/octet-stream'); $('bk-msg').textContent=tr('bk.done',{n:name}); } }
+      catch(e){ $('bk-msg').textContent=tr('bk.failed',{e:String(e&&e.message||e)}); return; }
+      if(!VAULT) return;
+      const before={lastBackup:VAULT.meta.lastBackup,lastBackupCount:VAULT.meta.lastBackupCount};
+      VAULT.meta.lastBackup=nowIso(); VAULT.meta.lastBackupCount=VAULT.entries.length;
+      try{ await persist(); }catch(_){ if(VAULT) Object.assign(VAULT.meta,before); }
+      renderBackupHint();
+    }finally{ exportVault._busy=false; }
   }
   function pickFile(id){ const n=$(id); if(n) n.click(); }
   function importVault(ev){
@@ -694,15 +722,17 @@ const App = (function(){
     if(doImportVault._busy||!pendingImport||!VAULT) return; const f=pendingImport;
     if(f.kdf.m>KDF_CONFIRM_M && !confirm(tr('confirm.bigKdf',{m:Math.round(f.kdf.m/1024)}))) return;
     const btn=$('import-btn'), orig=btn.textContent; doImportVault._busy=true; btn.disabled=true; btn.textContent=tr('busy.decrypting');
-    let incoming;
-    try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); incoming=sanitizeVault(obj).entries; }
-    catch(e){ $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); doImportVault._busy=false; btn.disabled=false; btn.textContent=orig; return; }
-    const before=VAULT.entries.slice(); const m=mergeEntries(VAULT.entries, incoming);
-    if(m.entries.length>MAX_ENTRIES){ $('import-msg').textContent=tr('err.tooMany'); doImportVault._busy=false; btn.disabled=false; btn.textContent=orig; return; }
-    VAULT.entries=m.entries;
-    try{ await persist(); $('import-msg').textContent=tr('bk.merged',{a:m.added,u:m.updated,d:m.deleted}); cancelImport(); renderList(); }
-    catch(_){ VAULT.entries=before; }
-    finally{ doImportVault._busy=false; btn.disabled=false; btn.textContent=orig; }
+    try{
+      let incoming;
+      try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); incoming=sanitizeVault(obj).entries; }
+      catch(e){ if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
+      if(!VAULT||!DEK) return;                                   // während des Argon2-Laufs gesperrt → sauber abbrechen
+      const before=VAULT.entries.slice(); const m=mergeEntries(VAULT.entries, incoming);
+      if(liveCount(m.entries)>MAX_ENTRIES){ $('import-msg').textContent=tr('err.tooMany'); return; }
+      VAULT.entries=m.entries;
+      try{ await persist(); if(!VAULT) return; $('import-msg').textContent=tr('bk.merged',{a:m.added,u:m.updated,d:m.deleted,t:m.tombstonesIn}); cancelImport(); renderList(); }
+      catch(_){ if(VAULT) VAULT.entries=before; }
+    }finally{ doImportVault._busy=false; btn.disabled=false; btn.textContent=orig; }
   }
   function importCsv(ev){
     const f=ev&&ev.target&&ev.target.files&&ev.target.files[0]; if(!f||!VAULT) return; const input=ev.target; $('csv-msg').textContent='';
@@ -715,7 +745,7 @@ const App = (function(){
       const now=Date.now(); const existing=new Set(live().map(e=>e.title+'\u0000'+e.user+'\u0000'+e.pass));
       const added=[]; let skipped=0, bad=0;
       for(const row of rows.slice(1)){ const e=csvRowToEntry(map,row,now); if(!e){ bad++; continue; } const key=e.title+'\u0000'+e.user+'\u0000'+e.pass; if(existing.has(key)){ skipped++; continue; } existing.add(key); added.push(e); }
-      if(VAULT.entries.length+added.length>MAX_ENTRIES){ $('csv-msg').textContent=tr('err.tooMany'); return; }
+      if(liveCount(VAULT.entries)+added.length>MAX_ENTRIES){ $('csv-msg').textContent=tr('err.tooMany'); return; }
       const before=VAULT.entries.slice(); VAULT.entries=VAULT.entries.concat(added);
       persist().then(()=>{ $('csv-msg').textContent=tr('csv.done',{n:added.length,f:tr('fmt.'+map.fmt),s:skipped,b:bad}); renderList(); })
         .catch(()=>{ VAULT.entries=before; }); };
@@ -728,7 +758,7 @@ const App = (function(){
     $('about-line').textContent=tr('about',{v:APP_VERSION,m:Math.round(KDF.m/1024),t:KDF.t,p:KDF.p}); }
   function setSetting(key, v){ if(!VAULT) return; const n=Number(v); if(!SETTINGS_ALLOWED[key].includes(n)) return; const before=VAULT.settings[key]; VAULT.settings[key]=n; persist().then(()=>{ resetIdle(); }).catch(()=>{ VAULT.settings[key]=before; renderSettings(); }); }
   const setAutolock=v=>setSetting('autolock',v), setBgLock=v=>setSetting('bgLock',v), setClipClear=v=>setSetting('clipClear',v);
-  function theme(t){ if(t==='soft'){ document.documentElement.setAttribute('data-theme','soft'); localStorage.setItem('alien-theme','soft'); } else { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('alien-theme','dark'); } renderSettings(); }
+  function theme(t){ try{ if(t==='soft'){ document.documentElement.setAttribute('data-theme','soft'); localStorage.setItem('alien-theme','soft'); } else { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('alien-theme','dark'); } }catch(_){} renderSettings(); }
   async function changePass(){
     if(changePass._busy||!VAULT) return; err('cp-err');
     const cur=$('cp-cur').value, p1=$('cp1').value, p2=$('cp2').value;
@@ -742,6 +772,7 @@ const App = (function(){
       const kdf={m:KDF.m,t:KDF.t,p:KDF.p,salt:rand(16)};
       const kNew=await deriveKek(passBytes(p1), kdf);
       const dekX=await newDek(); const wrap=await wrapDek(dekX,kNew,kdf); const dek=await unwrapDek(wrap,kNew,kdf,false);   // DEK-Rotation
+      if(!VAULT||!DEK) return;                                   // zwischenzeitlich gesperrt → nichts wiederbeleben
       DEK=dek; KDF=kdf; WRAP=wrap;
       try{ await persist(); }catch(_){ DEK=old.DEK; KDF=old.KDF; WRAP=old.WRAP; return; }
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr('toast.passChanged')); renderSettings();

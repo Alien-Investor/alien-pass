@@ -9,11 +9,11 @@ repository: https://codeberg.org/Alien-Investor/alien-pass
 pubkey: npub1cnlymdm5jz8eayycwynhze4s2zh9n0y04atce8ahxl5qfkptplls0s40hp
 
 name: Alien Pass
-summary: Offline password manager — Argon2id + AES-256-GCM, zero permissions, no cloud.
+summary: Offline password manager — Argon2id + AES-256-GCM, no Android permissions, no cloud.
 
 description: |
   Alien Pass is a local, encrypted password manager. It runs fully offline — no cloud,
-  no server, no account, no telemetry. The app requests not a single Android permission,
+  no server, no account, no telemetry. The app requests no Android permission at all,
   not even INTERNET. Your passwords never leave the device in plaintext.
 
   Features:
@@ -21,13 +21,14 @@ description: |
   - Argon2id key derivation (32/64/128 MiB, self-benchmarked at setup) + AES-256-GCM via WebCrypto;
     a random data key is wrapped by your passphrase, file header authenticated (AAD)
   - Auto-lock after inactivity and in the background (immediately up to 5 min)
-  - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app and on lock
+  - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app (once due) and on lock
   - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown
   - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time
-  - Password health: reused, short and old passwords flagged — computed locally
+  - Password health: reused and short passwords and long-unchanged entries flagged — computed locally
   - Encrypted .vault backup and merge between devices (newer change wins, deletions carried for a year)
   - CSV import from Proton Pass, KeePassXC and Bitwarden
-  - NO permissions at all, FLAG_SECURE (no screenshots / recents preview), allowBackup=false
+  - No Android permissions (the APK carries only the AndroidX-generated signature permission that grants nothing),
+    FLAG_SECURE (no screenshots / recents preview), allowBackup=false + data extraction rules (no cloud, adb or D2D backup)
   - Strict CSP: connect-src 'none', no inline script; bundled Argon2 (hash-wasm) hash-checked in the build
   - German / English, offline in-app manual, open source (MIT)
 

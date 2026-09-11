@@ -214,7 +214,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
   <div id="screen-app" class="hidden">
     <div class="tabs">
       <button class="tab active" data-tab="list" data-action="tab" data-arg="list" data-i18n="tab.list">Einträge</button>
-      <button class="tab" data-tab="add" data-action="tab" data-arg="add" data-i18n="tab.add">Neu</button>
+      <button class="tab" data-tab="add" data-action="newEntry" data-i18n="tab.add">Neu</button>
       <button class="tab" data-tab="gen" data-action="tab" data-arg="gen" data-i18n="tab.gen">Generator</button>
       <button class="tab" data-tab="backup" data-action="tab" data-arg="backup" data-i18n="tab.backup">Sicherung</button>
       <button class="tab" data-tab="settings" data-action="tab" data-arg="settings" data-i18n="tab.settings">Einstellungen</button>
@@ -238,7 +238,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
       <div class="card">
         <h2 id="add-title" data-i18n="add.titleNew">Neuer Eintrag</h2>
         <label data-i18n="f.title">Titel *</label>
-        <input id="f-title" type="text" maxlength="200" autocomplete="off" placeholder="z.B. Proton Mail" data-i18n-ph="f.titlePh">
+        <input id="f-title" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z.B. Proton Mail" data-i18n-ph="f.titlePh">
         <label data-i18n="f.user">Nutzername / E-Mail</label>
         <input id="f-user" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false">
         <label data-i18n="f.pass">Passwort</label>
@@ -253,7 +253,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         <label data-i18n="f.totp">TOTP-Schlüssel (optional)</label>
         <input id="f-totp" type="text" maxlength="500" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Base32-Schlüssel oder otpauth://-Link" data-i18n-ph="f.totpPh">
         <label data-i18n="f.notes">Notizen</label>
-        <textarea id="f-notes" maxlength="10000" autocomplete="off"></textarea>
+        <textarea id="f-notes" maxlength="10000" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
         <label class="chk" style="margin-top:10px"><input type="checkbox" id="f-fav"> <span data-i18n="f.fav">Favorit (oben in der Liste)</span></label>
         <div id="add-err" class="warn hidden" style="margin-top:10px"></div>
         <div class="row" style="margin-top:14px">
@@ -361,9 +361,9 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
           <option value="15" data-i18n="set.c15">15 Sekunden</option>
           <option value="30" data-i18n="set.c30">30 Sekunden</option>
           <option value="60" data-i18n="set.c60">1 Minute</option>
-          <option value="0" data-i18n="set.cOff">nie (nicht empfohlen)</option>
+          <option value="0" data-i18n="set.cOff">nur beim Sperren (nicht empfohlen)</option>
         </select>
-        <p class="muted" style="margin-top:8px" data-i18n="set.clipNote">Hinweis: Android zeigt beim Kopieren eine System-Vorschau der Zwischenablage und leert sie spätestens nach einer Stunde selbst. Die App leert sie zusätzlich nach der eingestellten Zeit, beim Zurückkehren in die App und beim Sperren.</p>
+        <p class="muted" style="margin-top:8px" data-i18n="set.clipNote">Hinweis: Android zeigt beim Kopieren eine System-Vorschau der Zwischenablage und leert sie spätestens nach einer Stunde selbst. Die App leert sie zusätzlich nach der eingestellten Zeit, beim Zurückkehren in die App (sobald die Zeit abgelaufen ist) und beim Sperren — im Hintergrund kann sie nicht auf die Zwischenablage zugreifen.</p>
         <div style="margin-top:14px">
           <button class="btn ghost" data-action="lock"><svg class="ic" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> <span data-i18n="set.lockNow">Jetzt sperren</span></button>
         </div>
@@ -461,7 +461,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     </ul>
 
     <h2 data-i18n="help.h6">Passwort-Gesundheit</h2>
-    <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter, <strong>kurze</strong> (unter 12 Zeichen) und <strong>alte</strong> (über zwei Jahre unverändert). Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
+    <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter, <strong>kurze</strong> (unter 12 Zeichen) und Einträge, die <strong>seit über zwei Jahren unverändert</strong> sind (jede Bearbeitung setzt diese Uhr zurück). Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
 
     <h2 data-i18n="help.h7">Backup &amp; Sync</h2>
     <ul data-i18n-html="help.l7">
@@ -484,7 +484,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     <ul data-i18n-html="help.l9">
       <li><strong>Schlüsselableitung:</strong> Argon2id (Standard 64 MiB, 3 Durchgänge) aus deiner Passphrase — memory-hard, also teuer für GPU-Angriffe auf eine gestohlene Datei.</li>
       <li><strong>Verschlüsselung:</strong> AES-256-GCM (WebCrypto). Ein zufälliger Datenschlüssel verschlüsselt den Tresor; die Passphrase verpackt nur diesen Schlüssel. Die Kopfdaten der Datei sind mitauthentisiert — Manipulation fällt auf.</li>
-      <li><strong>Gerät:</strong> Die Android-App hat keine einzige Berechtigung (auch kein Internet), verbietet Screenshots und App-Switcher-Vorschau (FLAG_SECURE) und schließt sich von System-Backups aus.</li>
+      <li><strong>Gerät:</strong> Die Android-App fordert keine Android-Berechtigung an (kein Internet, kein Speicher, keine Sensoren — die APK trägt nur die von AndroidX erzeugte Signatur-Permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, die nichts freigibt), verbietet Screenshots und App-Switcher-Vorschau (FLAG_SECURE) und schließt sich per Backup-Regeln von Cloud-, ADB- und Gerät-zu-Gerät-Backups aus.</li>
       <li><strong>Sperre:</strong> nach Inaktivität, im Hintergrund nach wählbarer Zeit (oder sofort), und manuell. Beim Sperren werden Schlüssel und alle Anzeigen aus dem Speicher entfernt.</li>
       <li><strong>Fremdcode:</strong> nur die Argon2-Bibliothek hash-wasm (MIT) und die EFF-Wortliste, beide gebündelt und per Hash im Build geprüft. Kein CDN, kein Tracker.</li>
       <li><strong>Grenzen:</strong> kein Autofill, keine Biometrie (v1), keine Leak-Prüfung. Eine Passphrase kann nicht wiederhergestellt werden.</li>
