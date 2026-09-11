@@ -1,0 +1,8 @@
+{
+  "appId": "org.alieninvestor.pass",
+  "appName": "Alien Pass",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

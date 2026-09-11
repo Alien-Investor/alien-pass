@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alien Pass — Offline-Passwort-Manager</title>
+<meta name="description" content="Alien Pass: lokaler, verschlüsselter Passwort-Manager. Läuft komplett offline auf deinem Gerät — keine Cloud, kein Server, keine Telemetrie.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#000000">
+<!-- CSP: blockiert jede Netz-Verbindung (connect-src 'none'), fremde Quellen UND Inline-Script (kein 'unsafe-inline'
+     in script-src — alle Handler laufen über Event-Delegation in app.js).
+     'wasm-unsafe-eval' ist die EINZIGE Erweiterung gegenüber dem Sachwert-Tresor: Chromium verlangt den Token für jede
+     WebAssembly-Kompilierung, auch aus eingebettetem Base64 (Argon2id aus vendor/hash-wasm). Er erlaubt ausschließlich
+     WASM-Kompilierung — kein String-Eval, kein Inline-Script. Netz bleibt zu (connect-src 'none' + APK ohne INTERNET). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<script src="vendor/hash-wasm/argon2.umd.min.js"></script>
+<script src="vendor/eff/eff-wordlist.js"></script>
+<script src="app.js"></script>
+<link href="vendor/fonts/fonts.css" rel="stylesheet">
+<style>
+:root{
+  --neon:#00ffcc; --neon-dim:rgba(0,255,204,.15); --neon-mid:rgba(0,255,204,.4);
+  --red:#ff4466; --red-dim:rgba(255,68,102,.15);
+  --yellow:#ffcc44; --orange:#ff8844;
+  --bg:#000; --card-bg:#050f0d; --border:rgba(0,255,204,.2);
+  --text-dim:#4a7a6d; --text-mid:#7ab8a8;
+}
+[data-theme="soft"]{
+  --neon:#00c8a0; --neon-dim:rgba(0,200,160,.15); --neon-mid:rgba(0,200,160,.35);
+  --bg:#0d1a2b; --card-bg:#0f2535; --border:rgba(0,200,160,.18);
+  --text-dim:#5d8f82; --text-mid:#8ac8b8; --red:#e03355; --red-dim:rgba(224,51,85,.15);
+}
+[data-theme="soft"] body::after{opacity:.35;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--neon);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;position:relative;}
+body::before{content:'';position:fixed;inset:0;background-image:
+ radial-gradient(1px 1px at 10% 15%,rgba(0,255,204,.4) 0%,transparent 100%),
+ radial-gradient(1px 1px at 30% 40%,rgba(0,255,204,.25) 0%,transparent 100%),
+ radial-gradient(1px 1px at 55% 20%,rgba(0,255,204,.35) 0%,transparent 100%),
+ radial-gradient(1px 1px at 70% 60%,rgba(0,255,204,.2) 0%,transparent 100%),
+ radial-gradient(1px 1px at 85% 30%,rgba(0,255,204,.3) 0%,transparent 100%),
+ radial-gradient(1px 1px at 20% 75%,rgba(0,255,204,.2) 0%,transparent 100%),
+ radial-gradient(1px 1px at 45% 85%,rgba(0,255,204,.3) 0%,transparent 100%),
+ radial-gradient(1px 1px at 90% 80%,rgba(0,255,204,.25) 0%,transparent 100%);
+ pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);pointer-events:none;z-index:1;}
+.container{position:relative;z-index:2;max-width:900px;margin:0 auto;padding:24px 16px 60px;}
+
+/* HEADER */
+.app-head{text-align:center;position:relative;margin-bottom:24px;}
+.header-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:100px;background:radial-gradient(ellipse,rgba(0,255,204,.08) 0%,transparent 70%);pointer-events:none;}
+.logo{font-family:'Orbitron',sans-serif;font-size:clamp(1.3rem,4vw,1.9rem);font-weight:900;letter-spacing:4px;text-transform:uppercase;color:var(--neon);text-shadow:0 0 20px rgba(0,255,204,.7),0 0 40px rgba(0,255,204,.3);}
+.app-head .logo{padding:0 52px;min-height:36px;display:flex;align-items:center;justify-content:center;text-align:center;}
+@media(max-width:520px){.app-head .logo{letter-spacing:2px;font-size:clamp(1rem,4.4vw,1.5rem);}}
+.tagline{font-size:.72rem;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-top:6px;}
+
+/* CARDS / GENERIC */
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:18px;margin-bottom:16px;}
+.card p,.card li,.card code,.help-inner p,.help-inner li,.help-inner code{overflow-wrap:break-word;}
+.card h2{font-family:'Orbitron',sans-serif;font-size:.85rem;letter-spacing:2px;text-transform:uppercase;color:var(--neon);margin-bottom:14px;font-weight:700;}
+label{display:block;font-size:.72rem;letter-spacing:1px;color:var(--text-mid);margin:10px 0 4px;text-transform:uppercase;}
+label.chk{display:flex;gap:6px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-size:.8rem;}
+label.chk input{width:auto;}
+input,select,textarea{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:3px;color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:.9rem;padding:9px 10px;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--neon-mid);box-shadow:0 0 8px rgba(0,255,204,.25);}
+textarea{min-height:80px;resize:vertical;}
+select option{background:#06120f;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--neon-dim);border:1px solid var(--neon-mid);border-radius:4px;color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:2px;padding:10px 18px;cursor:pointer;text-transform:uppercase;transition:all .2s;text-decoration:none;}
+.btn:hover{background:rgba(0,255,204,.2);box-shadow:0 0 14px rgba(0,255,204,.4);}
+.btn:disabled{opacity:.5;cursor:default;box-shadow:none;}
+.btn.ghost{background:none;border-color:var(--border);color:var(--text-mid);}
+.btn.ghost:hover{border-color:var(--neon-mid);color:var(--neon);box-shadow:none;}
+.btn.danger{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.btn.danger:hover{box-shadow:0 0 14px rgba(255,68,102,.4);}
+.btn.sm{padding:6px 10px;font-size:.68rem;}
+.btn.icon{padding:6px 8px;letter-spacing:0;}
+.row{display:flex;gap:12px;flex-wrap:wrap;}
+.row>*{flex:1;min-width:120px;}
+.muted{color:var(--text-dim);font-size:.78rem;line-height:1.5;}
+.warn{border:1px solid rgba(255,136,68,.4);border-radius:4px;background:rgba(255,136,68,.06);padding:12px;color:var(--orange);font-size:.78rem;line-height:1.5;}
+.ok{border:1px solid var(--neon-mid);border-radius:4px;background:var(--neon-dim);padding:12px;color:var(--neon);font-size:.78rem;line-height:1.5;}
+.hidden{display:none!important;}
+.center{text-align:center;}
+a{color:var(--neon);}
+
+/* LOCK / SETUP SCREEN */
+.gate{max-width:440px;margin:6vh auto 0;}
+.gate .card{padding:26px;}
+.meter{margin-top:4px;font-size:.78rem;}
+
+/* TABS */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;justify-content:center;}
+.tab{background:none;border:1px solid var(--border);border-radius:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:.74rem;letter-spacing:2px;padding:8px 14px;cursor:pointer;text-transform:uppercase;transition:all .2s;}
+.tab:hover{color:var(--text-mid);border-color:var(--neon-mid);}
+.tab.active{color:var(--neon);background:var(--neon-dim);border-color:var(--neon-mid);}
+
+/* ENTRY LIST */
+.search-row{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
+.search-row input{flex:1;}
+.health{font-size:.76rem;letter-spacing:1px;margin-bottom:12px;color:var(--text-mid);}
+.health.bad{color:var(--orange);}
+.entry{display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.entry:hover{background:var(--neon-dim);}
+.entry .av{width:36px;height:36px;border-radius:50%;border:1px solid var(--neon-mid);display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-weight:700;font-size:.9rem;color:var(--neon);background:rgba(0,0,0,.4);flex-shrink:0;}
+.entry .main{flex:1;min-width:0;}
+.entry .t{font-family:'Orbitron',sans-serif;font-size:.8rem;letter-spacing:1px;color:var(--neon);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.entry .u{font-size:.76rem;color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px;}
+.entry .badges{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;max-width:40%;}
+.pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:.62rem;letter-spacing:1px;text-transform:uppercase;border:1px solid;white-space:nowrap;}
+.pill.fav{color:var(--yellow);border-color:rgba(255,204,68,.5);}
+.pill.totp{color:var(--neon);border-color:var(--neon-mid);}
+.pill.bad{color:var(--orange);border-color:rgba(255,136,68,.5);}
+.empty{text-align:center;color:var(--text-dim);padding:30px 10px;font-size:.82rem;line-height:1.6;}
+
+/* DETAIL */
+.kv{padding:10px 0;border-bottom:1px solid var(--border);}
+.kv .k{font-size:.66rem;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;}
+.kv .vrow{display:flex;gap:8px;align-items:flex-start;}
+.kv .v{flex:1;min-width:0;font-size:.92rem;color:var(--neon);overflow-wrap:anywhere;white-space:pre-wrap;line-height:1.5;}
+.kv .v.secret{font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
+.kv .v.masked{letter-spacing:3px;color:var(--text-mid);}
+.totp-box{font-family:'Orbitron',sans-serif;font-size:1.5rem;letter-spacing:5px;color:var(--neon);padding:8px 0 4px;}
+.totp-bar{height:3px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden;margin-top:6px;}
+.totp-bar i{display:block;height:100%;background:var(--neon);box-shadow:0 0 8px var(--neon);transition:width 1s linear;}
+.totp-bar.low i{background:var(--orange);box-shadow:0 0 8px var(--orange);}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;}
+
+/* GENERATOR */
+.gen-out{font-family:'Share Tech Mono',monospace;font-size:1.05rem;color:var(--neon);background:rgba(0,0,0,.4);border:1px dashed var(--neon-mid);border-radius:4px;padding:14px;overflow-wrap:anywhere;line-height:1.5;min-height:3.2em;user-select:all;}
+.gen-ent{font-size:.74rem;color:var(--text-mid);margin-top:6px;letter-spacing:1px;}
+input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
+.chk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 12px;margin-top:6px;}
+.seg{display:flex;gap:8px;margin-bottom:12px;}
+.seg button{flex:1;background:none;border:1px solid var(--border);color:var(--text-dim);padding:8px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:.74rem;letter-spacing:1px;text-transform:uppercase;}
+.seg button.on{color:var(--neon);background:var(--neon-dim);border-color:var(--neon-mid);}
+
+/* MISC */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--neon-mid);color:var(--neon);padding:10px 18px;border-radius:4px;z-index:200;font-size:.8rem;letter-spacing:1px;box-shadow:0 0 20px rgba(0,255,204,.3);max-width:92vw;text-align:center;}
+.help-btn{position:absolute;top:0;right:0;width:36px;height:36px;border:1px solid var(--neon-mid);border-radius:50%;background:var(--neon-dim);color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.05rem;cursor:pointer;z-index:5;display:flex;align-items:center;justify-content:center;}
+.lang-btn{position:absolute;top:0;left:0;height:36px;padding:0 10px;border:1px solid var(--neon-mid);border-radius:18px;background:var(--neon-dim);color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:.7rem;letter-spacing:1px;cursor:pointer;z-index:5;}
+.lang-btn:hover,.help-btn:hover{box-shadow:0 0 12px rgba(0,255,204,.45);}
+.help-overlay{position:fixed;inset:0;background:rgba(0,8,6,.975);z-index:100;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.help-inner{max-width:760px;margin:0 auto;padding:0 18px 60px;}
+.help-head{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:rgba(0,8,6,.99);padding:16px 0 12px;border-bottom:1px solid var(--neon-dim);margin-bottom:6px;z-index:2;}
+.help-head .logo{font-size:1.05rem;overflow-wrap:anywhere;text-align:left;}
+.help-inner h2{font-family:'Orbitron',sans-serif;color:var(--neon);font-size:.92rem;letter-spacing:2px;margin:24px 0 8px;text-transform:uppercase;}
+.help-inner p{font-size:.86rem;line-height:1.65;color:var(--text-mid);margin:6px 0;}
+.help-inner ul{margin:6px 0 6px 18px;}
+.help-inner li{font-size:.86rem;line-height:1.6;color:var(--text-mid);margin:4px 0;}
+.help-inner strong{color:var(--neon);}
+.help-inner code{background:rgba(0,255,204,.1);padding:1px 5px;border-radius:3px;font-size:.82rem;}
+.help-inner .warn{color:#ffcc66;}
+.foot{text-align:center;color:var(--text-dim);font-size:.7rem;letter-spacing:1px;margin-top:30px;line-height:1.7;}
+.ic{width:1.1em;height:1.1em;vertical-align:-0.18em;display:inline-block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(0,255,204,.45));}
+.lockicon{display:flex;justify-content:center;margin-bottom:10px;}
+.lockicon .ic{width:2.6rem;height:2.6rem;stroke-width:1.3;color:var(--neon);filter:drop-shadow(0 0 10px rgba(0,255,204,.6));}
+.btn .ic{stroke-width:1.9;}
+@media (max-width:560px){
+  .row{flex-direction:column;}
+  .row>*{min-width:0;width:100%;}
+  .entry .badges{max-width:50%;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="app-head">
+    <div class="header-glow"></div>
+    <button class="help-btn" data-action="openHelp" title="Handbuch" aria-label="Hilfe / Handbuch">?</button>
+    <button class="lang-btn" id="lang-btn" data-action="toggleLang" title="Sprache / Language">DE</button>
+    <div class="logo">Alien Pass</div>
+    <div class="tagline" data-i18n="tagline">Passwörter · lokal &amp; verschlüsselt · offline</div>
+  </div>
+
+  <!-- ===================== SETUP ===================== -->
+  <div id="screen-setup" class="gate hidden">
+    <div class="card">
+      <div class="lockicon"><svg class="ic" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4.5"/><path d="M12.5 12H21"/><path d="M18 12v3"/><path d="M15 12v2.2"/></svg></div>
+      <h2 data-i18n="setup.title">Tresor einrichten</h2>
+      <p class="muted" data-i18n-html="setup.intro">Vergib eine starke Passphrase. Sie verschlüsselt alle Passwörter direkt auf diesem Gerät (Argon2id + AES-256-GCM). <strong>Es gibt kein Backdoor und kein Reset</strong> — vergisst du die Passphrase, sind die Daten weg.</p>
+      <label data-i18n="lbl.passphrase">Passphrase</label>
+      <input id="setup-pass1" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false" placeholder="mind. 12 Zeichen, besser eine Wortfolge" data-i18n-ph="setup.ph1" data-input="meterSetup">
+      <div id="setup-meter" class="meter"></div>
+      <label data-i18n="setup.repeat">Passphrase wiederholen</label>
+      <input id="setup-pass2" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false" data-enter="doSetup">
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="setup-show" data-showpass="setup-pass1,setup-pass2"> <span data-i18n="setup.showpass">Passphrase anzeigen (zum Kontrollieren)</span></label>
+      <button class="btn ghost sm" style="margin-top:10px" data-action="suggestPass" data-i18n="setup.suggest">Passphrase vorschlagen (6 Würfelwörter)</button>
+      <label style="margin-top:14px" data-i18n="setup.kdf">Schlüsselableitung (Argon2id)</label>
+      <select id="setup-kdf">
+        <option value="32768" data-i18n="setup.kdfLight">Leicht — 32 MiB (ältere Geräte)</option>
+        <option value="65536" selected data-i18n="setup.kdfStd">Standard — 64 MiB</option>
+        <option value="131072" data-i18n="setup.kdfStrong">Stark — 128 MiB</option>
+      </select>
+      <div id="setup-bench" class="muted" style="margin-top:6px"></div>
+      <div id="setup-err" class="warn hidden" style="margin-top:12px"></div>
+      <button id="setup-btn" class="btn" style="margin-top:16px;width:100%" data-action="doSetup" data-i18n="setup.create">Tresor erstellen</button>
+    </div>
+  </div>
+
+  <!-- ===================== LOCK ===================== -->
+  <div id="screen-lock" class="gate hidden">
+    <div class="card">
+      <div class="lockicon"><svg class="ic" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="14.5" r="1.3"/><path d="M12 15.8v1.6"/></svg></div>
+      <h2 data-i18n="lock.title">Tresor entsperren</h2>
+      <label data-i18n="lbl.passphrase">Passphrase</label>
+      <input id="lock-pass" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" data-enter="doUnlock">
+      <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="lock-pass"> <span data-i18n="lock.showpass">Passphrase anzeigen</span></label>
+      <div id="lock-err" class="warn hidden" style="margin-top:12px"></div>
+      <button id="unlock-btn" class="btn" style="margin-top:16px;width:100%" data-action="doUnlock" data-i18n="lock.unlock">Entsperren</button>
+    </div>
+  </div>
+
+  <!-- ===================== APP ===================== -->
+  <div id="screen-app" class="hidden">
+    <div class="tabs">
+      <button class="tab active" data-tab="list" data-action="tab" data-arg="list" data-i18n="tab.list">Einträge</button>
+      <button class="tab" data-tab="add" data-action="tab" data-arg="add" data-i18n="tab.add">Neu</button>
+      <button class="tab" data-tab="gen" data-action="tab" data-arg="gen" data-i18n="tab.gen">Generator</button>
+      <button class="tab" data-tab="backup" data-action="tab" data-arg="backup" data-i18n="tab.backup">Sicherung</button>
+      <button class="tab" data-tab="settings" data-action="tab" data-arg="settings" data-i18n="tab.settings">Einstellungen</button>
+    </div>
+
+    <!-- LIST -->
+    <div id="tab-list" class="tabview">
+      <div class="card">
+        <div class="search-row">
+          <input id="search" type="search" placeholder="Suchen (Titel, Nutzer, URL)…" data-i18n-ph="list.search" data-input="renderList" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <button class="btn sm" data-action="newEntry" title="Neuer Eintrag">+</button>
+        </div>
+        <div id="health" class="health"></div>
+        <div id="backup-hint"></div>
+        <div id="entry-list"></div>
+      </div>
+    </div>
+
+    <!-- ADD / EDIT -->
+    <div id="tab-add" class="tabview hidden">
+      <div class="card">
+        <h2 id="add-title" data-i18n="add.titleNew">Neuer Eintrag</h2>
+        <label data-i18n="f.title">Titel *</label>
+        <input id="f-title" type="text" maxlength="200" autocomplete="off" placeholder="z.B. Proton Mail" data-i18n-ph="f.titlePh">
+        <label data-i18n="f.user">Nutzername / E-Mail</label>
+        <input id="f-user" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <label data-i18n="f.pass">Passwort</label>
+        <div style="display:flex;gap:8px">
+          <input id="f-pass" type="password" maxlength="1000" autocomplete="off" autocapitalize="none" spellcheck="false" style="flex:1">
+          <button class="btn sm ghost" data-action="genIntoForm" title="Generieren" data-i18n="f.gen">Generieren</button>
+        </div>
+        <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-pass"> <span data-i18n="f.showpass">Passwort anzeigen</span></label>
+        <div id="f-meter" class="meter"></div>
+        <label data-i18n="f.url">URL / App</label>
+        <input id="f-url" type="text" maxlength="2000" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://…" >
+        <label data-i18n="f.totp">TOTP-Schlüssel (optional)</label>
+        <input id="f-totp" type="text" maxlength="500" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Base32-Schlüssel oder otpauth://-Link" data-i18n-ph="f.totpPh">
+        <label data-i18n="f.notes">Notizen</label>
+        <textarea id="f-notes" maxlength="10000" autocomplete="off"></textarea>
+        <label class="chk" style="margin-top:10px"><input type="checkbox" id="f-fav"> <span data-i18n="f.fav">Favorit (oben in der Liste)</span></label>
+        <div id="add-err" class="warn hidden" style="margin-top:10px"></div>
+        <div class="row" style="margin-top:14px">
+          <button id="add-btn" class="btn" data-action="saveEntry" data-i18n="add.save">Speichern</button>
+          <button class="btn ghost" data-action="cancelEdit" data-i18n="btn.cancel">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GENERATOR -->
+    <div id="tab-gen" class="tabview hidden">
+      <div class="card">
+        <h2 data-i18n="gen.title">Passwort-Generator</h2>
+        <div class="seg">
+          <button id="gm-chars" class="on" data-action="setGenMode" data-arg="chars" data-i18n="gen.modeChars">Zeichen</button>
+          <button id="gm-words" data-action="setGenMode" data-arg="words" data-i18n="gen.modeWords">Würfelwörter</button>
+        </div>
+        <div id="gen-out" class="gen-out"></div>
+        <div id="gen-ent" class="gen-ent"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" data-action="genNew" data-i18n="gen.new">Neu erzeugen</button>
+          <button class="btn ghost" data-action="genCopy" data-i18n="gen.copy">Kopieren</button>
+          <button class="btn ghost" id="gen-use" data-action="genUse" data-i18n="gen.use">In Formular übernehmen</button>
+        </div>
+        <div id="gen-chars-opts">
+          <label><span data-i18n="gen.len">Länge</span>: <span id="gen-len-v">20</span></label>
+          <input id="gen-len" type="range" min="8" max="64" value="20" data-input="genNew">
+          <div class="chk-grid">
+            <label class="chk"><input type="checkbox" id="gen-upper" checked data-change="genNew"> A–Z</label>
+            <label class="chk"><input type="checkbox" id="gen-lower" checked data-change="genNew"> a–z</label>
+            <label class="chk"><input type="checkbox" id="gen-digits" checked data-change="genNew"> 0–9</label>
+            <label class="chk"><input type="checkbox" id="gen-symbols" checked data-change="genNew"> !@#$%…</label>
+            <label class="chk"><input type="checkbox" id="gen-noamb" data-change="genNew"> <span data-i18n="gen.noamb">ohne l/1/I/O/0</span></label>
+          </div>
+        </div>
+        <div id="gen-words-opts" class="hidden">
+          <label><span data-i18n="gen.words">Wörter</span>: <span id="gen-wc-v">6</span></label>
+          <input id="gen-wc" type="range" min="4" max="10" value="6" data-input="genNew">
+          <div class="chk-grid">
+            <label class="chk"><span data-i18n="gen.sep">Trenner</span>
+              <select id="gen-sep" style="width:auto;padding:4px 8px" data-change="genNew"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
+            </label>
+            <label class="chk"><input type="checkbox" id="gen-cap" data-change="genNew"> <span data-i18n="gen.cap">Großschreibung</span></label>
+            <label class="chk"><input type="checkbox" id="gen-num" data-change="genNew"> <span data-i18n="gen.num">+ Ziffer</span></label>
+          </div>
+          <p class="muted" style="margin-top:8px" data-i18n="gen.effNote">Wortliste: EFF Large Wordlist (7.776 Wörter, ~12,9 Bit je Wort). Sechs Wörter ≈ 77 Bit.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- BACKUP / IMPORT -->
+    <div id="tab-backup" class="tabview hidden">
+      <div class="card">
+        <h2 data-i18n="bk.title">Verschlüsseltes Backup</h2>
+        <p class="muted" data-i18n-html="bk.intro">Die <code>.vault</code>-Datei enthält den kompletten Tresor <strong>verschlüsselt</strong> (Argon2id + AES-256-GCM) — sie lässt sich nur mit der Passphrase öffnen. Für den Sync zwischen Geräten z.B. über Syncthing; nie unverschlüsselt exportiert.</p>
+        <button class="btn" style="margin-top:8px" data-action="exportVault"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 11.5l4 4 4-4"/><path d="M5 19.5h14"/></svg> <span data-i18n="bk.export">Backup erstellen (.vault)</span></button>
+        <p id="bk-msg" class="muted" style="margin-top:10px"></p>
+      </div>
+      <div class="card">
+        <h2 data-i18n="bk.importTitle">Backup importieren (zusammenführen)</h2>
+        <p class="muted" data-i18n-html="bk.importIntro">Führt eine <code>.vault</code>-Datei mit diesem Tresor zusammen: je Eintrag gewinnt die <strong>neuere Änderung</strong>, Löschungen werden übernommen. Die Datei darf eine andere Passphrase haben — deine lokale bleibt unverändert.</p>
+        <input type="file" id="vault-file" accept=".vault,application/json,application/octet-stream" class="hidden" data-change="importVault">
+        <button class="btn ghost" style="margin-top:8px" data-action="pickFile" data-arg="vault-file" data-i18n="bk.pick">.vault-Datei wählen</button>
+        <div id="import-pass-box" class="hidden" style="margin-top:12px">
+          <label data-i18n="bk.filePass">Passphrase der Datei</label>
+          <input id="import-pass" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" data-enter="doImportVault">
+          <div class="row" style="margin-top:10px">
+            <button id="import-btn" class="btn" data-action="doImportVault" data-i18n="bk.doImport">Zusammenführen</button>
+            <button class="btn ghost" data-action="cancelImport" data-i18n="btn.cancel">Abbrechen</button>
+          </div>
+        </div>
+        <div id="import-msg" class="muted" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="csv.title">Umzug: aus anderem Passwort-Manager importieren</h2>
+        <p class="muted" data-i18n-html="csv.intro">Erkennt CSV-Exporte von <strong>Proton Pass</strong>, <strong>KeePassXC</strong> und <strong>Bitwarden</strong> automatisch (weitere Formate über passende Spaltennamen). Einträge mit gleichem Titel, Nutzer und Passwort werden übersprungen.</p>
+        <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" class="hidden" data-change="importCsv">
+        <button class="btn ghost" style="margin-top:8px" data-action="pickFile" data-arg="csv-file" data-i18n="csv.pick">CSV-Datei wählen</button>
+        <div id="csv-msg" class="muted" style="margin-top:10px"></div>
+        <p class="warn" style="margin-top:12px" data-i18n-html="csv.warn">⚠ Die Export-Datei liegt <strong>unverschlüsselt</strong> auf dem Gerät. Nach dem Import sofort löschen (Downloads-Ordner) — auch im Ursprungs-Manager den Export nicht liegen lassen.</p>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tab-settings" class="tabview hidden">
+      <div class="card">
+        <h2 data-i18n="set.secTitle">Sicherheit</h2>
+        <label data-i18n="set.autolock">Sperren nach Inaktivität</label>
+        <select id="set-autolock" data-change="setAutolock" style="max-width:260px">
+          <option value="0" data-i18n="set.off">Aus</option>
+          <option value="1" data-i18n="set.al1">1 Minute</option>
+          <option value="2" data-i18n="set.al2">2 Minuten</option>
+          <option value="5" data-i18n="set.al5">5 Minuten</option>
+          <option value="15" data-i18n="set.al15">15 Minuten</option>
+        </select>
+        <label data-i18n="set.bgLock">Sperren im Hintergrund nach</label>
+        <select id="set-bglock" data-change="setBgLock" style="max-width:260px">
+          <option value="0" data-i18n="set.bg0">sofort</option>
+          <option value="30" data-i18n="set.bg30">30 Sekunden</option>
+          <option value="60" data-i18n="set.bg60">1 Minute</option>
+          <option value="300" data-i18n="set.bg300">5 Minuten</option>
+        </select>
+        <label data-i18n="set.clip">Zwischenablage leeren nach</label>
+        <select id="set-clip" data-change="setClipClear" style="max-width:260px">
+          <option value="15" data-i18n="set.c15">15 Sekunden</option>
+          <option value="30" data-i18n="set.c30">30 Sekunden</option>
+          <option value="60" data-i18n="set.c60">1 Minute</option>
+          <option value="0" data-i18n="set.cOff">nie (nicht empfohlen)</option>
+        </select>
+        <p class="muted" style="margin-top:8px" data-i18n="set.clipNote">Hinweis: Android zeigt beim Kopieren eine System-Vorschau der Zwischenablage und leert sie spätestens nach einer Stunde selbst. Die App leert sie zusätzlich nach der eingestellten Zeit, beim Zurückkehren in die App und beim Sperren.</p>
+        <div style="margin-top:14px">
+          <button class="btn ghost" data-action="lock"><svg class="ic" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> <span data-i18n="set.lockNow">Jetzt sperren</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="set.cpTitle">Passphrase ändern</h2>
+        <label data-i18n="set.cpCur">Aktuelle Passphrase</label><input id="cp-cur" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <label data-i18n="set.cpNew">Neue Passphrase</label><input id="cp1" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false" data-input="meterCp">
+        <div id="cp-meter" class="meter"></div>
+        <label data-i18n="set.cpRepeat">Wiederholen</label><input id="cp2" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false">
+        <label class="chk" style="margin-top:8px"><input type="checkbox" data-showpass="cp-cur,cp1,cp2"> <span data-i18n="set.cpShow">Passphrasen anzeigen</span></label>
+        <div id="cp-err" class="warn hidden" style="margin-top:10px"></div>
+        <button id="cp-btn" class="btn" style="margin-top:12px" data-action="changePass" data-i18n="set.cpBtn">Ändern</button>
+        <p class="muted" style="margin-top:10px" data-i18n="set.cpNote">Beim Wechsel wird auch der interne Datenschlüssel erneuert. Bereits exportierte .vault-Backups behalten ihre alte Passphrase.</p>
+      </div>
+      <div class="card">
+        <h2 data-i18n="set.themeTitle">Darstellung</h2>
+        <div class="seg">
+          <button id="th-dark" class="on" data-action="theme" data-arg="dark" data-i18n="set.themeDark">Schwarz (Neon)</button>
+          <button id="th-soft" data-action="theme" data-arg="soft" data-i18n="set.themeSoft">Soft (Marine)</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="set.dangerTitle">Gefahrenzone</h2>
+        <button class="btn danger" data-action="wipeLocal" data-i18n="set.wipe">Tresor auf diesem Gerät löschen</button>
+        <p class="muted" style="margin-top:10px" data-i18n-html="set.wipeNote">Entfernt den verschlüsselten Tresor nur auf <em>diesem</em> Gerät. Exportierte <code>.vault</code>-Dateien bleiben bestehen. Kein sicheres Überschreiben des Speichers — dafür sorgt die Verschlüsselung.</p>
+        <p class="muted" style="margin-top:10px" id="about-line"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span data-i18n="foot.line1">Alien Investor · Alien Pass · 100 % lokal · keine Cloud · keine Telemetrie</span><br>
+    <span data-i18n="foot.line2">Verschlüsselung: Argon2id · AES-256-GCM · WebCrypto · TOTP RFC 6238</span><br>
+    <a href="https://alien-investor.org/spenden.html" target="_blank" rel="noopener noreferrer" style="color:var(--neon);text-decoration:none;display:inline-block;margin-top:10px;letter-spacing:2px;"><svg class="ic" viewBox="0 0 24 24" style="width:1.4em;height:1.4em;vertical-align:-0.32em;margin-right:.2em"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg><span data-i18n="foot.donate">Energie aufladen · Spenden</span></a>
+  </div>
+</div>
+
+<!-- ===================== DETAIL OVERLAY ===================== -->
+<div id="detail-overlay" class="help-overlay hidden">
+  <div class="help-inner">
+    <div class="help-head">
+      <div class="logo" id="d-title"></div>
+      <button class="btn ghost sm" data-action="closeDetail" data-i18n="help.closeX">Schließen ✕</button>
+    </div>
+    <div id="d-body"></div>
+    <div class="detail-actions">
+      <button class="btn" data-action="editCurrent" data-i18n="d.edit">Bearbeiten</button>
+      <button class="btn ghost" data-action="toggleFavCurrent" id="d-fav-btn"></button>
+      <button class="btn danger" data-action="deleteCurrent" data-i18n="d.delete">Löschen</button>
+    </div>
+    <p class="muted" id="d-meta" style="margin-top:14px"></p>
+  </div>
+</div>
+
+<!-- ===================== HELP ===================== -->
+<div id="help-overlay" class="help-overlay hidden">
+  <div class="help-inner">
+    <div class="help-head">
+      <div class="logo" data-i18n="help.title">Handbuch</div>
+      <button class="btn ghost sm" data-action="closeHelp" data-i18n="help.closeX">Schließen ✕</button>
+    </div>
+
+    <h2 data-i18n="help.h1">Was ist Alien Pass?</h2>
+    <p data-i18n-html="help.p1">Ein <strong>lokaler, verschlüsselter Passwort-Manager</strong>. Läuft komplett <strong>offline</strong> — keine Cloud, kein Server, keine Telemetrie, kein Konto. Die Android-App hat nicht einmal eine Internet-Berechtigung. Deine Passwörter verlassen das Gerät nie im Klartext.</p>
+    <p class="warn" data-i18n="help.warn">⚠ Es gibt keinen Reset und kein Backdoor. Vergisst du deine Passphrase, sind die Daten unwiederbringlich weg. Lege regelmäßig ein Backup an und bewahre die Passphrase sicher auf.</p>
+
+    <h2 data-i18n="help.h2">Erste Schritte</h2>
+    <ul data-i18n-html="help.l2">
+      <li><strong>Passphrase</strong> vergeben — mindestens 12 Zeichen, besser sechs Würfelwörter (der Vorschlag-Button erzeugt sie aus der EFF-Liste). Aufschreiben und sicher verwahren.</li>
+      <li>Die <strong>Schlüsselableitung</strong> (Argon2id) misst sich beim Einrichten selbst; „Standard“ passt für aktuelle Handys.</li>
+      <li>Einträge anlegen: Titel, Nutzername, Passwort (oder generieren lassen), URL, Notizen, optional TOTP.</li>
+      <li>Auf einen Eintrag tippen → Detailansicht mit Kopier-Buttons. Passwörter erscheinen nur auf Anfrage.</li>
+    </ul>
+
+    <h2 data-i18n="help.h3">Zwischenablage</h2>
+    <ul data-i18n-html="help.l3">
+      <li>Kopierte Passwörter löscht die App nach der eingestellten Zeit (Standard 30 s), beim Zurückkehren in die App und beim Sperren.</li>
+      <li>Während die App im Hintergrund ist, kann sie die Zwischenablage nicht anfassen. Android leert sie spätestens nach einer Stunde selbst.</li>
+      <li>Android zeigt beim Kopieren kurz eine System-Vorschau des Inhalts. Das Unterdrücken bräuchte nativen Code — kommt in einer späteren Version.</li>
+    </ul>
+
+    <h2 data-i18n="help.h4">Generator</h2>
+    <ul data-i18n-html="help.l4">
+      <li><strong>Zeichen:</strong> 8–64 Zeichen aus wählbaren Zeichensätzen; „ohne l/1/I/O/0“ vermeidet Verwechslungen beim Abtippen.</li>
+      <li><strong>Würfelwörter</strong> (Diceware): Wörter aus der EFF Large Wordlist, ~12,9 Bit je Wort. Sechs Wörter ≈ 77 Bit — gut merkbar und stark.</li>
+      <li>Alle Zufallswerte kommen aus dem System-Zufallsgenerator ohne Modulo-Verzerrung; die Entropie wird in Bit angezeigt.</li>
+    </ul>
+
+    <h2 data-i18n="help.h5">TOTP (2FA-Codes)</h2>
+    <ul data-i18n-html="help.l5">
+      <li>Je Eintrag kann ein TOTP-Schlüssel hinterlegt werden (Base32 oder <code>otpauth://</code>-Link). Die Detailansicht zeigt den aktuellen Code mit Restlaufzeit.</li>
+      <li>Unterstützt SHA-1/SHA-256/SHA-512, 6–8 Stellen, beliebige Periode.</li>
+      <li><strong>Bedenke:</strong> Passwort und 2FA im selben Tresor schwächen die Faktor-Trennung. Für kritische Konten (E-Mail, Börse) den zweiten Faktor lieber in Aegis lassen.</li>
+    </ul>
+
+    <h2 data-i18n="help.h6">Passwort-Gesundheit</h2>
+    <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter, <strong>kurze</strong> (unter 12 Zeichen) und <strong>alte</strong> (über zwei Jahre unverändert). Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
+
+    <h2 data-i18n="help.h7">Backup &amp; Sync</h2>
+    <ul data-i18n-html="help.l7">
+      <li><strong>Backup erstellen</strong> schreibt eine <code>.vault</code>-Datei (verschlüsselt, mit deiner Passphrase). Sie kann bedenkenlos in Syncthing, auf einen Stick oder in ein Backup.</li>
+      <li><strong>Importieren</strong> führt zusammen: je Eintrag gewinnt die neuere Änderung, Löschungen werden mitgenommen (ein Jahr lang). Die Datei darf eine andere Passphrase haben — deine lokale bleibt.</li>
+      <li>Bei zwei Geräten: regelmäßig auf beiden exportieren und das jeweils andere Backup importieren. Beide Seiten landen beim gleichen Stand.</li>
+      <li>Nach einem <strong>Passphrase-Wechsel</strong> öffnen ältere Backups weiterhin mit ihrer alten Passphrase.</li>
+    </ul>
+
+    <h2 data-i18n="help.h8">Umzug aus Proton Pass, KeePassXC, Bitwarden</h2>
+    <ul data-i18n-html="help.l8">
+      <li><strong>Proton Pass:</strong> Einstellungen → Exportieren → Format CSV (unverschlüsselt). Datei aufs Handy, in Alien Pass unter Sicherung → CSV wählen.</li>
+      <li><strong>KeePassXC:</strong> Datenbank → Exportieren → CSV-Datei.</li>
+      <li><strong>Bitwarden:</strong> Tools → Tresor exportieren → Format .csv.</li>
+      <li>Login-Einträge werden mit Titel, Nutzer, Passwort, URL, Notizen und TOTP übernommen. Reine Notizen kommen ohne Passwort an.</li>
+      <li><strong>Danach die CSV-Datei löschen</strong> — sie enthält alle Passwörter im Klartext.</li>
+    </ul>
+
+    <h2 data-i18n="help.h9">Sicherheit im Detail</h2>
+    <ul data-i18n-html="help.l9">
+      <li><strong>Schlüsselableitung:</strong> Argon2id (Standard 64 MiB, 3 Durchgänge) aus deiner Passphrase — memory-hard, also teuer für GPU-Angriffe auf eine gestohlene Datei.</li>
+      <li><strong>Verschlüsselung:</strong> AES-256-GCM (WebCrypto). Ein zufälliger Datenschlüssel verschlüsselt den Tresor; die Passphrase verpackt nur diesen Schlüssel. Die Kopfdaten der Datei sind mitauthentisiert — Manipulation fällt auf.</li>
+      <li><strong>Gerät:</strong> Die Android-App hat keine einzige Berechtigung (auch kein Internet), verbietet Screenshots und App-Switcher-Vorschau (FLAG_SECURE) und schließt sich von System-Backups aus.</li>
+      <li><strong>Sperre:</strong> nach Inaktivität, im Hintergrund nach wählbarer Zeit (oder sofort), und manuell. Beim Sperren werden Schlüssel und alle Anzeigen aus dem Speicher entfernt.</li>
+      <li><strong>Fremdcode:</strong> nur die Argon2-Bibliothek hash-wasm (MIT) und die EFF-Wortliste, beide gebündelt und per Hash im Build geprüft. Kein CDN, kein Tracker.</li>
+      <li><strong>Grenzen:</strong> kein Autofill, keine Biometrie (v1), keine Leak-Prüfung. Eine Passphrase kann nicht wiederhergestellt werden.</li>
+    </ul>
+
+    <div style="text-align:center;margin-top:32px"><button class="btn ghost" data-action="closeHelp" data-i18n="help.close">Schließen</button></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+</body>
+</html>

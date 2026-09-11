@@ -1,0 +1,38 @@
+# Exportierte Vault-Dateien gehören NICHT ins Repo (auch verschlüsselt nicht — Nutzerdaten)
+*.vault
+
+# Passwort-Exporte anderer Manager (Klartext!) — NIE ins Repo
+*.csv
+
+# lokale Secrets / Daten
+.env
+.env.*
+data/
+
+# OS-Müll
+.DS_Store
+Thumbs.db
+
+# Claude-Code-Sessiondaten (lokale Permissions)
+.claude/
+
+# Referenzkopien aus dem Sachwert-Tresor (nur lokal zum Nachschlagen)
+ref/
+
+# lokale Test-Helfer (maschinenspezifischer playwright-core/Brave-Pfad)
+serve-test.mjs
+verify-*.mjs
+verify-*.png
+
+# Capacitor / Android-Build (regenerierbar aus web-Assets + capacitor.config.json)
+node_modules/
+www/
+android/
+gradle-build.log
+release-build.log
+
+# SIGNATUR-GEHEIMNISSE — NIEMALS committen
+*.keystore
+*.jks
+keystore.properties
+release-signing.properties

@@ -1,0 +1,50 @@
+# Zapstore publishing config — Alien Pass
+# Veröffentlichen (Signing über Amber/NIP-46-Bunker, kein nsec im Klartext):
+#   set -a; source .env; set +a        # .env enthält SIGN_WITH="bunker://…"
+#   zsp publish zapstore.yaml --quiet --skip-preview --skip-certificate-linking
+# Trockenlauf ohne Amber (unsignierte Events):
+#   SIGN_WITH=npub1cnlymdm5jz8eayycwynhze4s2zh9n0y04atce8ahxl5qfkptplls0s40hp zsp publish zapstore.yaml --offline
+
+repository: https://codeberg.org/Alien-Investor/alien-pass
+pubkey: npub1cnlymdm5jz8eayycwynhze4s2zh9n0y04atce8ahxl5qfkptplls0s40hp
+
+name: Alien Pass
+summary: Offline password manager — Argon2id + AES-256-GCM, zero permissions, no cloud.
+
+description: |
+  Alien Pass is a local, encrypted password manager. It runs fully offline — no cloud,
+  no server, no account, no telemetry. The app requests not a single Android permission,
+  not even INTERNET. Your passwords never leave the device in plaintext.
+
+  Features:
+  - Entries with title, username, password, URL, notes, TOTP and favourites; instant search
+  - Argon2id key derivation (32/64/128 MiB, self-benchmarked at setup) + AES-256-GCM via WebCrypto;
+    a random data key is wrapped by your passphrase, file header authenticated (AAD)
+  - Auto-lock after inactivity and in the background (immediately up to 5 min)
+  - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app and on lock
+  - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown
+  - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time
+  - Password health: reused, short and old passwords flagged — computed locally
+  - Encrypted .vault backup and merge between devices (newer change wins, deletions carried for a year)
+  - CSV import from Proton Pass, KeePassXC and Bitwarden
+  - NO permissions at all, FLAG_SECURE (no screenshots / recents preview), allowBackup=false
+  - Strict CSP: connect-src 'none', no inline script; bundled Argon2 (hash-wasm) hash-checked in the build
+  - German / English, offline in-app manual, open source (MIT)
+
+tags:
+  - password
+  - security
+  - privacy
+  - tools
+
+license: MIT
+website: https://alien-investor.org/alien-pass.html
+
+icon: ./assets/icon-only.png
+
+images:
+  - ./screenshots/1-list.png
+  - ./screenshots/2-detail.png
+  - ./screenshots/3-generator.png
+
+release_notes: ./CHANGELOG.md
