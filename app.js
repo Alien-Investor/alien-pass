@@ -712,9 +712,9 @@ const App = (function(){
       let rows=parseCsv(text,','); if(rows.length&&rows[0].length<2&&text.indexOf(';')>=0) rows=parseCsv(text,';');
       if(rows.length<2){ $('csv-msg').textContent=tr('csv.empty'); return; }
       const map=csvMap(rows[0]); if(!map){ $('csv-msg').textContent=tr('csv.unknown'); return; }
-      const now=Date.now(); const existing=new Set(live().map(e=>e.title+' '+e.user+' '+e.pass));
+      const now=Date.now(); const existing=new Set(live().map(e=>e.title+'\u0000'+e.user+'\u0000'+e.pass));
       const added=[]; let skipped=0, bad=0;
-      for(const row of rows.slice(1)){ const e=csvRowToEntry(map,row,now); if(!e){ bad++; continue; } const key=e.title+' '+e.user+' '+e.pass; if(existing.has(key)){ skipped++; continue; } existing.add(key); added.push(e); }
+      for(const row of rows.slice(1)){ const e=csvRowToEntry(map,row,now); if(!e){ bad++; continue; } const key=e.title+'\u0000'+e.user+'\u0000'+e.pass; if(existing.has(key)){ skipped++; continue; } existing.add(key); added.push(e); }
       if(VAULT.entries.length+added.length>MAX_ENTRIES){ $('csv-msg').textContent=tr('err.tooMany'); return; }
       const before=VAULT.entries.slice(); VAULT.entries=VAULT.entries.concat(added);
       persist().then(()=>{ $('csv-msg').textContent=tr('csv.done',{n:added.length,f:tr('fmt.'+map.fmt),s:skipped,b:bad}); renderList(); })
