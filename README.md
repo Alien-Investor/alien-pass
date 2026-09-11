@@ -23,7 +23,11 @@ und im [Zap Store](https://zapstore.dev). Empfohlen über **[Obtainium](https://
 **Signatur-Fingerprint** (SHA-256 des Signatur-Zertifikats, über alle Versionen gleich — mit
 [AppVerifier](https://github.com/soupslurpr/AppVerifier) prüfen):
 ```
-wird mit dem ersten Release v1.0 hier eingetragen
+AppVerifier (mit Doppelpunkten):
+73:C7:17:D8:05:6C:6A:02:B0:8B:AB:BA:24:18:17:F3:93:E4:6D:EA:03:19:D4:FA:26:B8:C3:D8:E1:F9:3C:95
+
+Plain SHA-256 (apksigner):
+73c717d8056c6a02b08babba241817f393e46dea0319d4fa26b8c3d8e1f93c95
 ```
 
 ## Erster Start
