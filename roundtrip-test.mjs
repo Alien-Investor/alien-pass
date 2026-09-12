@@ -16,7 +16,7 @@ const region = src.slice(a, z);
 const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
-    normalizeTotp,otpauthUri,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
+    normalizeTotp,otpauthUri,sanitizeBank,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
     parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
@@ -104,7 +104,7 @@ console.log('\n[4] Sanitizer');
   ok(x.fav===false,'fav nur echtes true');
   ok(Date.parse(x.updated)<=now+120000,'Zukunfts-updated auf now+2min geklemmt: '+x.updated);
   ok(x.created===x.updated,'created ungültig → = updated');
-  ok(!Object.prototype.hasOwnProperty.call(x,'constructor')&&Object.keys(x).length===15,'nur Whitelist-Felder (15 inkl. type/cat/card/nowarn)');
+  ok(!Object.prototype.hasOwnProperty.call(x,'constructor')&&Object.keys(x).length===16,'nur Whitelist-Felder (16 inkl. type/cat/card/bank/nowarn)');
   const y=V.sanitizeEntry({id:'0123456789abcdef',title:'x',updated:'nope'},now); ok(y.updated==='1970-01-01T00:00:00.000Z','ungültiges updated → Epoche (gewinnt nie)');
   const t=V.sanitizeEntry({id:'0123456789abcdef',title:'geheim',pass:'geheim',deleted:'2026-02-01T00:00:00.000Z',updated:'2026-02-01T00:00:00.000Z'},now);
   ok(t.deleted&&t.title===''&&t.pass===''&&t.totp===null,'Tombstone inhaltsleer');
@@ -175,6 +175,9 @@ console.log('\n[7] Generator');
   ok(V.genChars(20,{}).pw===''&&V.genChars(20,{}).bits===0,'kein Zeichensatz → leer');
   const w=V.genWords(6,'-',false,false); ok(w.pw.split('-').length===6&&w.pw.split('-').every(x=>words.includes(x))&&w.bits===78,'6 EFF-Wörter, 78 Bit: '+w.pw);
   const w2=V.genWords(4,' ',true,true); ok(w2.pw.split(' ').length===4&&/[A-Z]/.test(w2.pw)&&/\d/.test(w2.pw),'Großschreibung + Ziffer: '+w2.pw);
+  const r8=V.genChars(8,{upper:true,lower:true,digits:true,symbols:true,noamb:false}); ok(r8.bits===50&&r8.pw.length===8,'8 Zeichen/4 Gruppen: 51 Bit minus ~1 Bit Gruppen-Pflicht = '+r8.bits);
+  ok(V.genChars(20,{lower:true}).bits===Math.round(20*Math.log2(26))&&V.genCharsBits(20,[26])===94,'eine Gruppe: keine Verwerfung, volle Bits');
+  { const b16=V.genCharsBits(16,[26,26,10,21]), naive=16*Math.log2(83); ok(b16<=Math.round(naive)&&b16>=Math.round(naive)-1&&V.genCharsBits(64,[26,26,10,21])===Math.round(64*Math.log2(83)),'16 Zeichen: Abzug < 1 Bit, 64 Zeichen: Abzug verschwindet — nie über dem naiven Wert'); }
   // Chi-Quadrat: randInt(10) über 100.000 Ziehungen
   const cnt=new Array(10).fill(0); for(let i=0;i<100000;i++) cnt[V.randInt(10)]++; const chi=cnt.reduce((s,c)=>s+Math.pow(c-10000,2)/10000,0); ok(chi<27.9,'randInt gleichverteilt (χ²='+chi.toFixed(1)+' < 27.9 bei 9 df, p=0.001)');
   ok(V.passStrength('kurz')===0&&V.passStrength('zwoelf-zeichen')>=1&&V.passStrength('korrekt-pferd-batterie-heftklammer')===3,'Passphrase-Meter Stufen');
@@ -234,7 +237,7 @@ console.log('\n[10] v1.1: Eintragstypen, Kategorien, Karten, nowarn');
   ok(l.type==='login'&&l.cat.length===40&&l.nowarn===false&&l.card===null,'unbekannter Typ → login; cat gekappt; nowarn nur boolean true; card nur bei Typ card');
   ok(V.sanitizeEntry(E({nowarn:true})).nowarn===true,'nowarn=true bleibt bei login');
   const t=V.sanitizeEntry(E({type:'card',deleted:'2026-01-03T00:00:00.000Z'}));
-  ok(t.type==='login'&&t.cat===''&&t.card===null&&Object.keys(t).length===15,'Tombstone inhaltsleer mit identischer Feldmenge');
+  ok(t.type==='login'&&t.cat===''&&t.card===null&&Object.keys(t).length===16,'Tombstone inhaltsleer mit identischer Feldmenge');
   { const ex=E({title:'x'}); ok(V.canon(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))===V.canon(V.sanitizeEntry(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))),'tombstone() ist sanitizer-stabil (Merge-Gleichstand deterministisch)'); }
   const a=V.sanitizeEntry(E({type:'card',card:{number:'1'},updated:'2026-01-02T00:00:00.000Z'})), b=Object.assign({},a,{card:{number:'2',holder:'',expiry:'',cvv:'',pin:''}});
   ok(V.winner(a,b)===V.winner(b,a),'winner() deterministisch bei Karten-Gleichstand (canon rekursiv)');
@@ -413,6 +416,25 @@ console.log('\n[18] Audit run-3: Partial-Body-Bombe, AES-Schluessellaenge, MDC-F
   let e4=null; try{ await V.pgpDecryptSymmetric(tam,'test-passphrase-alien'); }catch(e){ e4=e.message; } ok(e4==='pgpMdc','manipulierte Datei (MDC) → pgpMdc, nicht „falsche Passphrase“');
   let e5=null; try{ await V.pgpDecryptSymmetric(fx,'falsch-falsch-falsch'); }catch(e){ e5=e.message; } ok(e5==='pgpPass','falsche Passphrase → pgpPass');
   const good=await V.pgpDecryptSymmetric(fx,'test-passphrase-alien'); ok(good&&good.length>0,'unveraenderte Datei entschluesselt weiterhin');
+}
+
+console.log('\n[19] v1.3: Bankkonto-Typ (Whitelist, Normalisierung, Tombstone, dupKey, Merge)');
+{
+  const k=V.sanitizeEntry(E({type:'bank',bank:{holder:'  Max\u200b Muster ',iban:'de89 3704 0044 0532 0130 00x',bic:'cobadeffxxx!',bank:'Commerz\tbank',pin:' 1234 ',extra:1},pass:'p',user:'u',card:{number:'1'}}));
+  ok(k.type==='bank'&&k.pass===''&&k.user===''&&k.card===null&&k.totp===null,'bank: Login-/Kartenfelder geleert');
+  ok(k.bank.iban==='DE89 3704 0044 0532 0130 00X'&&k.bank.bic==='COBADEFFXXX'&&k.bank.holder==='Max Muster'&&k.bank.bank==='Commerz bank'&&k.bank.pin==='1234'&&!('extra' in k.bank),'bank: IBAN groß/nur alnum+Leerzeichen, BIC nur alnum, Inhaber/Bank line(), PIN getrimmt, Fremdfeld weg: '+JSON.stringify(k.bank));
+  ok(Object.keys(k).length===16&&Object.keys(k.bank).length===5,'16 Felder, Kontoobjekt genau 5');
+  ok(V.sanitizeEntry(E({type:'bank',bank:{}})).bank===null&&V.sanitizeEntry(E({type:'bank',bank:'x'})).bank===null&&V.sanitizeEntry(E({type:'bank'})).bank===null,'leeres/kaputtes/fehlendes Konto → null');
+  ok(V.sanitizeEntry(E({type:'card',bank:{iban:'DE1'},card:{number:'1'}})).bank===null&&V.sanitizeEntry(E({type:'login',bank:{iban:'DE1'}})).bank===null,'bank-Objekt nur bei Typ bank');
+  ok(V.sanitizeBank({iban:'a'.repeat(100)}).iban.length===42&&V.sanitizeBank({bic:'B'.repeat(20)}).bic.length===11,'Caps: IBAN 42, BIC 11');
+  const tb=V.tombstone(k,'2026-02-01T00:00:00.000Z'); ok(tb.bank===null&&Object.keys(tb).length===16&&V.canon(tb)===V.canon(V.sanitizeEntry(tb)),'Tombstone eines Kontos: bank null, sanitizer-stabil');
+  const k2=Object.assign({},k,{bank:Object.assign({},k.bank,{pin:'9999'})});
+  ok(V.dupKey(k)!==V.dupKey(k2)&&V.dupKey(k)===V.dupKey(Object.assign({},k,{id:'ffffffffffffffff',fav:true,cat:'x'})),'dupKey: PIN-Unterschied trennt, id/fav/cat egal');
+  ok(V.winner(k,k2)===V.winner(k2,k),'winner() deterministisch bei Konto-Gleichstand');
+  const m=V.mergeEntries([k],[k2]); ok(m.entries.length===1&&m.entries[0].bank.pin===V.winner(k,k2).bank.pin,'Merge: ein Eintrag, Gewinner-PIN');
+  // Roundtrip durch die Datei
+  const dek=await V.newDek(); const kdf={m:8192,t:1,p:1,salt:V.rand(16)}; const body=await V.encryptBody({entries:[k],settings:{},version:1},dek,kdf);
+  const back=await V.decryptBody(body,dek,kdf); ok(back.entries[0].bank.iban===k.bank.iban,'Konto überlebt encryptBody/decryptBody');
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

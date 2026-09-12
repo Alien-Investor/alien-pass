@@ -1,5 +1,17 @@
 # Changelog — Alien Pass
 
+## v1.3 — 2026-09-12
+- **Neuer Eintragstyp „Konto“** (Bankkonto): Kontoinhaber, IBAN/Kontonummer, BIC/SWIFT, Bank, optional PIN. IBAN und BIC stehen im Detail
+  im Klartext (werden zum Überweisen gebraucht), die PIN nur nach „Anzeigen“; die Liste zeigt die IBAN nur als `•••• 1234`. IBAN/BIC werden
+  beim Speichern normalisiert (Großschreibung, nur Buchstaben/Ziffern, IBAN mit Leerzeichen). Importe (Proton, CSV) bleiben unverändert —
+  sie kennen keinen Kontotyp. Ein Gerät mit v1.2 oder älter stuft einen Konto-Eintrag beim Zusammenführen zu einem leeren Login zurück:
+  erst alle Geräte aktualisieren, dann Konten anlegen.
+- **Alters-Markierung entfernt:** „seit über zwei Jahren unverändert“ gibt es nicht mehr. Ein starkes Zufallspasswort wird mit der Zeit
+  nicht schwächer; Zwangsrotation ist ein Anti-Muster (NIST SP 800-63B, BSI). Gewechselt wird, wenn ein Passwort geleakt sein könnte.
+  „wiederverwendet“ und „kurz“ bleiben.
+- **Ehrliche Entropie-Anzeige im Zeichen-Modus:** Die Vorgabe „jeder gewählte Zeichensatz kommt mindestens einmal vor“ verwirft Kandidaten
+  und kostet Entropie — das wird jetzt abgezogen (8 Zeichen/4 Sätze: 50 statt 51 Bit; ab 16 Zeichen unter 0,25 Bit). Wörter-Modus unverändert.
+
 ## v1.2 — 2026-09-12
 - **Fingerabdruck-Entsperren (Android, optional):** Der Datenschlüssel wird zusätzlich unter einem 32-Byte-Zufallsschlüssel verpackt,
   den der Android-Keystore nur nach einem starken Fingerabdruck herausgibt (Freigabe pro Nutzung, StrongBox falls vorhanden, ungültig bei

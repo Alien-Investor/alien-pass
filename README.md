@@ -42,19 +42,21 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
 
 ## Was es kann
 
-- **Drei Eintragstypen**: **Login** (Titel, Nutzername/E-Mail, Passwort, URL, Notizen, optional TOTP), **Notiz** (nur verschlüsselter Text)
-  und **Karte** (Inhaber, Nummer, Ablauf, CVV, PIN). Favoriten stehen oben. Suche über Titel, Nutzer, URL und Kategorie.
+- **Vier Eintragstypen**: **Login** (Titel, Nutzername/E-Mail, Passwort, URL, Notizen, optional TOTP), **Notiz** (nur verschlüsselter Text),
+  **Karte** (Inhaber, Nummer, Ablauf, CVV, PIN) und **Konto** (Inhaber, IBAN/Kontonummer, BIC, Bank, PIN). Favoriten stehen oben. Suche über Titel, Nutzer, URL und Kategorie.
 - **Kategorien** wie Ordner: frei eintippen (Vorschläge aus den vorhandenen), Filter-Chips über der Liste. Eine Kategorie
   existiert, solange ein Eintrag sie trägt — nichts zu verwalten, nichts, was beim Sync kollidieren kann.
-- **Detailansicht** mit Kopier-Buttons; Passwörter, Kartennummer, CVV und PIN erscheinen nur auf Anfrage.
+- **Detailansicht** mit Kopier-Buttons; Passwörter, Kartennummer, CVV und PINs erscheinen nur auf Anfrage (IBAN/BIC im Klartext — sie werden
+  zum Überweisen gebraucht und stehen auf jeder Rechnung; die Liste zeigt IBAN und Kartennummer nur als `•••• 1234`).
 - **Zwischenablage mit Auto-Löschen** (15/30/60 s): beim Ablauf, beim Zurückkehren in die App (sobald die Zeit abgelaufen ist oder ein Löschen im Hintergrund fehlschlug) und beim Sperren.
   In der Android-App wird Kopiertes als **sensibel** markiert — die System-Vorschau zeigt den Inhalt nicht (Android 13+).
 - **Passwort-Generator**: Zeichen-Modus (8–64 Zeichen, Zeichensätze wählbar, ohne verwechselbare Zeichen)
-  und **Diceware** (EFF Large Wordlist, 7.776 Wörter, ~12,9 Bit je Wort). Entropie-Anzeige, kein Modulo-Bias.
+  und **Diceware** (EFF Large Wordlist, 7.776 Wörter, ~12,9 Bit je Wort). Entropie-Anzeige (im Zeichen-Modus ehrlich um die Pflicht „jeder Zeichensatz kommt vor“ bereinigt), kein Modulo-Bias.
 - **TOTP pro Eintrag** (RFC 6238; SHA-1/256/512, 6–8 Stellen, beliebige Periode) mit Restlaufzeit.
-- **Passwort-Gesundheit**: markiert wiederverwendete, kurze (< 12) und seit über zwei Jahren unveränderte Einträge — rein lokal.
+- **Passwort-Gesundheit**: markiert wiederverwendete und kurze (< 12) Passwörter — rein lokal. Das Alter wird bewusst nicht markiert:
+  Zwangsrotation ist ein Anti-Muster (NIST SP 800-63B); gewechselt wird, wenn ein Passwort geleakt sein könnte.
   Erlaubt ein Dienst kein längeres Passwort, schaltet ein Häkchen im Eintrag die „kurz“-Markierung ab.
-- **Typwechsel mit Rückfrage**: Wird ein Login nachträglich zur Notiz oder Karte, gehen Passwort/TOTP verloren — die App nennt
+- **Typwechsel mit Rückfrage**: Wird ein Login nachträglich zur Notiz, Karte oder zum Konto, gehen Passwort/TOTP verloren — die App nennt
   die Felder und fragt; Importe melden gekürzte Notizen (Cap 10.000 Zeichen) und überspringen nur echte Dubletten.
 - **Aegis-Hürde** (optional): nach der Passphrase zusätzlich ein TOTP-Code aus Aegis. Ehrlich benannt als *Hürde*, nicht als
   zweiter Faktor — siehe [Sicherheit](#sicherheit).

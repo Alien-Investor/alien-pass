@@ -265,6 +265,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
           <button id="ft-login" class="on" data-action="changeEntryType" data-arg="login" data-i18n="type.login">Login</button>
           <button id="ft-note" data-action="changeEntryType" data-arg="note" data-i18n="type.note">Notiz</button>
           <button id="ft-card" data-action="changeEntryType" data-arg="card" data-i18n="type.card">Karte</button>
+          <button id="ft-bank" data-action="changeEntryType" data-arg="bank" data-i18n="type.bank">Konto</button>
         </div>
         <label data-i18n="f.title">Titel *</label>
         <input id="f-title" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z.B. Proton Mail" data-i18n-ph="f.titlePh">
@@ -298,6 +299,18 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
             <div><label data-i18n="f.pin">PIN (optional)</label><input id="f-pin" type="password" maxlength="12" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
           </div>
           <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-number,f-cvv,f-pin"> <span data-i18n="f.showcard">Kartendaten anzeigen</span></label>
+        </div>
+        <div id="grp-bank" class="hidden">
+          <label data-i18n="f.bholder">Kontoinhaber</label>
+          <input id="f-bholder" type="text" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <label data-i18n="f.iban">IBAN / Kontonummer</label>
+          <input id="f-iban" type="text" maxlength="42" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DE00 0000 0000 0000 0000 00">
+          <div class="row">
+            <div><label data-i18n="f.bic">BIC / SWIFT</label><input id="f-bic" type="text" maxlength="11" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+            <div><label data-i18n="f.bank">Bank</label><input id="f-bank" type="text" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+            <div><label data-i18n="f.bpin">PIN (optional)</label><input id="f-bpin" type="password" maxlength="12" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+          </div>
+          <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-bpin"> <span data-i18n="f.showbank">PIN anzeigen</span></label>
         </div>
         <label data-i18n="f.notes">Notizen</label>
         <textarea id="f-notes" maxlength="10000" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
@@ -539,10 +552,10 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     <ul data-i18n-html="help.l2">
       <li><strong>Passphrase</strong> vergeben — mindestens 12 Zeichen, besser sechs Würfelwörter (der Vorschlag-Button erzeugt sie aus der EFF-Liste). Aufschreiben und sicher verwahren.</li>
       <li>Die <strong>Schlüsselableitung</strong> (Argon2id) misst sich beim Einrichten selbst; „Standard“ passt für aktuelle Handys.</li>
-      <li>Einträge anlegen — drei Typen: <strong>Login</strong> (Nutzer, Passwort, URL, TOTP), <strong>Notiz</strong> (nur verschlüsselter Text) und <strong>Karte</strong> (Inhaber, Nummer, Ablauf, CVV, PIN).</li>
+      <li>Einträge anlegen — vier Typen: <strong>Login</strong> (Nutzer, Passwort, URL, TOTP), <strong>Notiz</strong> (nur verschlüsselter Text), <strong>Karte</strong> (Inhaber, Nummer, Ablauf, CVV, PIN) und <strong>Konto</strong> (Inhaber, IBAN, BIC, Bank, PIN).</li>
       <li><strong>Kategorien</strong> wie Ordner: im Formular frei eintippen (Vorschläge aus den vorhandenen). Die Liste filtert oben per Chip; eine Kategorie verschwindet, sobald kein Eintrag sie mehr trägt.</li>
       <li><strong>Typ ändern</strong> geht auch nachträglich, aber die Felder des alten Typs (z.B. Passwort und TOTP eines Logins) werden dabei gelöscht — die App fragt vorher nach. Ein Backup bringt sie nicht zurück, weil beim Zusammenführen die neuere Änderung gewinnt.</li>
-      <li>Auf einen Eintrag tippen → Detailansicht mit Kopier-Buttons. Passwörter, Kartennummer, CVV und PIN erscheinen nur auf Anfrage.</li>
+      <li>Auf einen Eintrag tippen → Detailansicht mit Kopier-Buttons. Passwörter, Kartennummer, CVV und PINs erscheinen nur auf Anfrage; IBAN und BIC stehen im Klartext (werden zum Überweisen gebraucht, stehen auf jeder Rechnung).</li>
     </ul>
 
     <h2 data-i18n="help.h3">Zwischenablage</h2>
@@ -556,7 +569,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     <ul data-i18n-html="help.l4">
       <li><strong>Zeichen:</strong> 8–64 Zeichen aus wählbaren Zeichensätzen; „ohne l/1/I/O/0“ vermeidet Verwechslungen beim Abtippen.</li>
       <li><strong>Würfelwörter</strong> (Diceware): Wörter aus der EFF Large Wordlist, ~12,9 Bit je Wort. Sechs Wörter ≈ 77 Bit — gut merkbar und stark.</li>
-      <li>Alle Zufallswerte kommen aus dem System-Zufallsgenerator ohne Modulo-Verzerrung; die Entropie wird in Bit angezeigt.</li>
+      <li>Alle Zufallswerte kommen aus dem System-Zufallsgenerator ohne Modulo-Verzerrung; die Entropie wird in Bit angezeigt — im Zeichen-Modus wird die Vorgabe „jeder gewählte Zeichensatz kommt mindestens einmal vor“ ehrlich abgezogen (bei 8 Zeichen rund 1 Bit, ab 16 Zeichen vernachlässigbar).</li>
     </ul>
 
     <h2 data-i18n="help.h5">TOTP (2FA-Codes)</h2>
@@ -573,7 +586,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     <p data-i18n-html="help.p5c">Optional entsperrt der Fingerabdruck des Geräts den Tresor (Einstellungen → Fingerabdruck, nur Android-App). <strong>Wie es funktioniert:</strong> Der Datenschlüssel wird zusätzlich unter einem Zufallsschlüssel verpackt; den verwahrt der Android-Keystore und gibt ihn nur nach einem starken Fingerabdruck heraus, jedes Mal neu. Die Tresordatei selbst bleibt unverändert, Backups tragen nichts davon mit. <strong>Was es kostet:</strong> Ein Fingerabdruck ist kein Geheimnis. Er lässt sich erzwingen — von jemandem, der deine Hand führt, oder an einer Grenze; die Passphrase in deinem Kopf nicht. Darum verlangt die App die Passphrase nach jedem Neustart des Handys (beim nächsten Start wird der Fingerabdruck-Slot verworfen und nach der Passphrase mit frischem Zufall neu angelegt), nach einem Passphrase-Wechsel und sobald ein neuer Fingerabdruck im System eingerichtet wird. Der Neustart-Zwang ist eine Regel im Code, keine kryptografische Garantie. <strong>Welche Biometrie zählt:</strong> Android bindet den Schlüssel an jede Biometrie der Klasse „stark“ auf dem Gerät. Wo eine starke Gesichtserkennung eingerichtet ist (manche Stock-Pixel; GrapheneOS hat keine), öffnet auch sie den Tresor, nach einem Bestätigungs-Tipp. <strong>Der bewusste Riegel:</strong> „Jetzt sperren“ in den Einstellungen heißt: Der nächste Start verlangt die Passphrase — kein Fingerabdruck-Knopf, kein Prompt; danach gilt der Fingerabdruck wieder, ohne Neu-Aktivierung. Vor einer Grenze, vor dem Weitergeben des Handys, immer wenn ein Finger erzwungen werden könnte. Im Zweifel: Handy neu starten, dann gilt nur die Passphrase.</p>
 
     <h2 data-i18n="help.h6">Passwort-Gesundheit</h2>
-    <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter, <strong>kurze</strong> (unter 12 Zeichen) und Einträge, die <strong>seit über zwei Jahren unverändert</strong> sind (jede Bearbeitung setzt diese Uhr zurück). Erlaubt ein Dienst kein längeres Passwort, schaltet das Häkchen „Dienst erlaubt kein längeres Passwort“ im Eintrag die „kurz“-Markierung ab. Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
+    <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter und <strong>kurze</strong> (unter 12 Zeichen). Das Alter wird bewusst nicht markiert: Ein starkes Zufallspasswort wird mit der Zeit nicht schwächer, und Zwangsrotation ist ein Anti-Muster (NIST SP 800-63B, BSI) — ein Passwort wechselt man, wenn es geleakt sein könnte, nicht nach Kalender. Erlaubt ein Dienst kein längeres Passwort, schaltet das Häkchen „Dienst erlaubt kein längeres Passwort“ im Eintrag die „kurz“-Markierung ab. Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
 
     <h2 data-i18n="help.h7">Backup &amp; Sync</h2>
     <ul data-i18n-html="help.l7">
