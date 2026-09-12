@@ -18,8 +18,8 @@ description: |
   Your passwords never leave the device in plaintext.
 
   Features:
-  - Three entry types: logins (title, username, password, URL, notes, TOTP), encrypted notes and cards
-    (holder, number, expiry, CVV, PIN — masked, copyable); favourites; instant search
+  - Four entry types: logins (title, username, password, URL, notes, TOTP), encrypted notes, cards
+    (holder, number, expiry, CVV, PIN — masked, copyable) and bank accounts (holder, IBAN, BIC, bank, PIN); favourites; instant search
   - Categories like folders: filter chips above the list, suggestions from existing ones
   - Argon2id key derivation (32/64/128 MiB, self-benchmarked at setup) + AES-256-GCM via WebCrypto;
     a random data key is wrapped by your passphrase, file header authenticated (AAD)
@@ -28,7 +28,7 @@ description: |
     sensitive so the Android 13+ system preview hides it
   - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown
   - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time
-  - Password health: reused and short passwords and long-unchanged entries flagged — computed locally
+  - Password health: reused and short passwords flagged — computed locally; no forced rotation by age (NIST SP 800-63B)
   - Encrypted .vault backup and merge between devices (newer change wins, deletions carried for a year)
   - Import Proton Pass exports directly — PGP-encrypted (recommended), ZIP or JSON — with a small built-in
     OpenPGP reader (own AES block cipher, checked against FIPS-197 and WebCrypto in the test suite); vaults become categories, cards and notes come along
