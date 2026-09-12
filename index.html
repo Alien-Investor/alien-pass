@@ -15,6 +15,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <script src="vendor/hash-wasm/argon2.umd.min.js"></script>
 <script src="vendor/eff/eff-wordlist.js"></script>
+<script src="qr.js"></script>
 <script src="app.js"></script>
 <link href="vendor/fonts/fonts.css" rel="stylesheet">
 <style>
@@ -110,7 +111,14 @@ a{color:var(--neon);}
 .pill.fav{color:var(--yellow);border-color:rgba(255,204,68,.5);}
 .pill.totp{color:var(--neon);border-color:var(--neon-mid);}
 .pill.bad{color:var(--orange);border-color:rgba(255,136,68,.5);}
+.pill.type{color:var(--text-mid);border-color:var(--border);}
+.pill.cat{color:var(--yellow);border-color:rgba(255,204,68,.35);text-transform:none;letter-spacing:.5px;}
 .empty{text-align:center;color:var(--text-dim);padding:30px 10px;font-size:.82rem;line-height:1.6;}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.chip{background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:.72rem;letter-spacing:1px;padding:4px 11px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chip.on{color:var(--neon);background:var(--neon-dim);border-color:var(--neon-mid);}
+.pin-input{letter-spacing:6px;text-align:center;font-size:1.3rem;}
+.secret-box{word-break:break-all;font-size:.82rem;color:var(--yellow);background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:3px;padding:10px;user-select:all;}
 
 /* DETAIL */
 .kv{padding:10px 0;border-bottom:1px solid var(--border);}
@@ -210,6 +218,19 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     </div>
   </div>
 
+  <!-- ===================== 2FA-HÜRDE (Aegis) ===================== -->
+  <div id="screen-totp" class="gate hidden">
+    <div class="card">
+      <div class="lockicon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l7 2.5v5.6c0 4.3-3 7.1-7 8.4-4-1.3-7-4.1-7-8.4V5.5L12 3z"/><path d="M9 12l2 2 4-4.2"/></svg></div>
+      <h2 data-i18n="totp.title">Zweiter Faktor</h2>
+      <p class="muted" data-i18n-html="totp.intro">Gib den aktuellen 6-stelligen Code aus deinem <strong>Aegis 2FA Manager</strong> ein.</p>
+      <input id="totp-code" class="pin-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" placeholder="000000" data-enter="doTotp">
+      <div id="totp-err" class="warn hidden" style="margin-top:12px"></div>
+      <button id="totp-btn" class="btn" style="margin-top:16px;width:100%" data-action="doTotp" data-i18n="totp.confirm">Bestätigen</button>
+      <button class="btn ghost sm" style="margin-top:10px;width:100%" data-action="cancelTotp" data-i18n="btn.cancel">Abbrechen</button>
+    </div>
+  </div>
+
   <!-- ===================== APP ===================== -->
   <div id="screen-app" class="hidden">
     <div class="tabs">
@@ -227,6 +248,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
           <input id="search" type="search" placeholder="Suchen (Titel, Nutzer, URL)…" data-i18n-ph="list.search" data-input="renderList" autocomplete="off" autocapitalize="none" spellcheck="false">
           <button class="btn sm" data-action="newEntry" title="Neuer Eintrag">+</button>
         </div>
+        <div id="cat-chips" class="chips"></div>
         <div id="health" class="health"></div>
         <div id="backup-hint"></div>
         <div id="entry-list"></div>
@@ -237,21 +259,44 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     <div id="tab-add" class="tabview hidden">
       <div class="card">
         <h2 id="add-title" data-i18n="add.titleNew">Neuer Eintrag</h2>
+        <div class="seg" id="f-type-seg">
+          <button id="ft-login" class="on" data-action="changeEntryType" data-arg="login" data-i18n="type.login">Login</button>
+          <button id="ft-note" data-action="changeEntryType" data-arg="note" data-i18n="type.note">Notiz</button>
+          <button id="ft-card" data-action="changeEntryType" data-arg="card" data-i18n="type.card">Karte</button>
+        </div>
         <label data-i18n="f.title">Titel *</label>
         <input id="f-title" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z.B. Proton Mail" data-i18n-ph="f.titlePh">
-        <label data-i18n="f.user">Nutzername / E-Mail</label>
-        <input id="f-user" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false">
-        <label data-i18n="f.pass">Passwort</label>
-        <div style="display:flex;gap:8px">
-          <input id="f-pass" type="password" maxlength="1000" autocomplete="off" autocapitalize="none" spellcheck="false" style="flex:1">
-          <button class="btn sm ghost" data-action="genIntoForm" title="Generieren" data-i18n="f.gen">Generieren</button>
+        <label data-i18n="f.cat">Kategorie (Ordner)</label>
+        <input id="f-cat" type="text" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" list="cat-list" placeholder="z.B. Privat, Arbeit, Finanzen — leer = ohne" data-i18n-ph="f.catPh">
+        <datalist id="cat-list"></datalist>
+        <div id="grp-login">
+          <label data-i18n="f.user">Nutzername / E-Mail</label>
+          <input id="f-user" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <label data-i18n="f.pass">Passwort</label>
+          <div style="display:flex;gap:8px">
+            <input id="f-pass" type="password" maxlength="1000" autocomplete="off" autocapitalize="none" spellcheck="false" style="flex:1">
+            <button class="btn sm ghost" data-action="genIntoForm" title="Generieren" data-i18n="f.gen">Generieren</button>
+          </div>
+          <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-pass"> <span data-i18n="f.showpass">Passwort anzeigen</span></label>
+          <div id="f-meter" class="meter"></div>
+          <label class="chk" style="margin-top:6px"><input type="checkbox" id="f-nowarn"> <span data-i18n="f.nowarn">Dienst erlaubt kein längeres Passwort (keine „kurz“-Warnung)</span></label>
+          <label data-i18n="f.url">URL / App</label>
+          <input id="f-url" type="text" maxlength="2000" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://…" >
+          <label data-i18n="f.totp">TOTP-Schlüssel (optional)</label>
+          <input id="f-totp" type="text" maxlength="500" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Base32-Schlüssel oder otpauth://-Link" data-i18n-ph="f.totpPh">
         </div>
-        <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-pass"> <span data-i18n="f.showpass">Passwort anzeigen</span></label>
-        <div id="f-meter" class="meter"></div>
-        <label data-i18n="f.url">URL / App</label>
-        <input id="f-url" type="text" maxlength="2000" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://…" >
-        <label data-i18n="f.totp">TOTP-Schlüssel (optional)</label>
-        <input id="f-totp" type="text" maxlength="500" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Base32-Schlüssel oder otpauth://-Link" data-i18n-ph="f.totpPh">
+        <div id="grp-card" class="hidden">
+          <label data-i18n="f.holder">Karteninhaber</label>
+          <input id="f-holder" type="text" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <label data-i18n="f.number">Kartennummer</label>
+          <input id="f-number" type="password" maxlength="32" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <div class="row">
+            <div><label data-i18n="f.expiry">Gültig bis</label><input id="f-expiry" type="text" maxlength="10" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="MM/JJ"></div>
+            <div><label data-i18n="f.cvv">Prüfnummer (CVV)</label><input id="f-cvv" type="password" maxlength="8" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+            <div><label data-i18n="f.pin">PIN (optional)</label><input id="f-pin" type="password" maxlength="12" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+          </div>
+          <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-number,f-cvv,f-pin"> <span data-i18n="f.showcard">Kartendaten anzeigen</span></label>
+        </div>
         <label data-i18n="f.notes">Notizen</label>
         <textarea id="f-notes" maxlength="10000" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
         <label class="chk" style="margin-top:10px"><input type="checkbox" id="f-fav"> <span data-i18n="f.fav">Favorit (oben in der Liste)</span></label>
@@ -328,8 +373,23 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         <div id="import-msg" class="muted" style="margin-top:10px"></div>
       </div>
       <div class="card">
-        <h2 data-i18n="csv.title">Umzug: aus anderem Passwort-Manager importieren</h2>
-        <p class="muted" data-i18n-html="csv.intro">Erkennt CSV-Exporte von <strong>Proton Pass</strong>, <strong>KeePassXC</strong> und <strong>Bitwarden</strong> automatisch (weitere Formate über passende Spaltennamen). Einträge mit gleichem Titel, Nutzer und Passwort werden übersprungen.</p>
+        <h2 data-i18n="pt.title">Umzug aus Proton Pass (PGP / ZIP / JSON)</h2>
+        <p class="muted" data-i18n-html="pt.intro">Liest den Proton-Export direkt — am besten die <strong>PGP-verschlüsselte</strong> Variante (empfohlen von Proton): Die Datei kann sicher aufs Handy wandern und wird erst hier mit ihrer Passphrase entschlüsselt. Übernommen werden Logins, Notizen, Kreditkarten, Aliase, WLAN und Identitäten; Proton-Tresore werden zu Kategorien. Der Papierkorb bleibt außen vor.</p>
+        <input type="file" id="proton-file" accept=".pgp,.zip,.json,application/zip,application/json,application/pgp-encrypted,application/octet-stream,text/plain" class="hidden" data-change="importProton">
+        <button class="btn ghost" style="margin-top:8px" data-action="pickFile" data-arg="proton-file" data-i18n="pt.pick">Proton-Export wählen</button>
+        <div id="proton-pass-box" class="hidden" style="margin-top:12px">
+          <label data-i18n="pt.filePass">Passphrase des Exports</label>
+          <input id="proton-pass" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" data-enter="doImportProton">
+          <div class="row" style="margin-top:10px">
+            <button id="proton-btn" class="btn" data-action="doImportProton" data-i18n="pt.doImport">Entschlüsseln &amp; importieren</button>
+            <button class="btn ghost" data-action="cancelProton" data-i18n="btn.cancel">Abbrechen</button>
+          </div>
+        </div>
+        <div id="proton-msg" class="muted" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="csv.title">Umzug per CSV (KeePassXC, Bitwarden, andere)</h2>
+        <p class="muted" data-i18n-html="csv.intro">Erkennt CSV-Exporte von <strong>KeePassXC</strong>, <strong>Bitwarden</strong> und <strong>Proton Pass</strong> automatisch (weitere Formate über passende Spaltennamen). Ordner bzw. Gruppen werden zu Kategorien. Einträge mit gleichem Titel, Nutzer und Passwort werden übersprungen.</p>
         <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" class="hidden" data-change="importCsv">
         <button class="btn ghost" style="margin-top:8px" data-action="pickFile" data-arg="csv-file" data-i18n="csv.pick">CSV-Datei wählen</button>
         <div id="csv-msg" class="muted" style="margin-top:10px"></div>
@@ -363,9 +423,37 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
           <option value="60" data-i18n="set.c60">1 Minute</option>
           <option value="0" data-i18n="set.cOff">nur beim Sperren (nicht empfohlen)</option>
         </select>
-        <p class="muted" style="margin-top:8px" data-i18n="set.clipNote">Hinweis: Android zeigt beim Kopieren eine System-Vorschau der Zwischenablage und leert sie spätestens nach einer Stunde selbst. Die App leert sie zusätzlich nach der eingestellten Zeit, beim Zurückkehren in die App (sobald die Zeit abgelaufen ist) und beim Sperren — im Hintergrund kann sie nicht auf die Zwischenablage zugreifen.</p>
+        <p class="muted" style="margin-top:8px" data-i18n="set.clipNote">Hinweis: In der Android-App wird Kopiertes als „sensibel“ markiert — die System-Vorschau zeigt den Inhalt dann nicht an (Android 13+). Die App leert die Zwischenablage nach der eingestellten Zeit — auch im Hintergrund, solange Android die App nicht eingefroren hat (das passiert meist nach dem zweiten App-Wechsel); spätestens beim Zurückkehren in die App und beim Sperren. Ab Android 13 leert das System die Zwischenablage zusätzlich nach etwa einer Stunde selbst, auf älteren Versionen nicht.</p>
         <div style="margin-top:14px">
           <button class="btn ghost" data-action="lock"><svg class="ic" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> <span data-i18n="set.lockNow">Jetzt sperren</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="set.totpTitle">Aegis-Hürde (TOTP beim Entsperren)</h2>
+        <div id="totp-off">
+          <p class="muted" data-i18n-html="set.totpOffIntro">Zusätzliche Hürde beim Entsperren: Nach der Passphrase wird ein 6-stelliger Code aus <strong>Aegis</strong> verlangt. <strong>Ehrlich gesagt:</strong> Der Schlüssel liegt im Tresor selbst — wer die Tresordatei <em>und</em> die Passphrase hat, braucht den Code nicht. Die Hürde hilft gegen jemanden, der deine Passphrase abgeschaut hat und dein entsperrtes Handy in der Hand hält.</p>
+          <button class="btn" style="margin-top:12px" data-action="totpStart" data-i18n="set.totpEnable">Hürde aktivieren</button>
+        </div>
+        <div id="totp-setup" class="hidden">
+          <p class="muted" data-i18n-html="set.totpSetup1">In <strong>Aegis</strong> hinzufügen — ohne Kamera möglich: „Schlüssel kopieren“ → in Aegis „Eintrag manuell hinzufügen“ → Typ <em>TOTP</em> → einfügen. Oder „QR als Bild speichern“ → in Aegis „+“ → QR-Scan → aus Bild importieren.</p>
+          <div class="center" style="margin:8px 0"><canvas id="totp-qr" style="background:#fff;border-radius:6px;padding:8px;max-width:240px;width:100%;image-rendering:pixelated"></canvas></div>
+          <div class="secret-box" id="totp-secret"></div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn ghost sm" data-action="copySecret" data-i18n="set.copyKey">Schlüssel kopieren</button>
+            <button class="btn ghost sm" data-action="saveQR" data-i18n="set.saveQR">QR als Bild speichern</button>
+            <button class="btn ghost sm" data-action="copyOtpauth" data-i18n="set.otpauth">otpauth-Link kopieren</button>
+          </div>
+          <p class="muted" style="margin-top:14px" data-i18n="set.totpSetup3">Aegis zeigt jetzt einen 6-stelligen Code. Gib ihn zur Bestätigung ein:</p>
+          <input id="totp-verify" class="pin-input" inputmode="numeric" maxlength="6" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="000000" data-enter="totpConfirm">
+          <div id="totp-setup-err" class="warn hidden" style="margin-top:10px"></div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn" data-action="totpConfirm" data-i18n="set.activate">Aktivieren</button>
+            <button class="btn ghost" data-action="totpCancel" data-i18n="btn.cancel">Abbrechen</button>
+          </div>
+        </div>
+        <div id="totp-on" class="hidden">
+          <p class="muted"><svg class="ic" viewBox="0 0 24 24" style="color:var(--neon)"><path d="M5 12.5l4 4 10-10"/></svg> <span data-i18n="set.totpOnText">Hürde aktiv. Beim Entsperren wird zusätzlich ein Aegis-Code verlangt. Sie gilt nur in dieser App auf diesem Gerät — Backups tragen sie nicht mit.</span></p>
+          <button class="btn danger sm" style="margin-top:10px" data-action="totpDisable" data-i18n="set.totpDisable">Hürde deaktivieren</button>
         </div>
       </div>
       <div class="card">
@@ -435,15 +523,17 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     <ul data-i18n-html="help.l2">
       <li><strong>Passphrase</strong> vergeben — mindestens 12 Zeichen, besser sechs Würfelwörter (der Vorschlag-Button erzeugt sie aus der EFF-Liste). Aufschreiben und sicher verwahren.</li>
       <li>Die <strong>Schlüsselableitung</strong> (Argon2id) misst sich beim Einrichten selbst; „Standard“ passt für aktuelle Handys.</li>
-      <li>Einträge anlegen: Titel, Nutzername, Passwort (oder generieren lassen), URL, Notizen, optional TOTP.</li>
-      <li>Auf einen Eintrag tippen → Detailansicht mit Kopier-Buttons. Passwörter erscheinen nur auf Anfrage.</li>
+      <li>Einträge anlegen — drei Typen: <strong>Login</strong> (Nutzer, Passwort, URL, TOTP), <strong>Notiz</strong> (nur verschlüsselter Text) und <strong>Karte</strong> (Inhaber, Nummer, Ablauf, CVV, PIN).</li>
+      <li><strong>Kategorien</strong> wie Ordner: im Formular frei eintippen (Vorschläge aus den vorhandenen). Die Liste filtert oben per Chip; eine Kategorie verschwindet, sobald kein Eintrag sie mehr trägt.</li>
+      <li><strong>Typ ändern</strong> geht auch nachträglich, aber die Felder des alten Typs (z.B. Passwort und TOTP eines Logins) werden dabei gelöscht — die App fragt vorher nach. Ein Backup bringt sie nicht zurück, weil beim Zusammenführen die neuere Änderung gewinnt.</li>
+      <li>Auf einen Eintrag tippen → Detailansicht mit Kopier-Buttons. Passwörter, Kartennummer, CVV und PIN erscheinen nur auf Anfrage.</li>
     </ul>
 
     <h2 data-i18n="help.h3">Zwischenablage</h2>
     <ul data-i18n-html="help.l3">
       <li>Kopierte Passwörter löscht die App nach der eingestellten Zeit (Standard 30 s), beim Zurückkehren in die App und beim Sperren.</li>
-      <li>Während die App im Hintergrund ist, kann sie die Zwischenablage nicht anfassen. Android leert sie spätestens nach einer Stunde selbst.</li>
-      <li>Android zeigt beim Kopieren kurz eine System-Vorschau des Inhalts. Das Unterdrücken bräuchte nativen Code — kommt in einer späteren Version.</li>
+      <li>Im Hintergrund versucht die Android-App das Leeren weiter, bis Android sie einfriert (meist nach dem zweiten App-Wechsel); danach holt sie es beim Zurückkehren nach. Ab Android 13 leert das System die Zwischenablage zusätzlich nach etwa einer Stunde selbst — auf älteren Android-Versionen nicht.</li>
+      <li>Die Android-App markiert Kopiertes als <strong>sensibel</strong>: Die System-Vorschau beim Kopieren zeigt den Inhalt nicht an (ab Android 13). Im Browser gibt es diesen Schutz nicht.</li>
     </ul>
 
     <h2 data-i18n="help.h4">Generator</h2>
@@ -460,8 +550,11 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
       <li><strong>Bedenke:</strong> Passwort und 2FA im selben Tresor schwächen die Faktor-Trennung. Für kritische Konten (E-Mail, Börse) den zweiten Faktor lieber in Aegis lassen.</li>
     </ul>
 
+    <h2 data-i18n="help.h5b">Aegis-Hürde beim Entsperren</h2>
+    <p data-i18n-html="help.p5b">Optional verlangt die App nach der Passphrase einen Aegis-Code (Einstellungen → Aegis-Hürde). <strong>Was sie leistet:</strong> Wer deine Passphrase abgeschaut hat und dein entsperrtes Handy in der Hand hält, kommt ohne deine Aegis-App nicht hinein. <strong>Was sie nicht leistet:</strong> Der TOTP-Schlüssel liegt im Tresor selbst. Wer die Tresordatei <em>und</em> die Passphrase besitzt, entschlüsselt sie außerhalb der App — das Format ist offen dokumentiert. Ein echter zweiter Faktor braucht eine Instanz, die ihn erzwingt (bei Cloud-Diensten der Server). Für eine lokale Datei bleibt die Passphrase der einzige kryptografische Schutz; mach sie lang.</p>
+
     <h2 data-i18n="help.h6">Passwort-Gesundheit</h2>
-    <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter, <strong>kurze</strong> (unter 12 Zeichen) und Einträge, die <strong>seit über zwei Jahren unverändert</strong> sind (jede Bearbeitung setzt diese Uhr zurück). Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
+    <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter, <strong>kurze</strong> (unter 12 Zeichen) und Einträge, die <strong>seit über zwei Jahren unverändert</strong> sind (jede Bearbeitung setzt diese Uhr zurück). Erlaubt ein Dienst kein längeres Passwort, schaltet das Häkchen „Dienst erlaubt kein längeres Passwort“ im Eintrag die „kurz“-Markierung ab. Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
 
     <h2 data-i18n="help.h7">Backup &amp; Sync</h2>
     <ul data-i18n-html="help.l7">
@@ -473,11 +566,11 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
 
     <h2 data-i18n="help.h8">Umzug aus Proton Pass, KeePassXC, Bitwarden</h2>
     <ul data-i18n-html="help.l8">
-      <li><strong>Proton Pass:</strong> Einstellungen → Exportieren → Format CSV (unverschlüsselt). Datei aufs Handy, in Alien Pass unter Sicherung → CSV wählen.</li>
-      <li><strong>KeePassXC:</strong> Datenbank → Exportieren → CSV-Datei.</li>
-      <li><strong>Bitwarden:</strong> Tools → Tresor exportieren → Format .csv.</li>
-      <li>Login-Einträge werden mit Titel, Nutzer, Passwort, URL, Notizen und TOTP übernommen. Reine Notizen kommen ohne Passwort an.</li>
-      <li><strong>Danach die CSV-Datei löschen</strong> — sie enthält alle Passwörter im Klartext.</li>
+      <li><strong>Proton Pass (empfohlen: PGP):</strong> Im Web-Client oder der Browser-Erweiterung (die Mobil-Apps können nicht exportieren) Zahnrad → Exportieren → Format <strong>PGP-verschlüsselt</strong>, Passphrase vergeben. Das ZIP unverändert aufs Handy (Syncthing, USB) und in Alien Pass unter Sicherung → Proton-Export wählen. Die Passphrase wird nur zum Entschlüsseln gebraucht und nicht gespeichert.</li>
+      <li>Übernommen werden Logins (inkl. TOTP, weitere URLs und Extra-Felder in den Notizen), Notizen, Kreditkarten, Aliase, WLAN-Zugänge, Identitäten und SSH-Schlüssel (als Notiz). Proton-Tresore werden zu Kategorien, angepinnte Einträge zu Favoriten. Dateianhänge und der Papierkorb werden nicht übernommen.</li>
+      <li><strong>KeePassXC:</strong> Datenbank → Exportieren → CSV-Datei. Gruppen werden zu Kategorien.</li>
+      <li><strong>Bitwarden:</strong> Tools → Tresor exportieren → Format .csv. Ordner werden zu Kategorien.</li>
+      <li><strong>CSV danach löschen</strong> — sie enthält alle Passwörter im Klartext. Der PGP-Export bleibt verschlüsselt und darf liegen bleiben.</li>
     </ul>
 
     <h2 data-i18n="help.h9">Sicherheit im Detail</h2>
@@ -486,8 +579,8 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
       <li><strong>Verschlüsselung:</strong> AES-256-GCM (WebCrypto). Ein zufälliger Datenschlüssel verschlüsselt den Tresor; die Passphrase verpackt nur diesen Schlüssel. Die Kopfdaten der Datei sind mitauthentisiert — Manipulation fällt auf.</li>
       <li><strong>Gerät:</strong> Die Android-App fordert keine Android-Berechtigung an (kein Internet, kein Speicher, keine Sensoren — die APK trägt nur die von AndroidX erzeugte Signatur-Permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, die nichts freigibt), verbietet Screenshots und App-Switcher-Vorschau (FLAG_SECURE) und schließt sich per Backup-Regeln von Cloud-, ADB- und Gerät-zu-Gerät-Backups aus.</li>
       <li><strong>Sperre:</strong> nach Inaktivität, im Hintergrund nach wählbarer Zeit (oder sofort), und manuell. Beim Sperren werden Schlüssel und alle Anzeigen aus dem Speicher entfernt.</li>
-      <li><strong>Fremdcode:</strong> nur die Argon2-Bibliothek hash-wasm (MIT) und die EFF-Wortliste, beide gebündelt und per Hash im Build geprüft. Kein CDN, kein Tracker.</li>
-      <li><strong>Grenzen:</strong> kein Autofill, keine Biometrie (v1), keine Leak-Prüfung. Eine Passphrase kann nicht wiederhergestellt werden.</li>
+      <li><strong>Fremdcode:</strong> nur die Argon2-Bibliothek hash-wasm (MIT) und die EFF-Wortliste, beide gebündelt und per Hash im Build geprüft. Kein CDN, kein Tracker. Der OpenPGP-Leser für Proton-Exporte ist eigener, absichtlich kleiner Code (nur symmetrisch, AES + Integritätsschutz), AES läuft in WebCrypto.</li>
+      <li><strong>Grenzen:</strong> kein Autofill, keine Biometrie (geplant), keine Leak-Prüfung. Eine Passphrase kann nicht wiederhergestellt werden.</li>
     </ul>
 
     <div style="text-align:center;margin-top:32px"><button class="btn ghost" data-action="closeHelp" data-i18n="help.close">Schließen</button></div>

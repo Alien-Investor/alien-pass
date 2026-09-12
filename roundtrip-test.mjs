@@ -2,6 +2,7 @@
 // (=== VAULT-FORMAT BEGIN/END ===) DIREKT — keine Nachbildung, damit Lese- und Schreibpfad
 // garantiert derselbe Code sind. Prüft Schlüsselhierarchie, AAD, Grenzen, Merge, Sanitizer, TOTP.
 import { readFileSync } from 'node:fs';
+import { deflateRawSync } from 'node:zlib';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 globalThis.hashwasm = require('./vendor/hash-wasm/argon2.umd.min.js');
@@ -16,7 +17,7 @@ const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
     normalizeTotp,otpauthUri,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
-    parseCsv,csvMap,csvRowToEntry};`)();
+    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
 const throwsWith=async(fn,code,m)=>{ try{ await fn(); ok(false,m+' (kein Fehler)'); }catch(e){ ok(e&&e.message===code,m+' → '+(e&&e.message)); } };
@@ -103,7 +104,7 @@ console.log('\n[4] Sanitizer');
   ok(x.fav===false,'fav nur echtes true');
   ok(Date.parse(x.updated)<=now+120000,'Zukunfts-updated auf now+2min geklemmt: '+x.updated);
   ok(x.created===x.updated,'created ungültig → = updated');
-  ok(!Object.prototype.hasOwnProperty.call(x,'constructor')&&Object.keys(x).length===11,'nur Whitelist-Felder');
+  ok(!Object.prototype.hasOwnProperty.call(x,'constructor')&&Object.keys(x).length===15,'nur Whitelist-Felder (15 inkl. type/cat/card/nowarn)');
   const y=V.sanitizeEntry({id:'0123456789abcdef',title:'x',updated:'nope'},now); ok(y.updated==='1970-01-01T00:00:00.000Z','ungültiges updated → Epoche (gewinnt nie)');
   const t=V.sanitizeEntry({id:'0123456789abcdef',title:'geheim',pass:'geheim',deleted:'2026-02-01T00:00:00.000Z',updated:'2026-02-01T00:00:00.000Z'},now);
   ok(t.deleted&&t.title===''&&t.pass===''&&t.totp===null,'Tombstone inhaltsleer');
@@ -190,7 +191,7 @@ console.log('\n[8] CSV-Parser + Import-Mapping');
   ok(V.csvRowToEntry(m,rows[3],Date.now())===null,'creditCard übersprungen');
   const kp='"Group","Title","Username","Password","URL","Notes","TOTP","Icon","Last Modified","Created"\n"Root/Mail","Posteo","ich@posteo.de","abc","https://posteo.de","n","JBSWY3DPEHPK3PXP","0","2025-03-01T10:00:00Z","2024-01-01T09:00:00Z"\n';
   const kr=V.parseCsv(kp,','); const km=V.csvMap(kr[0]); ok(km.fmt==='keepassxc','KeePassXC erkannt');
-  const ke=V.csvRowToEntry(km,kr[1],Date.now()); ok(ke.title==='Posteo'&&ke.notes==='n\nGruppe: Root/Mail'&&ke.totp.secret==='JBSWY3DPEHPK3PXP'&&ke.updated==='2025-03-01T10:00:00.000Z','KeePassXC gemappt (Gruppe in Notizen, Datum)');
+  const ke=V.csvRowToEntry(km,kr[1],Date.now()); ok(ke.title==='Posteo'&&ke.notes==='n'&&ke.cat==='Mail'&&ke.totp.secret==='JBSWY3DPEHPK3PXP'&&ke.updated==='2025-03-01T10:00:00.000Z','KeePassXC gemappt (Gruppe → Kategorie, Datum)');
   const bw='folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n,1,login,GitHub,,,0,https://github.com,alien,ghp-secret,JBSWY3DPEHPK3PXP\n,,note,Nur Notiz,text,,0,,,,\n,,card,Karte,,,0,,,,\n';
   const br=V.parseCsv(bw,','); const bm=V.csvMap(br[0]); ok(bm.fmt==='bitwarden','Bitwarden erkannt');
   const be=V.csvRowToEntry(bm,br[1],Date.now()); ok(be.title==='GitHub'&&be.fav===true&&be.user==='alien'&&be.pass==='ghp-secret'&&be.url==='https://github.com','Bitwarden gemappt inkl. Favorit');
@@ -219,6 +220,159 @@ console.log('\n[9] Audit-Fixes: Tombstone-Cap, Live-Cap, canon() verschachtelt')
   ok(V.canon(A)!==V.canon(B),'canon() unterscheidet verschachtelte totp-Objekte');
   ok(V.mergeEntries([A],[B]).entries[0].totp.secret===V.mergeEntries([B],[A]).entries[0].totp.secret,'Merge bei nur-TOTP-Unterschied kommutativ');
   ok(V.canon({b:1,a:{d:[1,{z:1,y:2}],c:null}})==='{"a":{"c":null,"d":[1,{"y":2,"z":1}]},"b":1}','canon() sortiert rekursiv, Arrays in Reihenfolge');
+}
+
+
+console.log('\n[10] v1.1: Eintragstypen, Kategorien, Karten, nowarn');
+{
+  const n=V.sanitizeEntry(E({type:'note',cat:'  Privat ',user:'u',pass:'p',url:'x',totp:'JBSWY3DPEHPK3PXP',nowarn:true,notes:'Geheimnotiz'}));
+  ok(n.type==='note'&&n.cat==='Privat'&&n.user===''&&n.pass===''&&n.url===''&&n.totp===null&&n.nowarn===false&&n.notes==='Geheimnotiz','Notiz: nur Titel/Kategorie/Notizen tragen, Rest geleert');
+  const c=V.sanitizeEntry(E({type:'card',card:{holder:' Max ',number:'4111 1111 1111 1111x',expiry:'08/29',cvv:'123',pin:'9876',extra:'nein'},pass:'p'}));
+  ok(c.type==='card'&&c.pass===''&&c.card.number==='4111 1111 1111 1111'&&c.card.holder==='Max'&&c.card.cvv==='123'&&!('extra' in c.card),'Karte: Kartenobjekt normalisiert (nur Ziffern/Leerzeichen), Passwort geleert');
+  ok(V.sanitizeEntry(E({type:'card',card:{}})).card===null&&V.sanitizeEntry(E({type:'card',card:'x'})).card===null,'leere/kaputte Karte → null');
+  const l=V.sanitizeEntry(E({type:'bogus',cat:'a'.repeat(100),nowarn:'yes',card:{number:'1'}}));
+  ok(l.type==='login'&&l.cat.length===40&&l.nowarn===false&&l.card===null,'unbekannter Typ → login; cat gekappt; nowarn nur boolean true; card nur bei Typ card');
+  ok(V.sanitizeEntry(E({nowarn:true})).nowarn===true,'nowarn=true bleibt bei login');
+  const t=V.sanitizeEntry(E({type:'card',deleted:'2026-01-03T00:00:00.000Z'}));
+  ok(t.type==='login'&&t.cat===''&&t.card===null&&Object.keys(t).length===15,'Tombstone inhaltsleer mit identischer Feldmenge');
+  { const ex=E({title:'x'}); ok(V.canon(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))===V.canon(V.sanitizeEntry(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))),'tombstone() ist sanitizer-stabil (Merge-Gleichstand deterministisch)'); }
+  const a=V.sanitizeEntry(E({type:'card',card:{number:'1'},updated:'2026-01-02T00:00:00.000Z'})), b=Object.assign({},a,{card:{number:'2',holder:'',expiry:'',cvv:'',pin:''}});
+  ok(V.winner(a,b)===V.winner(b,a),'winner() deterministisch bei Karten-Gleichstand (canon rekursiv)');
+  ok(V.dupKey(n)!==V.dupKey(Object.assign({},n,{notes:'andere'}))&&V.dupKey(a)!==V.dupKey(b),'dupKey unterscheidet Notiztext bzw. Kartennummer');
+  const v=V.sanitizeVault({entries:[],totp:'JBSWY3DPEHPK3PXP'}); ok(v.totp&&v.totp.secret==='JBSWY3DPEHPK3PXP'&&V.sanitizeVault({entries:[],totp:'kaputt!'}).totp===null&&V.emptyVault().totp===null,'Vault-TOTP (Aegis-Hürde) normalisiert, kaputt → null');
+  // Altbestand v1.0 (ohne type/cat) bleibt unverändert lesbar
+  const old=V.sanitizeEntry({id:V.cryptoId(),title:'Alt',user:'u',pass:'p',url:'',notes:'',totp:null,fav:false,created:'2026-01-01T00:00:00.000Z',updated:'2026-01-01T00:00:00.000Z',deleted:null});
+  ok(old.type==='login'&&old.cat===''&&old.pass==='p','v1.0-Eintrag ohne type/cat → login, Daten erhalten');
+}
+
+console.log('\n[11] v1.1: CSV → Kategorie / Notiz-Typ');
+{
+  const pr=V.parseCsv('type,name,url,email,username,password,note,totp,vault\nlogin,Shop,https://s.de,a@b.de,,pw,,,"Privat"\nnote,Memo,,,,,Text hier,,Arbeit\ncreditCard,Visa,,,,,,,Privat\n',',');
+  const pm=V.csvMap(pr[0]); const e1=V.csvRowToEntry(pm,pr[1],Date.now()), e2=V.csvRowToEntry(pm,pr[2],Date.now()), e3=V.csvRowToEntry(pm,pr[3],Date.now());
+  ok(e1.cat==='Privat'&&e1.type==='login'&&e1.user==='a@b.de','Proton-CSV: vault → Kategorie');
+  ok(e2.type==='note'&&e2.cat==='Arbeit'&&e2.notes==='Text hier'&&e2.pass==='','Proton-CSV: note → Notiz-Typ');
+  ok(e3===null,'Proton-CSV: creditCard weiterhin übersprungen (nur im JSON-Export enthalten)');
+  const br=V.parseCsv('folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\nBank,1,login,Konto,,,0,https://b.de,ich,pw,\n,0,note,Merker,Notiztext,,0,,,,\n',',');
+  const bm=V.csvMap(br[0]); const b1=V.csvRowToEntry(bm,br[1],Date.now()), b2=V.csvRowToEntry(bm,br[2],Date.now());
+  ok(b1.cat==='Bank'&&b1.fav===true&&b2.type==='note'&&b2.cat===''&&b2.notes==='Notiztext','Bitwarden-CSV: folder → Kategorie, note → Notiz');
+  const kr=V.parseCsv('"Group","Title","Username","Password","URL","Notes","TOTP","Icon","Last Modified","Created"\n"Root","A","u","p","","","","0","",""\n"Root/Bank/Sub","B","u","p","","","","0","",""\n',',');
+  const km=V.csvMap(kr[0]); ok(V.csvRowToEntry(km,kr[1],Date.now()).cat===''&&V.csvRowToEntry(km,kr[2],Date.now()).cat==='Sub','KeePassXC: Root → keine Kategorie, Pfad → letztes Segment');
+}
+
+const FIX=new URL('./test-fixtures/proton/', import.meta.url).pathname;
+const fixture=(n)=>{ try{ return new Uint8Array(readFileSync(FIX+n)); }catch(_){ return null; } };
+console.log('\n[12] v1.1: Proton-JSON-Export → Einträge');
+{
+  const obj=JSON.parse(readFileSync(FIX+'data.json','utf8')); const r=V.protonExportToEntries(obj, Date.now());
+  ok(r.vaults===2&&r.entries.length===7&&r.skipped===1,'2 Tresore, 7 Einträge, 1 übersprungen (Papierkorb): '+r.entries.length+'/'+r.skipped);
+  const by=t=>r.entries.find(e=>e.title===t);
+  const pm=by('Proton Mail'); ok(pm&&pm.type==='login'&&pm.cat==='Privat'&&pm.user==='alien'&&pm.pass==='MarkerPass1!'&&pm.url==='https://mail.proton.me'&&pm.fav===true,'Login: Felder, Tresor → Kategorie, pinned → Favorit');
+  ok(pm.totp&&pm.totp.secret==='JBSWY3DPEHPK3PXP'&&pm.totp.issuer==='Proton','Login: totpUri → TOTP-Objekt');
+  ok(pm.notes.includes('Hauptkonto')&&pm.notes.includes('E-Mail: alien@proton.me')&&pm.notes.includes('URL: https://account.proton.me')&&pm.notes.includes('PIN: 4711')&&pm.notes.includes('Backup-Code: abc-def'),'Login: Notiz, Zweit-E-Mail, weitere URLs und Extra-Felder in Notizen');
+  ok(pm.created==='2023-11-14T22:13:20.000Z'&&pm.updated==='2025-06-15T15:06:40.000Z','Zeitstempel (Unix-Sekunden) übernommen');
+  const kv=by('Karte Visa'); ok(kv&&kv.type==='card'&&kv.card.number==='4111111111111111'&&kv.card.holder==='Max Muster'&&kv.card.expiry==='2029-08'&&kv.card.cvv==='123'&&kv.card.pin==='9876'&&kv.pass==='','creditCard → Karte');
+  const no=by('WLAN Zuhause'); ok(no&&no.type==='note'&&no.notes==='Router im Flur','note → Notiz');
+  const al=by('Alias Shop'); ok(al&&al.type==='login'&&al.user==='shop.x@passmail.net'&&al.pass==='','alias → Login mit Alias-Adresse ohne Passwort');
+  const ssh=by('Git Server'); ok(ssh&&ssh.type==='note'&&ssh.cat==='Arbeit'&&ssh.notes.includes('Private key:\n-----BEGIN OPENSSH'),'sshKey → Notiz mit Schlüsseln');
+  const wl=by('Büro WLAN'); ok(wl&&wl.type==='login'&&wl.user==='Firma'&&wl.pass==='wifi-secret','wifi → Login (SSID/Passwort)');
+  const id=by('Ausweis'); ok(id&&id.type==='note'&&id.notes.includes('passportNumber: C01X00T47')&&!id.notes.includes('gender'),'identity → Notiz nur mit gefüllten Feldern');
+  ok(!by('Papierkorb'),'Papierkorb-Eintrag (state 2) nicht importiert');
+  await throwsWith(()=>V.protonExportToEntries({foo:1}),'format','kein Proton-Export');
+  await throwsWith(()=>V.protonExportToEntries({vaults:{}}),'format','leere vaults');
+  const big={vaults:{a:{name:'x',items:new Array(V.MAX_ENTRIES+1).fill({})}}}; await throwsWith(()=>V.protonExportToEntries(big),'toomany','Cap vor der Verarbeitung');
+  ok(V.protonItemToEntry({state:1,data:{type:'login',metadata:{name:'<img src=x onerror=1>'},content:{password:{a:1},urls:'nein',itemEmail:5}}},'V',Date.now()).pass===''&&V.protonItemToEntry({state:1,data:{type:'login',metadata:{name:'x'},content:{}}},'V',Date.now()).url==='','Nicht-Strings werden verworfen');
+}
+
+console.log('\n[13] v1.1: ZIP-Leser');
+{
+  for(const [n,label] of [['data.zip','stored'],['data-deflate.zip','deflate']]){ const z=fixture(n); if(!z){ ok(false,'Fixture '+n+' fehlt'); continue; }
+    const ents=V.zipEntries(z); const e=ents.find(x=>x.name.endsWith('data.json')); const data=await V.zipRead(z,e);
+    ok(e&&JSON.parse(new TextDecoder().decode(data)).version==='1.32.0','ZIP ('+label+'): Proton Pass/data.json gelesen, '+data.length+' B'); }
+  const pz=fixture('data-pgp.zip'); const pr=await V.protonProbe(pz); ok(pr.kind==='pgp'&&pr.payload[0]===0x2d,'protonProbe: ZIP mit data.pgp → pgp (armiert)');
+  const jr=await V.protonProbe(fixture('data.zip')); ok(jr.kind==='json','protonProbe: ZIP mit data.json → json');
+  ok((await V.protonProbe(new TextEncoder().encode('﻿{"vaults":{}}'))).kind==='json','protonProbe: BOM-JSON → json');
+  await throwsWith(()=>V.protonProbe(new Uint8Array([0x50,0x4b,3,4,0,0,0,0])),'zip','kaputtes ZIP');
+  await throwsWith(async()=>{ const z=new Uint8Array(fixture('data.zip')); const s=new TextDecoder('latin1').decode(z).replaceAll('data.json','other.txt'); return V.protonProbe(new Uint8Array(Array.from(s,c=>c.charCodeAt(0)))); },'format','ZIP ohne data.json/data.pgp');
+}
+
+console.log('\n[14] v1.1: OpenPGP symmetrisch (gpg-Fixtures: alte Köpfe, Partial-Längen, ZIP-Kompression)');
+{
+  for(const [n,label] of [['data.pgp','komprimiert, partial'],['data-nocomp.pgp','unkomprimiert, definite']]){
+    const f=fixture(n); if(!f){ ok(false,'Fixture '+n+' fehlt'); continue; }
+    const t0=Date.now(); const out=await V.pgpDecryptSymmetric(f,'test-passphrase-alien'); const obj=JSON.parse(new TextDecoder().decode(out));
+    ok(obj.version==='1.32.0'&&obj.vaults.share1.items.length===5,'entschlüsselt ('+label+') in '+(Date.now()-t0)+' ms');
+    await throwsWith(()=>V.pgpDecryptSymmetric(f,'falsche-passphrase'),'pgpPass','falsche Passphrase ('+label+')');
+  }
+  const f=fixture('data-nocomp.pgp'); const bin=V.pgpDearmor(new TextDecoder().decode(f));
+  ok((await V.pgpDecryptSymmetric(bin,'test-passphrase-alien')).length>0,'binär (dearmored) ebenfalls lesbar');
+  const bad=new Uint8Array(bin); bad[bad.length-5]^=1; await throwsWith(()=>V.pgpDecryptSymmetric(bad,'test-passphrase-alien'),'pgpPass','MDC erkennt manipulierte Daten');
+  const badCrc=new TextDecoder().decode(f).replace(/\n=([A-Za-z0-9+/]{4})/,(m,g)=>'\n='+(g[0]==='A'?'B':'A')+g.slice(1)); await throwsWith(()=>V.pgpDecryptSymmetric(new TextEncoder().encode(badCrc),'x'),'pgp','Armor-CRC24 geprüft');
+  const pk=V.pgpPackets(bin); ok(pk.length===2&&pk[0].tag===3&&pk[1].tag===18,'Pakete: SKESK + SEIPD');
+  // Proton-Variante nachgebaut: neue Köpfe + verschlüsselter Sitzungsschlüssel (ESK) im SKESK
+  {
+    const pass='proton-style-pass'; const salt=V.rand(8); const spec={type:3,hash:8,salt,count:65011712};
+    const kek=await V.pgpS2K(V.passBytes(pass),spec,32); const sk=V.rand(32);
+    const kk=await crypto.subtle.importKey('raw',kek,{name:'AES-CTR'},false,['encrypt']);
+    const cfbEnc=async(key,pt)=>{ const out=new Uint8Array(pt.length); let prev=new Uint8Array(16); for(let i=0;i<pt.length;i+=16){ const ks=new Uint8Array(await crypto.subtle.encrypt({name:'AES-CTR',counter:prev,length:128},key,new Uint8Array(16))); const blk=pt.subarray(i,i+16); const c=new Uint8Array(16); for(let j=0;j<blk.length;j++){ c[j]=blk[j]^ks[j]; out[i+j]=c[j]; } prev=blk.length===16?c:prev; } return out; };
+    const esk=await cfbEnc(kk, V.concatBytes([new Uint8Array([9]),sk]));
+    const skesk=V.concatBytes([new Uint8Array([4,9,3,8]),salt,new Uint8Array([255]),esk]);
+    const lit=new TextEncoder().encode('{"vaults":{"v":{"name":"N","items":[]}}}'); const litPkt=V.concatBytes([new Uint8Array([0xcb,6+lit.length,0x62,0,0,0,0,0]),lit]);
+    const prefix=V.rand(16); const body=V.concatBytes([prefix,prefix.subarray(14,16),litPkt,new Uint8Array([0xd3,0x14])]);
+    const mdc=new Uint8Array(await crypto.subtle.digest('SHA-1',body)); const plain=V.concatBytes([body,mdc]);
+    const sess=await crypto.subtle.importKey('raw',sk,{name:'AES-CTR'},false,['encrypt']); const ct=await cfbEnc(sess,plain);
+    const enc2=(tag,b)=>{ const len=b.length; const l=len<192?[len]:len<8384?[((len-192)>>8)+192,(len-192)&255]:[255,len>>>24,(len>>16)&255,(len>>8)&255,len&255]; return V.concatBytes([new Uint8Array([0xc0|tag,...l]),b]); };
+    const msg=V.concatBytes([enc2(3,skesk),enc2(18,V.concatBytes([new Uint8Array([1]),ct]))]);
+    const out=await V.pgpDecryptSymmetric(msg,pass); ok(JSON.parse(new TextDecoder().decode(out)).vaults.v.name==='N','Proton-Variante (v4-SKESK mit ESK, SEIPD v1, neue Köpfe, unkomprimiert) entschlüsselt');
+    ok(V.protonExportToEntries(await V.protonLoad({kind:'pgp',payload:msg},pass)).vaults===1,'protonLoad: pgp → JSON-Objekt');
+    const v6=V.concatBytes([enc2(3,V.concatBytes([new Uint8Array([6]),skesk.subarray(1)])),enc2(18,V.concatBytes([new Uint8Array([2]),ct]))]);
+    await throwsWith(()=>V.pgpDecryptSymmetric(v6,pass),'pgpAlgo','v6/AEAD-Variante wird klar abgewiesen');
+    const argon=V.concatBytes([enc2(3,V.concatBytes([new Uint8Array([4,9,4,8]),salt,new Uint8Array([255]),esk])),enc2(18,V.concatBytes([new Uint8Array([1]),ct]))]);
+    await throwsWith(()=>V.pgpDecryptSymmetric(argon,pass),'pgpAlgo','Argon2-S2K wird klar abgewiesen');
+  }
+}
+
+console.log('\n[15] Audit run-2: AES-Blockchiffre, CFB, SKESK-Deckel, Inflate-Bombe');
+{
+  const hex=h=>Uint8Array.from(h.match(/../g),x=>parseInt(x,16)), toHex=u=>Array.from(u,b=>b.toString(16).padStart(2,'0')).join('');
+  const pt=hex('00112233445566778899aabbccddeeff'), out=new Uint8Array(16);
+  for(const [k,want] of [['000102030405060708090a0b0c0d0e0f','69c4e0d86a7b0430d8cdb78070b4c55a'],['000102030405060708090a0b0c0d0e0f1011121314151617','dda97ca4864cdfe06eaf70a0ec0d7191'],['000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f','8ea2b7ca516745bfeafc49904b496089']]){
+    V.aesEncryptBlock(V.aesExpand(hex(k)), pt,0, out,0); ok(toHex(out)===want,'FIPS-197 AES-'+(k.length*4)+' Testvektor'); }
+  let mism=0; for(let i=0;i<60;i++){ const kl=[16,24,32][i%3]; const key=V.rand(kl), blk=V.rand(16);
+    const ck=await crypto.subtle.importKey('raw',key,{name:'AES-CTR'},false,['encrypt']); const ref=new Uint8Array(await crypto.subtle.encrypt({name:'AES-CTR',counter:blk,length:128},ck,new Uint8Array(16)));
+    V.aesEncryptBlock(V.aesExpand(key), blk,0, out,0); if(toHex(out)!==toHex(ref)) mism++; }
+  ok(mism===0,'60 Zufallsbloecke (AES-128/192/256) identisch mit WebCrypto');
+  const f=fixture('data-nocomp.pgp'); const t0=Date.now(); const dec=await V.pgpDecryptSymmetric(f,'test-passphrase-alien'); ok(JSON.parse(new TextDecoder().decode(dec)).version==='1.32.0','Fixture nach AES-Umbau weiterhin entschluesselbar ('+(Date.now()-t0)+' ms)');
+  const big=new Uint8Array(20*1024*1024); const m0=process.memoryUsage().rss; const t1=Date.now(); const r=V.pgpCfbDecrypt(V.rand(32), big); const dt=Date.now()-t1; const dm=(process.memoryUsage().rss-m0)/1048576;
+  ok(r.length===big.length&&dt<15000&&dm<200,'20 MiB CFB: '+dt+' ms, +'+dm.toFixed(0)+' MB RSS (Ziel: < 15 s, < 200 MB)');
+  const enc2=(tag,b)=>{ const len=b.length; const l=len<192?[len]:len<8384?[((len-192)>>8)+192,(len-192)&255]:[255,len>>>24,(len>>16)&255,(len>>8)&255,len&255]; return V.concatBytes([new Uint8Array([0xc0|tag,...l]),b]); };
+  const skesk=V.concatBytes([new Uint8Array([4,9,3,8]),V.rand(8),new Uint8Array([255])]); const many=V.concatBytes([...Array(V.MAX_SKESK+1).fill(0).map(()=>enc2(3,skesk)),enc2(18,V.concatBytes([new Uint8Array([1]),V.rand(64)]))]);
+  const t2=Date.now(); await throwsWith(()=>V.pgpDecryptSymmetric(many,'x'),'pgp','mehr als MAX_SKESK='+V.MAX_SKESK+' SKESK-Pakete abgewiesen'); ok(Date.now()-t2<500,'...und zwar sofort ('+(Date.now()-t2)+' ms, keine S2K-Arbeit)');
+  const t3=Date.now(); await throwsWith(()=>V.pgpDecryptSymmetric(f,'falsch'),'pgpPass','falsche Passphrase'); ok(true,'Ablehnung nach '+(Date.now()-t3)+' ms (nur Quick-Check)');
+  const bomb=new Uint8Array(deflateRawSync(Buffer.alloc(64*1024*1024))); const m1=process.memoryUsage().rss; const t4=Date.now();
+  await throwsWith(()=>V.inflate(bomb,'deflate-raw'),'toolarge','Deflate-Bombe ('+bomb.length+' B -> 64 MiB) streamend abgebrochen');
+  const dm2=(process.memoryUsage().rss-m1)/1048576; ok(dm2<40,'...mit +'+dm2.toFixed(0)+' MB RSS in '+(Date.now()-t4)+' ms');
+  const small=new TextEncoder().encode('{"ok":true}'); ok(new TextDecoder().decode(await V.inflate(new Uint8Array(deflateRawSync(Buffer.from(small))),'deflate-raw'))==='{"ok":true}','normales Deflate weiterhin korrekt');
+}
+
+console.log('\n[16] Audit run-2: Dubletten-Schluessel, Kuerzungszaehler, Textsaeuberung, Merge-Kommutativitaet');
+{
+  const NUL=String.fromCharCode(0), ZW=String.fromCharCode(0x200b), RLO=String.fromCharCode(0x202e);
+  const base={id:'0123456789abcdef',type:'login',title:'GitHub',user:'alien',pass:'pw',url:'',notes:'',totp:null,card:null,nowarn:false,fav:false,created:'2026-01-01T00:00:00.000Z',updated:'2026-01-02T00:00:00.000Z',deleted:null};
+  const a=V.sanitizeEntry(base), b=V.sanitizeEntry(Object.assign({},base,{id:'fedcba9876543210',totp:'JBSWY3DPEHPK3PXP',updated:'2026-03-01T00:00:00.000Z',fav:true,cat:'Arbeit'}));
+  ok(V.dupKey(a)!==V.dupKey(b),'Login mit TOTP ist keine Dublette des Logins ohne TOTP');
+  ok(V.dupKey(a)===V.dupKey(V.sanitizeEntry(Object.assign({},base,{id:'fedcba9876543210',fav:true,cat:'Anders',updated:'2026-05-01T00:00:00.000Z'}))),'gleicher Inhalt, andere id/Kategorie/fav/Zeit -> Dublette (CSV-Re-Import bleibt erkannt)');
+  ok(V.dupKey(a)!==V.dupKey(V.sanitizeEntry(Object.assign({},base,{url:'https://x'})))&&V.dupKey(a)!==V.dupKey(V.sanitizeEntry(Object.assign({},base,{notes:'n'}))),'URL bzw. Notizen unterscheiden');
+  const c1=V.sanitizeEntry(Object.assign({},base,{type:'card',card:{number:'4111',pin:'1'}})), c2=V.sanitizeEntry(Object.assign({},base,{type:'card',card:{number:'4111',pin:'2'}}));
+  ok(V.dupKey(c1)!==V.dupKey(c2),'Karten mit gleicher Nummer, anderer PIN sind keine Dubletten');
+  const obj=JSON.parse(readFileSync(FIX+'data.json','utf8')); obj.vaults.share1.items[0].data.metadata.note='N'.repeat(9990);
+  const r=V.protonExportToEntries(obj, Date.now()); const pm=r.entries.find(e=>e.title==='Proton Mail');
+  ok(r.truncated===1&&pm.notes.length===V.CAPS.notes&&pm.notes.includes('PIN: 4711')&&pm.notes.includes('E-Mail: alien@proton.me'),'Proton: Kuerzung gezaehlt, Geheimnisse vor dem Freitext erhalten');
+  ok(V.protonExportToEntries(JSON.parse(readFileSync(FIX+'data.json','utf8')), Date.now()).truncated===0,'ohne Ueberlaenge: truncated=0');
+  const st={truncated:0}; const rows=V.parseCsv('title,username,password,notes\nA,u,p,"'+'x'.repeat(10001)+'"\n',','); V.csvRowToEntry(V.csvMap(rows[0]),rows[1],Date.now(),st); ok(st.truncated===1,'CSV: Kuerzung gezaehlt');
+  const cleaned=V.line('  '+NUL+'Bank'+ZW+' '+RLO+'X\n\nY  ',40); ok(cleaned==='Bank X Y','line(): Steuer-/Nullbreiten-/Bidi-Zeichen raus, Whitespace kollabiert: '+JSON.stringify(cleaned));
+  const t=V.sanitizeEntry(Object.assign({},base,{title:'Harmlos\n\nOK = Abbrechen',cat:NUL})); ok(t.title==='Harmlos OK = Abbrechen'&&t.cat==='','Titel ohne Zeilenumbrueche, NUL-Kategorie wird leer');
+  const L1=V.sanitizeEntry(Object.assign({},base,{title:'ALT',updated:'2026-01-02T00:00:00.000Z'})), L2=V.sanitizeEntry(Object.assign({},base,{title:'NEU',updated:'2026-02-02T00:00:00.000Z'})), I=V.sanitizeEntry(Object.assign({},base,{title:'MITTE',updated:'2026-01-15T00:00:00.000Z'}));
+  const m1=V.mergeEntries([L1,L2],[I]).entries[0].title, m2=V.mergeEntries([L2,L1],[I]).entries[0].title; ok(m1==='NEU'&&m2==='NEU','mergeEntries dedupliziert local per winner() (Reihenfolge egal)');
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

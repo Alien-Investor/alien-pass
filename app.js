@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -36,6 +36,21 @@ const I18N = {
   "f.title":"Title *","f.titlePh":"e.g. Proton Mail","f.user":"Username / e-mail","f.pass":"Password","f.gen":"Generate",
   "f.showpass":"Show password","f.url":"URL / app","f.totp":"TOTP secret (optional)","f.totpPh":"Base32 secret or otpauth:// link",
   "f.notes":"Notes","f.fav":"Favourite (top of the list)","add.save":"Save","btn.cancel":"Cancel",
+  "type.login":"Login","type.note":"Note","type.card":"Card",
+  "f.cat":"Category (folder)","f.catPh":"e.g. Private, Work, Finance — empty = none",
+  "f.nowarn":"Service does not allow a longer password (no “short” warning)",
+  "f.holder":"Cardholder","f.number":"Card number","f.expiry":"Valid until","f.cvv":"Security code (CVV)","f.pin":"PIN (optional)","f.showcard":"Show card data",
+  "totp.title":"Second factor","totp.intro":"Enter the current 6-digit code from your <strong>Aegis 2FA manager</strong>.","totp.confirm":"Confirm",
+  "pt.title":"Migrate from Proton Pass (PGP / ZIP / JSON)",
+  "pt.intro":"Reads the Proton export directly — preferably the <strong>PGP-encrypted</strong> variant (Proton's recommendation): the file can travel to the phone safely and is only decrypted here with its passphrase. Logins, notes, credit cards, aliases, Wi-Fi and identities come over; Proton vaults become categories. The trash is left out.",
+  "pt.pick":"Choose Proton export","pt.filePass":"Passphrase of the export","pt.doImport":"Decrypt & import",
+  "set.totpTitle":"Aegis hurdle (TOTP on unlock)",
+  "set.totpOffIntro":"Extra hurdle on unlock: after the passphrase a 6-digit code from <strong>Aegis</strong> is required. <strong>Honestly:</strong> the key lives inside the vault itself — whoever has the vault file <em>and</em> the passphrase does not need the code. The hurdle helps against someone who peeked at your passphrase and holds your unlocked phone.",
+  "set.totpEnable":"Enable hurdle",
+  "set.totpSetup1":"Add in <strong>Aegis</strong> — works without a camera: “Copy key” → in Aegis “Add entry manually” → type <em>TOTP</em> → paste. Or “Save QR as image” → in Aegis “+” → QR scan → import from image.",
+  "set.copyKey":"Copy key","set.saveQR":"Save QR as image","set.otpauth":"Copy otpauth link",
+  "set.totpSetup3":"Aegis now shows a 6-digit code. Enter it to confirm:","set.activate":"Activate",
+  "set.totpOnText":"Hurdle active. Unlocking additionally asks for an Aegis code. It applies only to this app on this device — backups do not carry it.","set.totpDisable":"Disable hurdle",
   "gen.title":"Password generator","gen.modeChars":"Characters","gen.modeWords":"Dice words",
   "gen.new":"Generate new","gen.copy":"Copy","gen.use":"Use in form","gen.len":"Length","gen.noamb":"no l/1/I/O/0",
   "gen.words":"Words","gen.sep":"Separator","gen.cap":"Capitalise","gen.num":"+ digit",
@@ -46,15 +61,15 @@ const I18N = {
   "bk.importTitle":"Import backup (merge)",
   "bk.importIntro":"Merges a <code>.vault</code> file into this vault: per entry the <strong>newer change</strong> wins, deletions are applied. The file may use a different passphrase — your local one stays unchanged.",
   "bk.pick":"Choose .vault file","bk.filePass":"Passphrase of the file","bk.doImport":"Merge",
-  "csv.title":"Migrate: import from another password manager",
-  "csv.intro":"Detects CSV exports from <strong>Proton Pass</strong>, <strong>KeePassXC</strong> and <strong>Bitwarden</strong> automatically (other formats via matching column names). Entries with identical title, user and password are skipped.",
+  "csv.title":"Migrate via CSV (KeePassXC, Bitwarden, others)",
+  "csv.intro":"Detects CSV exports from <strong>KeePassXC</strong>, <strong>Bitwarden</strong> and <strong>Proton Pass</strong> automatically (other formats via matching column names). Folders and groups become categories. Entries with identical title, user and password are skipped.",
   "csv.pick":"Choose CSV file",
   "csv.warn":"⚠ The export file sits <strong>unencrypted</strong> on the device. Delete it right after importing (Downloads folder) — and don't leave the export lying around in the source manager either.",
   "set.secTitle":"Security","set.autolock":"Lock after inactivity","set.off":"Off",
   "set.al1":"1 minute","set.al2":"2 minutes","set.al5":"5 minutes","set.al15":"15 minutes",
   "set.bgLock":"Lock in background after","set.bg0":"immediately","set.bg30":"30 seconds","set.bg60":"1 minute","set.bg300":"5 minutes",
   "set.clip":"Clear clipboard after","set.c15":"15 seconds","set.c30":"30 seconds","set.c60":"1 minute","set.cOff":"only on lock (not recommended)",
-  "set.clipNote":"Note: Android shows a system preview of the clipboard when copying and clears it by itself after one hour at the latest. The app additionally clears it after the chosen time, when you return to the app (once the time is up) and when it locks — while in the background it cannot access the clipboard.",
+  "set.clipNote":"Note: in the Android app copied content is flagged as “sensitive” — the system preview then hides it (Android 13+). The app clears the clipboard after the chosen time — also in the background, as long as Android has not frozen the app (usually after the second app switch); at the latest when you return to the app and when it locks. From Android 13 the system additionally clears the clipboard after about an hour, older versions do not.",
   "set.lockNow":"Lock now",
   "set.cpTitle":"Change passphrase","set.cpCur":"Current passphrase","set.cpNew":"New passphrase","set.cpRepeat":"Repeat","set.cpShow":"Show passphrases","set.cpBtn":"Change",
   "set.cpNote":"Changing the passphrase also rotates the internal data key. Backups exported earlier keep their old passphrase.",
@@ -70,21 +85,23 @@ const I18N = {
   "help.p1":"A <strong>local, encrypted password manager</strong>. Runs fully <strong>offline</strong> — no cloud, no server, no telemetry, no account. The Android app does not even have an internet permission. Your passwords never leave the device in plaintext.",
   "help.warn":"⚠ There is no reset and no backdoor. Forget your passphrase and the data is gone for good. Make regular backups and keep the passphrase safe.",
   "help.h2":"First steps",
-  "help.l2":"<li><strong>Choose a passphrase</strong> — at least 12 characters, better six dice words (the suggest button builds them from the EFF list). Write it down and store it safely.</li><li>The <strong>key derivation</strong> (Argon2id) benchmarks itself during setup; “Standard” suits current phones.</li><li>Create entries: title, username, password (or generate one), URL, notes, optional TOTP.</li><li>Tap an entry → detail view with copy buttons. Passwords are only revealed on request.</li>",
+  "help.l2":"<li><strong>Choose a passphrase</strong> — at least 12 characters, better six dice words (the suggest button builds them from the EFF list). Write it down and store it safely.</li><li>The <strong>key derivation</strong> (Argon2id) benchmarks itself during setup; “Standard” suits current phones.</li><li>Create entries — three types: <strong>Login</strong> (user, password, URL, TOTP), <strong>Note</strong> (encrypted text only) and <strong>Card</strong> (holder, number, expiry, CVV, PIN).</li><li><strong>Categories</strong> work like folders: type one freely in the form (suggestions from existing ones). The list filters via the chips at the top; a category disappears once no entry carries it.</li><li><strong>Changing the type</strong> later is possible, but the old type's fields (e.g. a login's password and TOTP) are deleted — the app asks first. A backup does not bring them back, because the newer change wins when merging.</li><li>Tap an entry → detail view with copy buttons. Passwords, card number, CVV and PIN are only revealed on request.</li>",
   "help.h3":"Clipboard",
-  "help.l3":"<li>Copied passwords are cleared by the app after the chosen time (default 30 s), when you return to the app and when it locks.</li><li>While the app is in the background it cannot touch the clipboard. Android clears it by itself after one hour at the latest.</li><li>Android briefly shows a system preview of the copied content. Suppressing it needs native code — planned for a later version.</li>",
+  "help.l3":"<li>Copied passwords are cleared by the app after the chosen time (default 30 s), when you return to the app and when it locks.</li><li>In the background the Android app keeps trying to clear until Android freezes it (usually after the second app switch); afterwards it catches up when you return. From Android 13 the system additionally clears the clipboard after about an hour — older Android versions do not.</li><li>The Android app flags copied content as <strong>sensitive</strong>: the system preview shown when copying hides the content (Android 13+). In a browser this protection does not exist.</li>",
   "help.h4":"Generator",
   "help.l4":"<li><strong>Characters:</strong> 8–64 characters from selectable sets; “no l/1/I/O/0” avoids mix-ups when typing.</li><li><strong>Dice words</strong> (Diceware): words from the EFF Large Wordlist, ~12.9 bits per word. Six words ≈ 77 bits — memorable and strong.</li><li>All randomness comes from the system generator without modulo bias; entropy is shown in bits.</li>",
   "help.h5":"TOTP (2FA codes)",
   "help.l5":"<li>Each entry can hold a TOTP secret (Base32 or <code>otpauth://</code> link). The detail view shows the current code with remaining time.</li><li>Supports SHA-1/SHA-256/SHA-512, 6–8 digits, any period.</li><li><strong>Keep in mind:</strong> password and 2FA in the same vault weaken factor separation. For critical accounts (e-mail, exchange) keep the second factor in Aegis.</li>",
+  "help.h5b":"Aegis hurdle on unlock",
+  "help.p5b":"Optionally the app asks for an Aegis code after the passphrase (Settings → Aegis hurdle). <strong>What it does:</strong> someone who peeked at your passphrase and holds your unlocked phone cannot get in without your Aegis app. <strong>What it does not do:</strong> the TOTP key lives inside the vault itself. Whoever owns the vault file <em>and</em> the passphrase decrypts it outside the app — the format is openly documented. A real second factor needs a party that enforces it (for cloud services, the server). For a local file the passphrase remains the only cryptographic protection; make it long.",
   "help.h6":"Password health",
-  "help.p6":"The list flags <strong>reused</strong> passwords, <strong>short</strong> ones (under 12 characters) and entries <strong>unchanged for over two years</strong> (any edit resets that clock). Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
+  "help.p6":"The list flags <strong>reused</strong> passwords, <strong>short</strong> ones (under 12 characters) and entries <strong>unchanged for over two years</strong> (any edit resets that clock). If a service does not allow a longer password, the checkbox “Service does not allow a longer password” in the entry switches off the “short” flag. Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
   "help.h7":"Backup & sync",
   "help.l7":"<li><strong>Create backup</strong> writes a <code>.vault</code> file (encrypted with your passphrase). It can safely go into Syncthing, onto a stick or into a backup.</li><li><strong>Import</strong> merges: per entry the newer change wins, deletions are carried over (for one year). The file may use a different passphrase — your local one stays.</li><li>With two devices: export on both regularly and import the other's backup. Both sides end up at the same state.</li><li>After a <strong>passphrase change</strong> older backups still open with their old passphrase.</li>",
   "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
-  "help.l8":"<li><strong>Proton Pass:</strong> Settings → Export → format CSV (unencrypted). Move the file to the phone, pick it in Alien Pass under Backup → CSV.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv.</li><li>Login entries come over with title, user, password, URL, notes and TOTP. Plain notes arrive without a password.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext.</li>",
+  "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv. Folders become categories.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
   "help.h9":"Security in detail",
-  "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests no Android permission at all (no internet, no storage, no sensors — the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing), forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from cloud, adb and device-to-device backups (backup rules).</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker.</li><li><strong>Limits:</strong> no autofill, no biometrics (v1), no breach check. A passphrase cannot be recovered.</li>"
+  "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests no Android permission at all (no internet, no storage, no sensors — the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing), forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from cloud, adb and device-to-device backups (backup rules).</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, AES + integrity check); AES runs in WebCrypto.</li><li><strong>Limits:</strong> no autofill, no biometrics (planned), no breach check. A passphrase cannot be recovered.</li>"
 };
 const T = {
   "err.setupShort":{de:"Mindestens 12 Zeichen.",en:"At least 12 characters."},
@@ -124,6 +141,26 @@ const T = {
   "copy.empty":{de:"Nichts zu kopieren",en:"Nothing to copy"},
   "what.user":{de:"Nutzername",en:"Username"},"what.pass":{de:"Passwort",en:"Password"},"what.url":{de:"URL",en:"URL"},
   "what.totp":{de:"Code",en:"Code"},"what.gen":{de:"Passwort",en:"Password"},"what.notes":{de:"Notizen",en:"Notes"},
+  "what.holder":{de:"Inhaber",en:"Holder"},"what.number":{de:"Kartennummer",en:"Card number"},"what.expiry":{de:"Ablauf",en:"Expiry"},"what.cvv":{de:"CVV",en:"CVV"},"what.pin":{de:"PIN",en:"PIN"},
+  "what.secret":{de:"Schlüssel",en:"Key"},"what.otpauth":{de:"otpauth-Link",en:"otpauth link"},
+  "d.holder":{de:"Karteninhaber",en:"Cardholder"},"d.number":{de:"Kartennummer",en:"Card number"},"d.expiry":{de:"Gültig bis",en:"Valid until"},"d.cvv":{de:"Prüfnummer (CVV)",en:"Security code (CVV)"},"d.pin":{de:"PIN",en:"PIN"},"d.cat":{de:"Kategorie",en:"Category"},
+  "confirm.typeChange":{de:"Typ wechseln? Dabei werden gelöscht: {f}. Das lässt sich nicht rückgängig machen — auch nicht über ein Backup.",en:"Change the type? This deletes: {f}. It cannot be undone — not even from a backup."},
+  "lostf.f-user":{de:"Nutzername",en:"username"},"lostf.f-pass":{de:"Passwort",en:"password"},"lostf.f-url":{de:"URL",en:"URL"},"lostf.f-totp":{de:"TOTP-Schlüssel",en:"TOTP secret"},
+  "lostf.f-holder":{de:"Inhaber",en:"holder"},"lostf.f-number":{de:"Kartennummer",en:"card number"},"lostf.f-expiry":{de:"Ablauf",en:"expiry"},"lostf.f-cvv":{de:"CVV",en:"CVV"},"lostf.f-pin":{de:"PIN",en:"PIN"},
+  "imp.truncated":{de:"⚠ {t} Eintrag/Einträge auf 10.000 Zeichen Notizen gekürzt.",en:"⚠ {t} entry/entries had notes cut at 10,000 characters."},
+  "pill.note":{de:"Notiz",en:"Note"},"pill.card":{de:"Karte",en:"Card"},"chip.all":{de:"Alle",en:"All"},"chip.none":{de:"Ohne Kategorie",en:"No category"},
+  "err.totp6":{de:"Bitte den 6-stelligen Code eingeben.",en:"Please enter the 6-digit code."},
+  "err.totpSetupBad":{de:"Code stimmt nicht. In Aegis prüfen.",en:"Code doesn't match. Check in Aegis."},
+  "confirm.totpDisable":{de:"Aegis-Hürde wirklich deaktivieren?",en:"Really disable the Aegis hurdle?"},
+  "toast.totpOn":{de:"Aegis-Hürde aktiv",en:"Aegis hurdle active"},"toast.totpOff":{de:"Aegis-Hürde deaktiviert",en:"Aegis hurdle disabled"},
+  "toast.qrSaved":{de:"QR als Bild gespeichert",en:"QR saved as image"},"toast.qrSaveFail":{de:"QR-Speichern fehlgeschlagen",en:"Saving QR failed"},"toast.noQr":{de:"Kein QR vorhanden",en:"No QR available"},
+  "busy.importing":{de:"Importiere…",en:"Importing…"},
+  "pt.done":{de:"{n} Einträge aus {v} Proton-Tresor(en) importiert, {s} Dubletten übersprungen, {k} nicht übernommen (Papierkorb/leer).",en:"{n} entries imported from {v} Proton vault(s), {s} duplicates skipped, {k} not imported (trash/empty)."},
+  "pt.needPass":{de:"PGP-verschlüsselter Export erkannt — Passphrase eingeben.",en:"PGP-encrypted export detected — enter the passphrase."},
+  "pt.wrongPass":{de:"Falsche Passphrase oder beschädigte Datei.",en:"Wrong passphrase or damaged file."},
+  "pt.algo":{de:"Diese Export-Variante wird nicht unterstützt (z.B. neues OpenPGP-Format mit AEAD/Argon2 oder Public-Key). Bitte den Export unverschlüsselt als ZIP/JSON oder als CSV verwenden.",en:"This export variant is not supported (e.g. new OpenPGP format with AEAD/Argon2 or public-key). Please use the unencrypted ZIP/JSON export or CSV."},
+  "pt.bad":{de:"Kein Proton-Pass-Export (erwartet: ZIP mit data.pgp/data.json, .pgp oder .json).",en:"Not a Proton Pass export (expected: ZIP with data.pgp/data.json, .pgp or .json)."},
+  "pt.zip64":{de:"ZIP zu groß/ZIP64 — bitte ohne Dateianhänge exportieren.",en:"ZIP too large/ZIP64 — please export without file attachments."},
   "add.titleNew":{de:"Neuer Eintrag",en:"New entry"},
   "add.titleEdit":{de:"Eintrag bearbeiten",en:"Edit entry"},
   "list.empty":{de:"Noch keine Einträge.\nTippe auf + oder importiere unter „Sicherung“ aus Proton Pass, KeePassXC oder Bitwarden.",en:"No entries yet.\nTap + or import under “Backup” from Proton Pass, KeePassXC or Bitwarden."},
@@ -165,7 +202,7 @@ const _qsLang = new URLSearchParams(window.location.search).get('lang');
 let LANG = (_qsLang==='de'||_qsLang==='en') ? _qsLang
   : (['de','en'].includes(localStorage.getItem(LANG_KEY)) ? localStorage.getItem(LANG_KEY) : ((navigator.language||'de').toLowerCase().indexOf('de')===0?'de':'en'));
 const _i18nCache = new WeakMap();
-function tr(key, params){ const e=T[key]; let s=e?(e[LANG]!==undefined?e[LANG]:e.de):key; if(params) for(const k in params) s=s.split('{'+k+'}').join(String(params[k])); return s; }
+function tr(key, params){ const e=T[key]; const s=e?(e[LANG]!==undefined?e[LANG]:e.de):key; return params?s.replace(/\{(\w+)\}/g,(m,k)=>Object.prototype.hasOwnProperty.call(params,k)?String(params[k]):m):s; }
 function applyI18n(){
   document.querySelectorAll('[data-i18n],[data-i18n-html],[data-i18n-ph]').forEach(el=>{
     let c=_i18nCache.get(el); if(!c){ c={}; _i18nCache.set(el,c); }
@@ -255,10 +292,23 @@ const VAULT_VERSION=1;
 const SETTINGS_ALLOWED={autolock:[0,1,2,5,15], bgLock:[0,30,60,300], clipClear:[0,15,30,60]};
 const SETTINGS_DEFAULT={autolock:2, bgLock:30, clipClear:30};
 const TOMBSTONE_DAYS=365, MAX_TOMBSTONES=2000;   // Löschmarken zählen NICHT zum Eintrags-Cap, sind aber separat begrenzt
-function emptyVault(){ return {version:VAULT_VERSION, entries:[], settings:Object.assign({},SETTINGS_DEFAULT), meta:{lastBackup:null, lastBackupCount:0}}; }
+function emptyVault(){ return {version:VAULT_VERSION, entries:[], settings:Object.assign({},SETTINGS_DEFAULT), totp:null, meta:{lastBackup:null, lastBackupCount:0}}; }
 const ID_RE=/^[0-9a-f]{16}$/;
-const CAPS={title:200,user:200,pass:1000,url:2000,notes:10000,issuer:100,label:200};
+const CAPS={title:200,user:200,pass:1000,url:2000,notes:10000,issuer:100,label:200,cat:40,holder:100,number:32,expiry:10,cvv:8,pin:12};
+const ENTRY_TYPES=['login','note','card'];
 function str(v,cap){ return typeof v==='string' ? v.slice(0,cap) : ''; }
+// Einzeilige Anzeigetexte (Titel, Kategorie): Steuer-, Nullbreiten- und Bidi-Zeichen raus, Whitespace auf ein Leerzeichen, getrimmt
+const CTRL_RE=/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g;   // Tab/LF/CR bleiben für den Whitespace-Kollaps
+function line(v,cap){ return str(v,cap).replace(CTRL_RE,'').replace(/\s+/g,' ').trim(); }
+function entryType(t){ return ENTRY_TYPES.includes(t)?t:'login'; }
+// Kartendaten: frisches Objekt mit festen Feldern; komplett leer → null
+function sanitizeCard(c){ if(!c||typeof c!=='object'||Array.isArray(c)) return null;
+  const o={holder:str(c.holder,CAPS.holder).trim(), number:str(c.number,CAPS.number).replace(/[^0-9 ]/g,'').trim(), expiry:str(c.expiry,CAPS.expiry).trim(), cvv:str(c.cvv,CAPS.cvv).trim(), pin:str(c.pin,CAPS.pin).trim()};
+  return (o.holder||o.number||o.expiry||o.cvv||o.pin)?o:null; }
+// Dubletten-Schlüssel für Importe (Typ + identischer Inhalt der tragenden Felder)
+// Kanonisch über alle tragenden Felder (nicht: id/Zeitstempel/fav/nowarn/cat — sonst würde ein umbenannter Proton-Tresor
+// beim Re-Import jeden Eintrag verdoppeln); zwei Einträge, die sich nur in TOTP/URL/Notizen/Kartendaten unterscheiden, sind KEINE Dubletten.
+function dupKey(e){ return canon({type:e.type, title:e.title, user:e.user, pass:e.pass, url:e.url, notes:e.notes, totp:e.totp, card:e.card}); }
 function isoOrNull(v){ if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(v)) return null; const t=Date.parse(v); return Number.isFinite(t)?new Date(t).toISOString():null; }
 function parseOtpauth(uri){
   let u; try{ u=new URL(uri); }catch(_){ return null; }
@@ -294,9 +344,14 @@ function sanitizeEntry(e, now){
   created=new Date(tc).toISOString(); updated=new Date(tu).toISOString();
   if(e.deleted&&!deleted) deleted=updated;                       // "gelöscht" ohne brauchbares Datum → Änderungsdatum
   if(deleted){ deleted=new Date(Math.min(Date.parse(deleted),maxT)).toISOString();
-    return {id, title:'', user:'', pass:'', url:'', notes:'', totp:null, fav:false, created, updated, deleted}; }
-  return {id, title:str(e.title,CAPS.title), user:str(e.user,CAPS.user), pass:str(e.pass,CAPS.pass), url:str(e.url,CAPS.url),
-          notes:str(e.notes,CAPS.notes), totp:normalizeTotp(e.totp), fav:e.fav===true, created, updated, deleted:null};
+    return {id, type:'login', cat:'', title:'', user:'', pass:'', url:'', notes:'', totp:null, card:null, nowarn:false, fav:false, created, updated, deleted}; }
+  // Typ bestimmt, welche Felder überhaupt tragen: login (user/pass/url/totp/nowarn), note (nur Notizen), card (Kartenobjekt)
+  const type=entryType(e.type);
+  const o={id, type, cat:line(e.cat,CAPS.cat), title:line(e.title,CAPS.title), user:'', pass:'', url:'', notes:str(e.notes,CAPS.notes),
+           totp:null, card:null, nowarn:false, fav:e.fav===true, created, updated, deleted:null};
+  if(type==='login'){ o.user=str(e.user,CAPS.user); o.pass=str(e.pass,CAPS.pass); o.url=str(e.url,CAPS.url); o.totp=normalizeTotp(e.totp); o.nowarn=e.nowarn===true; }
+  else if(type==='card'){ o.card=sanitizeCard(e.card); }
+  return o;
 }
 // Kanonische Serialisierung ALLER Ebenen (Array-Replacer von JSON.stringify wäre nur eine Allowlist → totp:{})
 function canon(v){ if(v===undefined||v===null||typeof v!=='object') return JSON.stringify(v===undefined?null:v); if(Array.isArray(v)) return '['+v.map(canon).join(',')+']'; return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}'; }
@@ -313,11 +368,12 @@ function sanitizeVault(v, now){
   if(!v||typeof v!=='object') throw new Error('format');
   const meta=v.meta&&typeof v.meta==='object'?v.meta:{};
   return {version:VAULT_VERSION, entries:sanitizeEntries(v.entries, now), settings:sanitizeSettings(v.settings),
+          totp:normalizeTotp(v.totp),                                   // Aegis-Hürde beim Entsperren (optional; nie aus Fremddateien übernommen)
           meta:{lastBackup:isoOrNull(meta.lastBackup), lastBackupCount:Number.isInteger(meta.lastBackupCount)?meta.lastBackupCount:0}};
 }
 // Merge (kommutativ, assoziativ, idempotent) — Ergebnis + Zähler. incoming ist bereits sanitisiert.
 function mergeEntries(local, incoming){
-  const map=new Map(); for(const e of local) map.set(e.id,e);
+  const map=new Map(); for(const e of local){ const c=map.get(e.id); map.set(e.id, c?winner(c,e):e); }   // local defensiv deduplizieren (Kommutativität)
   let added=0, updated=0, deleted=0;
   for(const inc of dedupeEntries(incoming)){
     const loc=map.get(inc.id);
@@ -330,7 +386,7 @@ function mergeEntries(local, incoming){
 function purgeTombstones(entries, now){ now=now||Date.now(); const kept=entries.filter(e=>!e.deleted || now-ts(e.deleted) < TOMBSTONE_DAYS*86400000);
   const tombs=kept.filter(e=>e.deleted); if(tombs.length<=MAX_TOMBSTONES) return kept;
   tombs.sort((a,b)=>ts(b.deleted)-ts(a.deleted)); const keep=new Set(tombs.slice(0,MAX_TOMBSTONES).map(e=>e.id)); return kept.filter(e=>!e.deleted||keep.has(e.id)); }
-function tombstone(e, nowIso){ return {id:e.id, title:'', user:'', pass:'', url:'', notes:'', totp:null, fav:false, created:e.created, updated:nowIso, deleted:nowIso}; }
+function tombstone(e, nowIso){ return {id:e.id, type:'login', cat:'', title:'', user:'', pass:'', url:'', notes:'', totp:null, card:null, nowarn:false, fav:false, created:e.created, updated:nowIso, deleted:nowIso}; }
 
 /* ---------- TOTP (RFC 6238; SHA1/256/512, 6–8 Stellen, Periode) ---------- */
 async function totpCode(t, forTime){
@@ -381,9 +437,9 @@ function parseCsv(text, delim){
 }
 function csvMap(header){
   const h=header.map(x=>String(x).trim().toLowerCase()); const idx=n=>h.indexOf(n), has=n=>idx(n)>=0;
-  if(has('login_username')&&has('login_password')) return {fmt:'bitwarden', title:idx('name'), user:idx('login_username'), pass:idx('login_password'), url:idx('login_uri'), notes:idx('notes'), totp:idx('login_totp'), type:idx('type'), fav:idx('favorite')};
-  if(has('type')&&has('name')&&has('password')&&(has('email')||has('username'))) return {fmt:'proton', title:idx('name'), user:idx('username'), email:idx('email'), pass:idx('password'), url:idx('url'), notes:idx('note'), totp:idx('totp'), type:idx('type'), created:idx('createtime'), updated:idx('modifytime')};
-  if(has('title')&&has('password')&&has('username')) return {fmt:'keepassxc', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('totp'), group:idx('group'), created:idx('created'), updated:idx('last modified')};
+  if(has('login_username')&&has('login_password')) return {fmt:'bitwarden', title:idx('name'), user:idx('login_username'), pass:idx('login_password'), url:idx('login_uri'), notes:idx('notes'), totp:idx('login_totp'), type:idx('type'), fav:idx('favorite'), cat:idx('folder')};
+  if(has('type')&&has('name')&&has('password')&&(has('email')||has('username'))) return {fmt:'proton', title:idx('name'), user:idx('username'), email:idx('email'), pass:idx('password'), url:idx('url'), notes:idx('note'), totp:idx('totp'), type:idx('type'), created:idx('createtime'), updated:idx('modifytime'), cat:idx('vault')};
+  if(has('title')&&has('password')&&has('username')) return {fmt:'keepassxc', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('totp'), cat:idx('group'), created:idx('created'), updated:idx('last modified')};
   const find=(...names)=>{ for(const n of names){ const i=idx(n); if(i>=0) return i; } return -1; };
   const m={fmt:'generic', title:find('title','name','account','site','titel','bezeichnung','konto'), user:find('username','user','login','email','login_name','benutzername','benutzer','anmeldename','e-mail'), pass:find('password','pass','login_password','passwort','kennwort'), url:find('url','website','uri','web site','login_uri','webseite','adresse'), notes:find('notes','note','comment','extra','notizen','notiz','kommentar'), totp:find('totp','otp','otpauth','login_totp','2fa')};
   if(m.title<0&&m.url>=0) m.title=m.url;                    // ohne Titelspalte dient die URL als Titel
@@ -391,19 +447,230 @@ function csvMap(header){
 }
 function csvDate(s, now){ s=String(s||'').trim(); if(!s) return new Date(now).toISOString(); if(/^\d{9,11}$/.test(s)) return new Date(Number(s)*1000).toISOString(); if(/^\d{12,14}$/.test(s)) return new Date(Number(s)).toISOString(); const t=Date.parse(s); return Number.isFinite(t)?new Date(t).toISOString():new Date(now).toISOString(); }
 // Zeile → sanitisierter Eintrag (neue ID) oder null (Typ nicht übernommen / unbrauchbar)
-function csvRowToEntry(m, row, now){
+function csvRowToEntry(m, row, now, stats){
   const g=i=>(i>=0&&i<row.length)?String(row[i]):'';
+  let type='login';
   if(m.type>=0){ const t=g(m.type).trim().toLowerCase();
     if(m.fmt==='bitwarden'&&t!=='login'&&t!=='note') return null;
-    if(m.fmt==='proton'&&!['login','note','alias'].includes(t)) return null; }
+    if(m.fmt==='proton'&&!['login','note','alias'].includes(t)) return null;
+    if(t==='note') type='note'; }
   let user=g(m.user), notes=g(m.notes);
   if(m.fmt==='proton'){ const email=g(m.email); if(!user) user=email; else if(email&&email!==user) notes=(notes?notes+'\n':'')+'E-Mail: '+email; }
-  if(m.group>=0){ const grp=g(m.group).trim(); if(grp&&grp!=='Root') notes=(notes?notes+'\n':'')+'Gruppe: '+grp; }
+  // Ordner/Gruppe/Tresor der Quelle → Kategorie (KeePassXC: Pfad „Root/Sub“ → letztes Segment; „Root“ allein = keine)
+  let cat=m.cat>=0?g(m.cat).trim():''; if(m.fmt==='keepassxc'){ const seg=cat.split('/').filter(Boolean); cat=seg.length&&seg[seg.length-1]!=='Root'?seg[seg.length-1]:''; }
   const title=g(m.title).trim()||g(m.url).trim()||user.trim();
   if(!title) return null;
+  if(stats&&notes.length>CAPS.notes) stats.truncated++;                 // Kürzung wird gemeldet, nie still
   const created=csvDate(m.created>=0?g(m.created):'', now), updated=csvDate(m.updated>=0?g(m.updated):'', now);
-  return sanitizeEntry({id:cryptoId(), title, user, pass:g(m.pass), url:g(m.url), notes, totp:g(m.totp)||null,
+  return sanitizeEntry({id:cryptoId(), type, cat, title, user, pass:g(m.pass), url:g(m.url), notes, totp:g(m.totp)||null,
     fav:m.fav>=0&&g(m.fav).trim()==='1', created, updated, deleted:null}, now);
+}
+/* ---------- Proton-Pass-Export (JSON aus ZIP / PGP) → Einträge ----------
+   Struktur (Proton WebClients, packages/pass/lib/export): {version, userId?, vaults:{shareId:{name, items:[...]}}}.
+   Item: {data:{type, metadata:{name,note}, content:{...}, extraFields:[{fieldName,type,data}]}, state (2 = Papierkorb),
+   aliasEmail, createTime/modifyTime (Unix-Sekunden), pinned}. Nur Strings werden übernommen, alles läuft durch sanitizeEntry. */
+function concatBytes(list){ let n=0; for(const b of list) n+=b.length; const out=new Uint8Array(n); let p=0; for(const b of list){ out.set(b,p); p+=b.length; } return out; }
+function pStr(v){ return typeof v==='string'?v:''; }
+function protonTime(v, now){ return (typeof v==='number'&&Number.isFinite(v)&&v>0&&v<4102444800)?new Date(v*1000).toISOString():new Date(now).toISOString(); }
+function protonFieldLines(list){ // extraFields / sectionFields → "Name: Wert"-Zeilen (Text, Hidden, TOTP-URI, Zeitstempel)
+  if(!Array.isArray(list)) return []; const out=[];
+  for(const f of list){ if(!f||typeof f!=='object') continue; const name=pStr(f.fieldName).trim(); const d=f.data&&typeof f.data==='object'?f.data:f;
+    let val=''; if(f.type==='totp') val=pStr(d.totpUri); else if(f.type==='timestamp') val=d.timestamp!=null&&typeof d.timestamp!=='object'?String(d.timestamp):''; else val=pStr(d.content);
+    if(name||val) out.push((name?name+': ':'')+val); }
+  return out;
+}
+function protonSectionLines(sections){ if(!Array.isArray(sections)) return []; const out=[]; for(const s of sections){ if(!s||typeof s!=='object') continue; const name=pStr(s.sectionName).trim(); if(name) out.push('['+name+']'); out.push(...protonFieldLines(s.sectionFields)); } return out; }
+function protonItemToEntry(item, vaultName, now, stats){
+  if(!item||typeof item!=='object'||item.state===2) return null;                     // Papierkorb nicht übernehmen
+  const d=item.data&&typeof item.data==='object'?item.data:null; if(!d) return null;
+  const md=d.metadata&&typeof d.metadata==='object'?d.metadata:{}, c=d.content&&typeof d.content==='object'?d.content:{};
+  const t=pStr(d.type)||'login'; const title=pStr(md.name).trim(); if(!title) return null;
+  const lines=[]; const note=pStr(md.note);                            // Freitext kommt ZULETZT — bei Kürzung bleiben die Geheimnisse
+  const ent={id:cryptoId(), type:'login', cat:pStr(vaultName).trim(), title, user:'', pass:'', url:'', notes:'', totp:null, card:null, nowarn:false,
+             fav:item.pinned===true, created:protonTime(item.createTime,now), updated:protonTime(item.modifyTime,now), deleted:null};
+  const extra=Array.isArray(d.extraFields)?d.extraFields:[];
+  if(t==='login'){
+    const email=pStr(c.itemEmail).trim(), user=pStr(c.itemUsername).trim(); ent.user=user||email; if(user&&email&&email!==user) lines.push('E-Mail: '+email);
+    ent.pass=pStr(c.password); const urls=(Array.isArray(c.urls)?c.urls:[]).filter(u=>typeof u==='string'&&u.trim()); ent.url=urls.length?urls[0].trim():'';
+    for(const u of urls.slice(1)) lines.push('URL: '+u.trim());
+    ent.totp=pStr(c.totpUri).trim()||null;
+    if(!ent.totp){ const tf=extra.find(f=>f&&f.type==='totp'&&f.data&&pStr(f.data.totpUri)); if(tf) ent.totp=tf.data.totpUri; }
+  }
+  else if(t==='alias'){ ent.user=pStr(item.aliasEmail).trim(); lines.push('Alias (Proton)'); }
+  else if(t==='note'){ ent.type='note'; }
+  else if(t==='creditCard'){ ent.type='card'; ent.card={holder:pStr(c.cardholderName), number:pStr(c.number), expiry:pStr(c.expirationDate), cvv:pStr(c.verificationNumber), pin:pStr(c.pin)}; }
+  else if(t==='wifi'){ ent.user=pStr(c.ssid); ent.pass=pStr(c.password); lines.push('WLAN'); lines.push(...protonSectionLines(c.sections)); }
+  else if(t==='sshKey'){ ent.type='note'; if(pStr(c.publicKey)) lines.push('Public key: '+c.publicKey); if(pStr(c.privateKey)) lines.push('Private key:\n'+c.privateKey); lines.push(...protonSectionLines(c.sections)); }
+  else if(t==='identity'){ ent.type='note'; for(const k of Object.keys(c)){ const v=c[k]; if(typeof v==='string'&&v.trim()) lines.push(k+': '+v.trim()); else if(Array.isArray(v)&&k!=='extraSections') lines.push(...protonFieldLines(v)); } lines.push(...protonSectionLines(c.extraSections)); }
+  else { ent.type='note'; lines.push(...protonSectionLines(c.sections)); }   // custom + unbekannte Typen → Notiz
+  lines.push(...protonFieldLines(extra)); if(note) lines.push(note);
+  ent.notes=lines.join('\n');
+  if(stats&&ent.notes.length>CAPS.notes) stats.truncated++;             // Kürzung wird gemeldet, nie still
+  return sanitizeEntry(ent, now);
+}
+// Gesamter Export → {entries, skipped, vaults}; wirft 'format' (keine Proton-Struktur) oder 'toomany'
+function protonExportToEntries(obj, now){
+  if(!obj||typeof obj!=='object'||!obj.vaults||typeof obj.vaults!=='object'||Array.isArray(obj.vaults)) throw new Error('format');
+  now=now||Date.now(); const entries=[]; let skipped=0, vaults=0, total=0; const stats={truncated:0};
+  for(const key of Object.keys(obj.vaults)){ const v=obj.vaults[key]; if(!v||typeof v!=='object'||!Array.isArray(v.items)) continue; vaults++;
+    total+=v.items.length; if(total>MAX_ENTRIES) throw new Error('toomany');
+    for(const it of v.items){ const e=protonItemToEntry(it, v.name, now, stats); if(e) entries.push(e); else skipped++; } }
+  if(!vaults) throw new Error('format');
+  return {entries, skipped, vaults, truncated:stats.truncated};
+}
+
+/* ---------- ZIP-Leser (nur Stored + Deflate, kein ZIP64) ---------- */
+// Streamend mit Abbruch: die Ausgabegröße wird WÄHREND des Entpackens begrenzt (Deflate-Bombe → 'toolarge' bei ~0 zusätzlichem Speicher)
+async function inflate(bytes, format){
+  const ds=new DecompressionStream(format); const w=ds.writable.getWriter(); w.write(bytes).catch(()=>{}); w.close().catch(()=>{});
+  const r=ds.readable.getReader(); const parts=[]; let n=0;
+  for(;;){ const {value,done}=await r.read(); if(done) break; n+=value.length; if(n>MAX_FILE_BYTES){ await r.cancel().catch(()=>{}); throw new Error('toolarge'); } parts.push(value); }
+  return concatBytes(parts);
+}
+function zipEntries(u8){
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength), n=u8.length; let eocd=-1;
+  for(let i=n-22;i>=0&&i>=n-22-65535;i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error('zip');
+  const count=dv.getUint16(eocd+10,true), cdOff=dv.getUint32(eocd+16,true); if(count===0xffff||cdOff===0xffffffff) throw new Error('zip64');
+  const out=[]; let p=cdOff;
+  for(let i=0;i<count;i++){ if(p+46>n||dv.getUint32(p,true)!==0x02014b50) throw new Error('zip');
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true), usize=dv.getUint32(p+24,true), nl=dv.getUint16(p+28,true), el=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), off=dv.getUint32(p+42,true);
+    if(csize===0xffffffff||usize===0xffffffff||off===0xffffffff) throw new Error('zip64');
+    out.push({name:dec.decode(u8.subarray(p+46,p+46+nl)), method, csize, usize, off}); p+=46+nl+el+cl; }
+  return out;
+}
+async function zipRead(u8, ent){
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength); const p=ent.off; if(p+30>u8.length||dv.getUint32(p,true)!==0x04034b50) throw new Error('zip');
+  const start=p+30+dv.getUint16(p+26,true)+dv.getUint16(p+28,true); if(start+ent.csize>u8.length) throw new Error('zip');
+  const data=u8.subarray(start,start+ent.csize);
+  if(ent.method===0) return data;
+  if(ent.method===8){ const out=await inflate(data,'deflate-raw'); if(out.length!==ent.usize) throw new Error('zip'); return out; }
+  throw new Error('zip');
+}
+
+/* ---------- OpenPGP, symmetrisch (RFC 4880): SKESK v4 + SEIPD v1 mit MDC, wie Protons Export ----------
+   Bewusst minimal: kein Public-Key, kein AEAD/v6 (→ 'pgpAlgo'), falsche Passphrase → 'pgpPass', Struktur → 'pgp'.
+   AES läuft in WebCrypto (Schlüssel nicht extrahierbar); CFB wird aus AES-CTR-Einzelblöcken gebaut (E_K(x) = CTR mit counter x auf Nullblock). */
+function crc24(b){ let c=0xB704CE; for(let i=0;i<b.length;i++){ c^=b[i]<<16; for(let k=0;k<8;k++){ c<<=1; if(c&0x1000000) c^=0x1864CFB; } } return c&0xFFFFFF; }
+function pgpDearmor(text){
+  const m=/-----BEGIN PGP MESSAGE-----\r?\n([\s\S]*?)-----END PGP MESSAGE-----/.exec(text); if(!m) throw new Error('pgp');
+  const lines=m[1].split(/\r?\n/); let i=0;
+  if(lines.length&&/^[A-Za-z-]+:\s/.test(lines[0])){ while(i<lines.length&&lines[i].trim()!=='') i++; }   // Armor-Header (Version:, Comment:) bis Leerzeile
+  let b64='', crc=null; for(;i<lines.length;i++){ const l=lines[i].trim(); if(!l) continue; if(l[0]==='='){ crc=l.slice(1); continue; } b64+=l; }
+  const bytes=b64Bytes(b64); if(!bytes||!bytes.length) throw new Error('pgp');
+  if(crc!==null){ const w=b64Bytes(crc); if(!w||w.length!==3||crc24(bytes)!==((w[0]<<16)|(w[1]<<8)|w[2])) throw new Error('pgp'); }
+  return bytes;
+}
+function pgpPackets(u8){ // alte + neue Paketköpfe, Partial-Body-Längen, „unbestimmte“ Länge (Rest)
+  const out=[]; let p=0; const n=u8.length, u32=q=>u8[q]*16777216+(u8[q+1]<<16)+(u8[q+2]<<8)+u8[q+3];
+  while(p<n){ const ctb=u8[p++]; if(!(ctb&0x80)) throw new Error('pgp'); let tag; const chunks=[];
+    if(ctb&0x40){ tag=ctb&0x3f;
+      for(;;){ if(p>=n) throw new Error('pgp'); const b=u8[p++]; let len, partial=false;
+        if(b<192) len=b; else if(b<224){ if(p>=n) throw new Error('pgp'); len=((b-192)<<8)+u8[p++]+192; } else if(b===255){ if(p+4>n) throw new Error('pgp'); len=u32(p); p+=4; } else { len=1<<(b&0x1f); partial=true; }
+        if(p+len>n) throw new Error('pgp'); chunks.push(u8.subarray(p,p+len)); p+=len; if(!partial) break; } }
+    else { tag=(ctb>>2)&0x0f; const lt=ctb&3; let len;
+      if(lt===0){ if(p>=n) throw new Error('pgp'); len=u8[p++]; } else if(lt===1){ if(p+2>n) throw new Error('pgp'); len=(u8[p]<<8)|u8[p+1]; p+=2; } else if(lt===2){ if(p+4>n) throw new Error('pgp'); len=u32(p); p+=4; } else len=n-p;
+      if(p+len>n) throw new Error('pgp'); chunks.push(u8.subarray(p,p+len)); p+=len; }
+    out.push({tag, body:chunks.length===1?chunks[0]:concatBytes(chunks)}); if(out.length>64) throw new Error('pgp'); }
+  return out;
+}
+const PGP_HASH={1:['MD5',0],2:['SHA-1',20],8:['SHA-256',32],9:['SHA-384',48],10:['SHA-512',64],11:['SHA-224',28]};
+const PGP_KEYLEN={7:16,8:24,9:32};
+const MAX_SKESK=4;
+// S2K (simple/salted/iterated) → Schlüssel der Länge keyLen; mehrere Kontexte mit Null-Präfix, falls der Hash kürzer ist
+async function pgpS2K(pass, spec, keyLen){
+  const h=PGP_HASH[spec.hash]; if(!h||!h[1]) throw new Error('pgpAlgo');
+  const unit=spec.type===0?pass:concatBytes([spec.salt,pass]); const count=spec.type===3?Math.max(spec.count,unit.length):unit.length;
+  const parts=[]; for(let ctx=0;parts.reduce((n,x)=>n+x.length,0)<keyLen;ctx++){
+    const buf=new Uint8Array(ctx+count); for(let i=0;i<count;i+=unit.length) buf.set(unit.subarray(0,Math.min(unit.length,count-i)), ctx+i);
+    parts.push(new Uint8Array(await crypto.subtle.digest(h[0], buf))); buf.fill(0); }
+  const key=concatBytes(parts).slice(0,keyLen); parts.forEach(x=>x.fill(0)); return key;
+}
+/* AES-Blockchiffre (nur Verschlüsselungsrichtung, FIPS-197) für den OpenPGP-CFB-Keystream. Bewusst eigener Code:
+   WebCrypto kennt weder ECB noch CFB, und ein AES-CTR-Aufruf je 16-Byte-Block kostete ~900 MB und 5 s je 20 MB.
+   Nur für Import-Schlüssel (S2K/Session-Key, kurzlebig, danach genullt) — nie für den Tresor-DEK. Test: FIPS-Vektoren + WebCrypto-Abgleich. */
+const AES_SBOX=Uint8Array.from(('637c777bf26b6fc53001672bfed7ab76ca82c97dfa5947f0add4a2af9ca472c0b7fd9326363ff7cc34a5e5f171d8311504c723c31896059a071280e2eb27b27509832c1a1b6e5aa0523bd6b329e32f8453d100ed20fcb15b6acbbe394a4c58cfd0efaafb434d338545f9027f503c9fa851a3408f929d38f5bcb6da2110fff3d2cd0c13ec5f974417c4a77e3d645d197360814fdc222a908846eeb814de5e0bdbe0323a0a4906245cc2d3ac629195e479e7c8376d8dd54ea96c56f4ea657aae08ba78252e1ca6b4c6e8dd741f4bbd8b8a703eb5664803f60e613557b986c11d9ee1f8981169d98e949b1e87e9ce5528df8ca1890dbfe6426841992d0fb054bb16').match(/../g),h=>parseInt(h,16));
+const AES_XT=new Uint8Array(256); for(let i=0;i<256;i++) AES_XT[i]=((i<<1)^((i&0x80)?0x1b:0))&0xff;
+function aesExpand(key){ const Nk=key.length>>2, Nr=Nk+6, w=new Uint8Array(16*(Nr+1)); w.set(key); let rcon=1;
+  for(let i=Nk;i<4*(Nr+1);i++){ let t0=w[4*i-4],t1=w[4*i-3],t2=w[4*i-2],t3=w[4*i-1];
+    if(i%Nk===0){ const u=t0; t0=AES_SBOX[t1]^rcon; t1=AES_SBOX[t2]; t2=AES_SBOX[t3]; t3=AES_SBOX[u]; rcon=AES_XT[rcon]; }
+    else if(Nk>6&&i%Nk===4){ t0=AES_SBOX[t0]; t1=AES_SBOX[t1]; t2=AES_SBOX[t2]; t3=AES_SBOX[t3]; }
+    const b=4*(i-Nk); w[4*i]=w[b]^t0; w[4*i+1]=w[b+1]^t1; w[4*i+2]=w[b+2]^t2; w[4*i+3]=w[b+3]^t3; }
+  return {w, Nr}; }
+function aesEncryptBlock(ks, inp, inOff, out, outOff){ const w=ks.w, s=new Uint8Array(16), t=new Uint8Array(16);
+  for(let i=0;i<16;i++) s[i]=inp[inOff+i]^w[i];
+  for(let r=1;r<=ks.Nr;r++){
+    for(let c=0;c<4;c++) for(let row=0;row<4;row++) t[row+4*c]=AES_SBOX[s[row+4*((c+row)&3)]];   // SubBytes + ShiftRows
+    if(r<ks.Nr){ for(let c=0;c<4;c++){ const a0=t[4*c],a1=t[4*c+1],a2=t[4*c+2],a3=t[4*c+3], x=a0^a1^a2^a3;   // MixColumns
+      t[4*c]=a0^x^AES_XT[a0^a1]; t[4*c+1]=a1^x^AES_XT[a1^a2]; t[4*c+2]=a2^x^AES_XT[a2^a3]; t[4*c+3]=a3^x^AES_XT[a3^a0]; } }
+    for(let i=0;i<16;i++) s[i]=t[i]^w[16*r+i]; }
+  for(let i=0;i<16;i++) out[outOff+i]=s[i]; }
+// OpenPGP-CFB (IV = Nullblock, kein Resync — gilt für ESK und SEIPD v1): Klartext = Chiffrat XOR E_K(vorheriger Chiffratblock)
+function pgpCfbDecrypt(keyBytes, ct){ const ks=aesExpand(keyBytes); const n=ct.length, pt=new Uint8Array(n), buf=new Uint8Array(16); let prev=new Uint8Array(16);
+  for(let i=0;i<n;i+=16){ aesEncryptBlock(ks, prev,0, buf,0); const m=Math.min(16,n-i); for(let j=0;j<m;j++) pt[i+j]=ct[i+j]^buf[j]; if(m===16) prev=ct.subarray(i,i+16); }
+  ks.w.fill(0); buf.fill(0); return pt; }
+function pgpParseSkesk(body){
+  if(body.length<4||body[0]!==4) throw new Error('pgpAlgo');                       // v5/v6 (AEAD) nicht unterstützt
+  const cipher=body[1], type=body[2], hash=body[3]; let p=4; const spec={type, hash};
+  if(type===1||type===3){ if(body.length<p+8) throw new Error('pgp'); spec.salt=body.subarray(p,p+8); p+=8; }
+  if(type===3){ if(body.length<p+1) throw new Error('pgp'); const c=body[p++]; spec.count=(16+(c&15))<<((c>>4)+6); }
+  if(type!==0&&type!==1&&type!==3) throw new Error('pgpAlgo');                       // 4 = Argon2 (RFC 9580)
+  if(!PGP_KEYLEN[cipher]) throw new Error('pgpAlgo');
+  return {cipher, spec, esk:body.length>p?body.subarray(p):null};
+}
+async function pgpUnpackLiteral(u8, depth){
+  for(const pk of pgpPackets(u8)){
+    if(pk.tag===11){ const b=pk.body; if(b.length<6) throw new Error('pgp'); const fl=b[1]; if(b.length<6+fl) throw new Error('pgp'); return b.subarray(6+fl); }
+    if(pk.tag===8){ if((depth||0)>2) throw new Error('pgp'); const a=pk.body[0], rest=pk.body.subarray(1); let plain;
+      if(a===0) plain=rest; else if(a===1) plain=await inflate(rest,'deflate-raw'); else if(a===2) plain=await inflate(rest,'deflate'); else throw new Error('pgpAlgo');
+      return pgpUnpackLiteral(plain,(depth||0)+1); }
+    // Signaturen/One-Pass-Signaturen/MDC/Marker überspringen
+  }
+  throw new Error('pgp');
+}
+// Armierte oder binäre OpenPGP-Nachricht + Passphrase → Literal-Daten (Bytes). Fehler: 'pgp' | 'pgpAlgo' | 'pgpPass' | 'toolarge'
+async function pgpDecryptSymmetric(data, passphrase){
+  let u8=data; if(u8.length>MAX_FILE_BYTES) throw new Error('toolarge');
+  if(u8[0]===0x2d) u8=pgpDearmor(dec.decode(u8));
+  const pks=pgpPackets(u8); const skesks=pks.filter(p=>p.tag===3);
+  if(pks.some(p=>p.tag===20||p.tag===1)) throw new Error('pgpAlgo');               // AEAD (v5) bzw. Public-Key-verschlüsselt
+  const sed=pks.find(p=>p.tag===18); if(!sed||!skesks.length||pks.some(p=>p.tag===9)) throw new Error(pks.some(p=>p.tag===9)?'pgpAlgo':'pgp');
+  if(sed.body.length<1+18+22||sed.body[0]!==1) throw new Error(sed.body.length&&sed.body[0]>1?'pgpAlgo':'pgp');
+  if(skesks.length>MAX_SKESK) throw new Error('pgp');                               // Proton nutzt genau eine Passphrase; Verstärker abweisen
+  const pass=passBytes(passphrase); const body=sed.body.subarray(1);
+  for(const sk of skesks){                                                             // mehrere Passphrasen möglich: jede probieren
+    let parsed; try{ parsed=pgpParseSkesk(sk.body); }catch(e){ if(skesks.length===1) throw e; continue; }
+    const raw=await pgpS2K(pass, parsed.spec, PGP_KEYLEN[parsed.cipher]);
+    let sessionKey=raw, cipher=parsed.cipher;
+    if(parsed.esk){ const dsk=pgpCfbDecrypt(raw, parsed.esk); raw.fill(0); cipher=dsk[0]; sessionKey=dsk.subarray(1); if(!PGP_KEYLEN[cipher]||sessionKey.length!==PGP_KEYLEN[cipher]){ dsk.fill(0); continue; } }
+    // Quick-Check auf den ersten zwei Blöcken (Bytes 14/15 == 16/17) — erst danach der einzige Volltext-Durchlauf
+    const head=pgpCfbDecrypt(sessionKey, body.subarray(0,32));
+    if(head[14]!==head[16]||head[15]!==head[17]){ sessionKey.fill(0); continue; }
+    const pt=pgpCfbDecrypt(sessionKey, body); sessionKey.fill(0); const n=pt.length;
+    if(pt[n-22]!==0xD3||pt[n-21]!==0x14) continue;                                    // MDC-Kopf
+    const want=new Uint8Array(await crypto.subtle.digest('SHA-1', pt.subarray(0,n-20))); let diff=0; for(let i=0;i<20;i++) diff|=want[i]^pt[n-20+i];
+    if(diff) continue;
+    pass.fill(0); return pgpUnpackLiteral(pt.subarray(18,n-22));
+  }
+  pass.fill(0); throw new Error('pgpPass');
+}
+
+/* ---------- Proton-Export erkennen und laden ---------- */
+// → {kind:'json'|'pgp', payload:Uint8Array}; ZIPs werden bis zu data.json / data.pgp aufgelöst. Fehler: 'format' | 'zip' | 'zip64' | 'toolarge'
+async function protonProbe(u8){
+  if(!(u8 instanceof Uint8Array)||!u8.length) throw new Error('format'); if(u8.length>MAX_FILE_BYTES) throw new Error('toolarge');
+  if(u8[0]===0x50&&u8[1]===0x4b){ const ents=zipEntries(u8); const pick=suffix=>ents.find(e=>e.name.toLowerCase().endsWith(suffix)&&e.usize<=MAX_FILE_BYTES);
+    const pgp=pick('data.pgp'), json=pick('data.json'); if(!pgp&&!json) throw new Error('format');
+    return pgp?{kind:'pgp', payload:await zipRead(u8,pgp)}:{kind:'json', payload:await zipRead(u8,json)}; }
+  if(u8[0]===0xEF&&u8[1]===0xBB&&u8[2]===0xBF) return {kind:'json', payload:u8};       // UTF-8-BOM → JSON
+  if(u8[0]===0x2d||(u8[0]&0x80)) return {kind:'pgp', payload:u8};                   // Armor oder binäres Paket
+  return {kind:'json', payload:u8};
+}
+async function protonLoad(probe, passphrase){
+  const bytes=probe.kind==='pgp'?await pgpDecryptSymmetric(probe.payload, passphrase):probe.payload;
+  if(bytes.length>MAX_FILE_BYTES) throw new Error('toolarge');
+  let obj; try{ obj=JSON.parse(dec.decode(bytes)); }catch(_){ throw new Error('format'); }
+  return obj;
 }
 /* === VAULT-FORMAT END === */
 
@@ -412,13 +679,14 @@ function csvRowToEntry(m, row, now){
    ============================================================ */
 const App = (function(){
   let DEK=null, KDF=null, WRAP=null, VAULT=null;      // Sitzungszustand — auf lock() alles null
-  let editId=null, currentId=null, genMode='chars', genValue='', search='';
+  let editId=null, currentId=null, genMode='chars', genValue='', search='', catFilter=null, formType='login';
   let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
+  let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
 
   const $ = id => document.getElementById(id);
   const show = id => $(id).classList.remove('hidden');
   const hide = id => $(id).classList.add('hidden');
-  function screen(name){ ['setup','lock','app'].forEach(s=>$('screen-'+s).classList.add('hidden')); $('screen-'+name).classList.remove('hidden'); }
+  function screen(name){ ['setup','lock','totp','app'].forEach(s=>$('screen-'+s).classList.add('hidden')); $('screen-'+name).classList.remove('hidden'); }
   function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.add('hidden'),2600); }
   function err(id,msg){ const e=$(id); if(!msg){ e.classList.add('hidden'); e.textContent=''; return; } e.textContent=msg; e.classList.remove('hidden'); }
   function el(tag, cls, text){ const n=document.createElement(tag); if(cls) n.className=cls; if(text!=null) n.textContent=text; return n; }
@@ -441,6 +709,7 @@ const App = (function(){
 
   /* ---------- boot / setup / unlock / lock ---------- */
   function boot(){
+    loadLockState(); dropQrFile();
     const raw=localStorage.getItem(LS_KEY);
     if(!raw){ screen('setup'); setTimeout(()=>$('setup-pass1').focus(),100); benchKdf(); }
     else { screen('lock'); setTimeout(()=>$('lock-pass').focus(),100); }
@@ -490,43 +759,73 @@ const App = (function(){
       const dek=await unwrapDek(f.wrap, kek, f.kdf, false);
       const obj=await decryptBody(f.body, dek, f.kdf);
       const v=sanitizeVault(obj);                                     // auch lokal: Whitelist beim Unlock
-      DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0;
+      if(v.totp){ pendingUnlock={dek, kdf:f.kdf, wrap:f.wrap, vault:v}; }   // Aegis-Hürde: Schlüssel erst nach Code-Prüfung in die Sitzung
+      else { DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0; saveLockState(); }
     }catch(e){
-      failCount++; if(failCount>=3) lockedUntil=Date.now()+Math.min(30,(failCount-2)*2)*1000;
+      failCount++; if(failCount>=3) lockedUntil=Date.now()+Math.min(30,(failCount-2)*2)*1000; saveLockState();
+      $('lock-pass').value=''; maskInputs('#screen-lock');                    // Fehlversuch: Eingabe nie stehen lassen (Audit run-2 #1)
       return err('lock-err', e&&e.message==='toomany'?tr('err.tooMany'):tr('err.wrongPass'));
     }finally{ doUnlock._busy=false; btn.disabled=false; btn.textContent=orig; }
-    $('lock-pass').value='';
+    $('lock-pass').value=''; maskInputs('#screen-lock');
+    if(pendingUnlock){ screen('totp'); $('totp-code').value=''; err('totp-err'); resetIdle(); setTimeout(()=>$('totp-code').focus(),100); return; }   // Idle-Sperre gilt auch in der Wartestellung
     enterApp();
   }
+  async function doTotp(){
+    if(doTotp._busy||!pendingUnlock) return; err('totp-err');
+    const now=Date.now(); if(now<lockedUntil) return err('totp-err',tr('err.wait',{s:Math.ceil((lockedUntil-now)/1000)}));
+    const code=$('totp-code').value.trim(); if(!/^\d{6,8}$/.test(code)) return err('totp-err',tr('err.totp6'));
+    doTotp._busy=true;
+    try{
+      const p=pendingUnlock; if(!(await totpValid(p.vault.totp, code))){ failCount++; if(failCount>=3) lockedUntil=Date.now()+Math.min(30,(failCount-2)*2)*1000; saveLockState(); return err('totp-err',tr('err.totpSetupBad')); }
+      if(pendingUnlock!==p) return;                                   // zwischendurch gesperrt
+      DEK=p.dek; KDF=p.kdf; WRAP=p.wrap; VAULT=p.vault; pendingUnlock=null; failCount=0; lockedUntil=0; saveLockState();
+    }finally{ doTotp._busy=false; $('totp-code').value=''; }
+    enterApp();
+  }
+  function cancelTotp(){ clearIdle(); pendingUnlock=null; $('totp-code').value=''; err('totp-err'); boot(); }
+  // Fehlversuchs-Bremse überlebt einen Neustart (außerhalb des verschlüsselten Tresors, enthält nichts Geheimes)
+  const LOCK_KEY='ai-pass-lock';
+  function saveLockState(){ try{ if(failCount>=3&&lockedUntil>Date.now()) localStorage.setItem(LOCK_KEY, JSON.stringify({f:failCount,u:lockedUntil})); else localStorage.removeItem(LOCK_KEY); }catch(_){} }
+  function loadLockState(){ try{ const o=JSON.parse(localStorage.getItem(LOCK_KEY)||'null'); if(o&&Number.isInteger(o.f)&&Number.isFinite(o.u)&&o.u>Date.now()&&o.u<Date.now()+60000){ failCount=o.f; lockedUntil=o.u; } }catch(_){} }
+  // Sperr-/Setup-/Import-Eingaben leeren und maskieren — beim Verstecken der App und nach jedem Fehlversuch
+  function clearGateInputs(){ ['lock-pass','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code'].forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); err('lock-err'); }
+  // data-showpass-Schalter innerhalb eines Bereichs zurücksetzen (Feld wieder type=password)
+  function maskInputs(scope){ document.querySelectorAll((scope||'')+' input[data-showpass]').forEach(cb=>{ cb.checked=false; cb.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(f) f.type='password'; }); }); }
+  // Code mit ±1 Zeitfenster prüfen (Uhrenabweichung)
+  async function totpValid(t, code){ const now=Date.now(); for(const d of [-1,0,1]){ if(await totpCode(t, now+d*t.period*1000)===code) return true; } return false; }
   function enterApp(){ screen('app'); tab('list'); renderAll(); resetIdle(); }
   function lock(){
     clearIdle(); stopTotp(); clearClip();
-    DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search='';
+    DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null;
+    pendingUnlock=null; pendingSecret=null; pendingOtpauth=''; pendingProton=null;
     clearRendered(); boot();
   }
   // Nach dem Sperren darf nichts Entschlüsseltes im DOM oder in Formularfeldern bleiben
   function clearRendered(){
-    ['entry-list','health','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
-    ['d-title','d-meta','bk-msg','import-msg','csv-msg','about-line'].forEach(id=>{ const n=$(id); if(n) n.textContent=''; });
-    ['f-title','f-user','f-pass','f-url','f-totp','f-notes','search','import-pass','cp-cur','cp1','cp2','lock-pass','setup-pass1','setup-pass2','vault-file','csv-file'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
-    $('f-fav').checked=false; err('add-err'); err('cp-err'); err('lock-err'); err('setup-err');
-    document.querySelectorAll('input[data-showpass]').forEach(cb=>{ cb.checked=false; cb.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(f) f.type='password'; }); });
-    hide('detail-overlay'); hide('help-overlay'); hide('import-pass-box');
+    ['entry-list','health','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
+    ['d-title','d-meta','bk-msg','import-msg','csv-msg','proton-msg','about-line','totp-secret'].forEach(id=>{ const n=$(id); if(n) n.textContent=''; });
+    ['f-title','f-cat','f-user','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','search','import-pass','proton-pass','cp-cur','cp1','cp2','lock-pass','setup-pass1','setup-pass2','totp-code','totp-verify','vault-file','csv-file','proton-file'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
+    $('f-fav').checked=false; $('f-nowarn').checked=false; setEntryType('login'); err('add-err'); err('cp-err'); err('lock-err'); err('setup-err'); err('totp-err'); err('totp-setup-err');
+    maskInputs(''); dropQrFile();
+    clearQrCanvas();
+    hide('detail-overlay'); hide('help-overlay'); hide('import-pass-box'); hide('proton-pass-box'); hide('totp-setup');
     doImportVault._busy=false; const ib=$('import-btn'); if(ib){ ib.disabled=false; }
+    doImportProton._busy=false; const pb=$('proton-btn'); if(pb){ pb.disabled=false; }
   }
 
   /* ---------- Auto-Lock: Idle + Hintergrund (unabhängig voneinander) ---------- */
   let idleTimer=null, lastActivity=0, hiddenAt=0;
-  const settings=()=>VAULT?VAULT.settings:SETTINGS_DEFAULT;
+  const settings=()=>VAULT?VAULT.settings:(pendingUnlock?pendingUnlock.vault.settings:SETTINGS_DEFAULT);
   function clearIdle(){ if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; } }
-  function resetIdle(){ clearIdle(); if(!DEK||!VAULT) return; const mins=settings().autolock; if(!mins) return; idleTimer=setTimeout(()=>{ clearIdle(); lock(); toast(tr('toast.autolocked')); }, mins*60000); }
-  function activity(){ if(!DEK) return; const n=Date.now(); if(n-lastActivity<5000) return; lastActivity=n; resetIdle(); }
+  function resetIdle(){ clearIdle(); if(!DEK&&!pendingUnlock) return; const mins=settings().autolock; if(!mins) return; idleTimer=setTimeout(()=>{ clearIdle(); lock(); toast(tr('toast.autolocked')); }, mins*60000); }
+  function activity(){ if(!DEK&&!pendingUnlock) return; const n=Date.now(); if(n-lastActivity<5000) return; lastActivity=n; resetIdle(); }
   ['click','keydown','touchstart','scroll','mousemove'].forEach(ev=>document.addEventListener(ev, activity, {passive:true}));
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){ hiddenAt=Date.now(); if(DEK&&settings().bgLock===0){ lock(); } return; }
+    if(document.hidden){ hiddenAt=Date.now(); if(!DEK&&!pendingUnlock) clearGateInputs(); if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(); } return; }   // gesperrt: keine getippte Passphrase stehen lassen
     const away=hiddenAt?Date.now()-hiddenAt:0; hiddenAt=0;
     if(clipOwnedAt&&(clipDue||(settings().clipClear>0&&Date.now()-clipOwnedAt>=settings().clipClear*1000))) clearClip();
-    if(!DEK) return;
+    dropQrFile();
+    if(!DEK&&!pendingUnlock) return;                                 // die Hürde-Wartestellung hält entschlüsselte Daten → gleiche Sperrregeln
     const s=settings();
     if((s.bgLock>0&&away>s.bgLock*1000)||(s.autolock>0&&away>s.autolock*60000)){ lock(); toast(tr('toast.autolocked')); }
     else resetIdle();
@@ -542,20 +841,24 @@ const App = (function(){
   function clearClip(){
     if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; }
     if(!clipOwnedAt) return; clipDue=true;
-    if(document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus())){ clipTimer=setTimeout(clearClip,1000); return; }   // im Hintergrund zählt kein Versuch
-    if(++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipDue=false; return; }
+    const bg=document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus());
+    if(bg&&!SC){ clipTimer=setTimeout(clearClip,1000); return; }     // Web-API braucht Fokus → vertagen; nativ (Android) darf ohne Fokus schreiben
+    if(!bg&&++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipDue=false; return; }   // Versuche nur im Vordergrund zählen (Audit run-1 #2)
     const ok=()=>{ clipOwnedAt=0; clipDue=false; clipTries=0; };
-    const retry=()=>{ if(fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
-    let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(' '); }catch(_){ p=null; }
+    const retry=()=>{ if(!bg&&fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
+    let p=null; try{ p=SC?SC.clear():(navigator.clipboard&&navigator.clipboard.writeText(' ')); }catch(_){ p=null; }
     if(p&&p.then) p.then(ok,retry); else retry();
   }
   function copyText(text, whatKey){
     if(!text) return toast(tr('copy.empty'));
     const what=tr(whatKey), s=settings().clipClear;
     const done=()=>{ if(!DEK){ clipOwnedAt=Date.now(); clearClip(); return; } armClip(); toast(s>0?tr('copy.done',{what,s}):tr('copy.doneNoClear',{what})); };
-    let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(text); }catch(_){ p=null; }
-    if(p&&p.then) p.then(done).catch(()=>{ fallbackCopy(text)?done():toast(tr('copy.manual')); });
-    else fallbackCopy(text)?done():toast(tr('copy.manual'));
+    const web=()=>{ let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(text); }catch(_){ p=null; }
+      if(p&&p.then) p.then(done).catch(()=>{ fallbackCopy(text)?done():toast(tr('copy.manual')); });
+      else fallbackCopy(text)?done():toast(tr('copy.manual')); };
+    // Nativ (Android): als „sensibel“ markiert → keine System-Vorschau des Inhalts (API 33+); Fallback Web-API
+    if(SC){ let p=null; try{ p=SC.write({text}); }catch(_){ p=null; } if(p&&p.then){ p.then(done).catch(web); return; } }
+    web();
   }
 
   /* ---------- tabs ---------- */
@@ -572,16 +875,30 @@ const App = (function(){
   /* ---------- Einträge: Liste, Gesundheit ---------- */
   function health(){
     const r=new Set(), w=new Set(), o=new Set(), byPass=new Map(); const old=Date.now()-730*86400000;
-    for(const e of live()){ if(!e.pass) continue; if(!byPass.has(e.pass)) byPass.set(e.pass,[]); byPass.get(e.pass).push(e.id); if(e.pass.length<12) w.add(e.id); if(ts(e.updated)<old) o.add(e.id); }
+    for(const e of live()){ if(e.type!=='login'||!e.pass) continue; if(!byPass.has(e.pass)) byPass.set(e.pass,[]); byPass.get(e.pass).push(e.id); if(e.pass.length<12&&!e.nowarn) w.add(e.id); if(ts(e.updated)<old) o.add(e.id); }
     for(const ids of byPass.values()) if(ids.length>1) ids.forEach(id=>r.add(id));
     return {r,w,o};
   }
+  const cats=()=>[...new Set(live().map(e=>e.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
+  const maskNumber=n=>{ const d=(n||'').replace(/\s/g,''); return d?'•••• '+d.slice(-4):''; };
+  function renderCatList(){ const dl=$('cat-list'); dl.replaceChildren(); for(const c of cats()){ const o=document.createElement('option'); o.value=c; dl.appendChild(o); } }
+  function renderChips(all){
+    const box=$('cat-chips'); box.replaceChildren(); const cs=cats(); if(!cs.length){ catFilter=null; return; }
+    const hasNone=all.some(e=>!e.cat);
+    if(catFilter!==null&&(catFilter===''?!hasNone:!cs.includes(catFilter))) catFilter=null;   // Filter auf verschwundene Kategorie zurücksetzen
+    const mk=(label,val)=>{ const b=el('button','chip'+((catFilter===val)?' on':''),label); if(val===null) b.dataset.action='clearCatFilter'; else { b.dataset.action='setCatFilter'; b.dataset.arg=val; } box.appendChild(b); };
+    mk(tr('chip.all'),null); for(const c of cs) mk(c,c); if(hasNone) mk(tr('chip.none'),'');
+  }
+  function setCatFilter(v){ catFilter=typeof v==='string'?v:null; renderList(); }
+  function clearCatFilter(){ catFilter=null; renderList(); }
   function renderList(){
     if(!VAULT) return;
     search=($('search').value||'').trim().toLowerCase();
     const list=$('entry-list'); list.replaceChildren();
     const all=live().sort((a,b)=>(b.fav-a.fav)||a.title.localeCompare(b.title,undefined,{sensitivity:'base'}));
-    const items=search?all.filter(e=>(e.title+'\n'+e.user+'\n'+e.url).toLowerCase().includes(search)):all;
+    renderChips(all); renderCatList();
+    let items=catFilter===null?all:all.filter(e=>e.cat===catFilter);
+    if(search) items=items.filter(e=>(e.title+'\n'+e.user+'\n'+e.url+'\n'+e.cat).toLowerCase().includes(search));
     const h=health(); const hEl=$('health'); const bad=h.r.size+h.w.size+h.o.size;
     hEl.textContent=all.length?(bad?tr('health.bad',{r:h.r.size,w:h.w.size,o:h.o.size}):tr('health.ok')):''; hEl.classList.toggle('bad',bad>0);
     renderBackupHint();
@@ -589,9 +906,13 @@ const App = (function(){
     for(const e of items){
       const row=el('div','entry'); row.dataset.action='openDetail'; row.dataset.arg=e.id;
       row.appendChild(el('div','av',(e.title.trim()[0]||'?').toUpperCase()));
-      const main=el('div','main'); main.appendChild(el('div','t',e.title)); main.appendChild(el('div','u',e.user||e.url||'')); row.appendChild(main);
+      const main=el('div','main'); main.appendChild(el('div','t',e.title));
+      const sub=e.type==='card'?[e.card&&e.card.holder,e.card&&maskNumber(e.card.number)].filter(Boolean).join(' · '):e.type==='note'?'':(e.user||e.url||'');
+      main.appendChild(el('div','u',sub)); row.appendChild(main);
       const badges=el('div','badges');
       if(e.fav) badges.appendChild(el('span','pill fav','★'));
+      if(e.type!=='login') badges.appendChild(el('span','pill type',tr('pill.'+e.type)));
+      if(e.cat&&catFilter===null) badges.appendChild(el('span','pill cat',e.cat));
       if(e.totp) badges.appendChild(el('span','pill totp','TOTP'));
       if(h.r.has(e.id)) badges.appendChild(el('span','pill bad',tr('badge.reused')));
       if(h.w.has(e.id)) badges.appendChild(el('span','pill bad',tr('badge.weak')));
@@ -608,43 +929,63 @@ const App = (function(){
   }
 
   /* ---------- Formular: neu / bearbeiten / speichern ---------- */
-  function resetForm(){ ['f-title','f-user','f-pass','f-url','f-totp','f-notes'].forEach(id=>$(id).value=''); $('f-fav').checked=false; $('f-meter').textContent=''; err('add-err'); }
-  function newEntry(){ editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); tab('add'); setTimeout(()=>$('f-title').focus(),80); }
-  function editCurrent(){ const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); closeDetail(); editId=e.id; resetForm();
-    $('f-title').value=e.title; $('f-user').value=e.user; $('f-pass').value=e.pass; $('f-url').value=e.url; $('f-notes').value=e.notes; $('f-fav').checked=e.fav;
+  function setEntryType(t){ formType=entryType(t); ['login','note','card'].forEach(x=>$('ft-'+x).classList.toggle('on',x===formType)); $('grp-login').classList.toggle('hidden',formType!=='login'); $('grp-card').classList.toggle('hidden',formType!=='card'); }
+  // Typwechsel per Segment: beim Bearbeiten gehen die Felder des alten Typs verloren → benennen und rückfragen (Audit run-2 #2)
+  function changeEntryType(t){ t=entryType(t); if(t===formType) return;
+    const lost=formType==='login'?['f-user','f-pass','f-url','f-totp'].filter(id=>$(id).value):formType==='card'?['f-holder','f-number','f-expiry','f-cvv','f-pin'].filter(id=>$(id).value):[];
+    if(lost.length&&!confirm(tr('confirm.typeChange',{f:lost.map(id=>tr('lostf.'+id)).join(', ')}))) return;
+    setEntryType(t); }
+  function resetForm(){ ['f-title','f-cat','f-user','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin'].forEach(id=>$(id).value=''); $('f-fav').checked=false; $('f-nowarn').checked=false; $('f-meter').textContent=''; err('add-err'); setEntryType('login'); maskInputs('#tab-add'); }
+  function newEntry(){ editId=null; resetForm(); if(catFilter) $('f-cat').value=catFilter; $('add-title').textContent=tr('add.titleNew'); tab('add'); setTimeout(()=>$('f-title').focus(),80); }
+  function editCurrent(){ const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); closeDetail(); editId=e.id; resetForm(); setEntryType(e.type);
+    $('f-title').value=e.title; $('f-cat').value=e.cat; $('f-user').value=e.user; $('f-pass').value=e.pass; $('f-url').value=e.url; $('f-notes').value=e.notes; $('f-fav').checked=e.fav; $('f-nowarn').checked=e.nowarn;
     $('f-totp').value=e.totp?((e.totp.algorithm!=='SHA1'||e.totp.digits!==6||e.totp.period!==30||e.totp.issuer||e.totp.label)?otpauthUri(e.totp):e.totp.secret):'';
+    const c=e.card||{}; $('f-holder').value=c.holder||''; $('f-number').value=c.number||''; $('f-expiry').value=c.expiry||''; $('f-cvv').value=c.cvv||''; $('f-pin').value=c.pin||'';
     $('add-title').textContent=tr('add.titleEdit'); meterForm(); tab('add'); }
   function cancelEdit(){ editId=null; resetForm(); tab('list'); }
   function saveEntry(){
-    if(!VAULT) return; err('add-err');
+    if(!VAULT||saveEntry._busy) return; err('add-err');
     const title=$('f-title').value.trim(); if(!title) return err('add-err',tr('err.titleReq'));
-    const totpIn=$('f-totp').value.trim(); const totp=totpIn?normalizeTotp(totpIn):null; if(totpIn&&!totp) return err('add-err',tr('err.totpBad'));
+    const totpIn=formType==='login'?$('f-totp').value.trim():''; const totp=totpIn?normalizeTotp(totpIn):null; if(totpIn&&!totp) return err('add-err',tr('err.totpBad'));
     const now=nowIso();
-    const draft={id:editId||cryptoId(), title, user:$('f-user').value, pass:$('f-pass').value, url:$('f-url').value.trim(), notes:$('f-notes').value, totp, fav:$('f-fav').checked, created:now, updated:now, deleted:null};
+    const draft={id:editId||cryptoId(), type:formType, cat:$('f-cat').value, title, user:$('f-user').value, pass:$('f-pass').value, url:$('f-url').value.trim(), notes:$('f-notes').value, totp,
+      card:{holder:$('f-holder').value, number:$('f-number').value, expiry:$('f-expiry').value, cvv:$('f-cvv').value, pin:$('f-pin').value}, nowarn:$('f-nowarn').checked,
+      fav:$('f-fav').checked, created:now, updated:now, deleted:null};
     const idx=editId?VAULT.entries.findIndex(e=>e.id===editId):-1; const before=idx>=0?VAULT.entries[idx]:null;
     if(before) draft.created=before.created;
     const entry=sanitizeEntry(draft); if(!entry) return err('add-err',tr('err.titleReq'));
     if(idx<0&&liveCount(VAULT.entries)>=MAX_ENTRIES) return err('add-err',tr('err.tooMany'));
     const snapshot=VAULT.entries.slice();
     if(idx>=0) VAULT.entries[idx]=entry; else VAULT.entries.push(entry);
+    saveEntry._busy=true; $('add-btn').disabled=true;
     persist().then(()=>{ toast(tr('toast.saved')); editId=null; resetForm(); tab('list'); })
-      .catch(()=>{ VAULT.entries=snapshot; });
+      .catch(()=>{ if(VAULT) VAULT.entries=snapshot; })
+      .finally(()=>{ saveEntry._busy=false; $('add-btn').disabled=false; });
   }
   function meterForm(){ renderMeter('f-pass','f-meter'); }
 
   /* ---------- Detail ---------- */
+  // Wert eines Detail-/Kopierfelds (login: user/pass/url/notes; card: holder/number/expiry/cvv/pin)
+  function fieldValue(e, which){ if(!e) return ''; if(['holder','number','expiry','cvv','pin'].includes(which)) return e.card?e.card[which]||'':''; return typeof e[which]==='string'?e[which]:''; }
   function kv(label, value, opts){
     const box=el('div','kv'); box.appendChild(el('div','k',label));
-    const vrow=el('div','vrow'); const v=el('div','v'+(opts&&opts.secret?' secret masked':'')); v.textContent=opts&&opts.secret?'••••••••••••':value; v.id=opts&&opts.id||''; vrow.appendChild(v);
-    if(opts&&opts.secret){ const b=el('button','btn sm ghost',tr('d.show')); b.dataset.action='toggleReveal'; b.id='d-reveal'; vrow.appendChild(b); }
+    const vrow=el('div','vrow'); const v=el('div','v'+(opts&&opts.secret?' secret masked':'')); v.textContent=opts&&opts.secret?'••••••••••••':value; const key=opts&&(opts.copy||opts.id); if(key) v.id='d-'+key; vrow.appendChild(v);
+    if(opts&&opts.secret){ const b=el('button','btn sm ghost',tr('d.show')); b.dataset.action='toggleReveal'; b.dataset.arg=opts.copy; b.id='d-reveal-'+opts.copy; vrow.appendChild(b); }
     if(opts&&opts.copy){ const c=el('button','btn sm ghost',tr('d.copy')); c.dataset.action='copyField'; c.dataset.arg=opts.copy; vrow.appendChild(c); }
     box.appendChild(vrow); return box;
   }
   function openDetail(id){
     const e=byId(id); if(!e) return; currentId=id; stopTotp();
     $('d-title').textContent=e.title; const b=$('d-body'); b.replaceChildren();
+    if(e.cat) b.appendChild(kv(tr('d.cat'), e.cat, {id:'cat'}));
+    if(e.type==='card'&&e.card){ const c=e.card;
+      if(c.holder) b.appendChild(kv(tr('d.holder'), c.holder, {copy:'holder'}));
+      if(c.number) b.appendChild(kv(tr('d.number'), '', {secret:true, copy:'number'}));
+      if(c.expiry) b.appendChild(kv(tr('d.expiry'), c.expiry, {copy:'expiry'}));
+      if(c.cvv) b.appendChild(kv(tr('d.cvv'), '', {secret:true, copy:'cvv'}));
+      if(c.pin) b.appendChild(kv(tr('d.pin'), '', {secret:true, copy:'pin'})); }
     if(e.user) b.appendChild(kv(tr('d.user'), e.user, {copy:'user'}));
-    if(e.pass) b.appendChild(kv(tr('d.pass'), '', {secret:true, copy:'pass', id:'d-pass'}));
+    if(e.pass) b.appendChild(kv(tr('d.pass'), '', {secret:true, copy:'pass'}));
     if(e.url) b.appendChild(kv(tr('d.url'), e.url, {copy:'url'}));   // bewusst Text, kein Link (kein Netz in der App)
     if(e.totp){ const box=el('div','kv'); box.appendChild(el('div','k',tr('d.totp')+(e.totp.issuer?' · '+e.totp.issuer:'')));
       const vrow=el('div','vrow'); const code=el('div','v totp-box','------'); code.id='d-totp'; vrow.appendChild(code);
@@ -656,8 +997,8 @@ const App = (function(){
     show('detail-overlay'); $('detail-overlay').scrollTop=0;
   }
   function closeDetail(){ stopTotp(); hide('detail-overlay'); const b=$('d-body'); b.replaceChildren(); $('d-title').textContent=''; $('d-meta').textContent=''; currentId=null; }
-  function toggleReveal(){ const e=byId(currentId), v=$('d-pass'), btn=$('d-reveal'); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?e.pass:'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
-  function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:e[which]; copyText(val,'what.'+which); }
+  function toggleReveal(which){ which=which||'pass'; const e=byId(currentId), v=$('d-'+which), btn=$('d-reveal-'+which); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?fieldValue(e,which):'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
+  function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,'what.'+which); }
   function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(()=>{ VAULT.entries=snapshot; }); }
   function deleteCurrent(){ const e=byId(currentId); if(!e) return; if(!confirm(tr('confirm.delete',{t:e.title}))) return;
     const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); VAULT.entries[idx]=tombstone(e, nowIso());
@@ -678,7 +1019,7 @@ const App = (function(){
     $('gen-use').classList.toggle('hidden', false);
   }
   function genCopy(){ copyText(genValue,'what.gen'); }
-  function genUse(){ if(!genValue) return; if(!editId&&!$('f-title').value) { editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); } $('f-pass').value=genValue; meterForm(); tab('add'); }
+  function genUse(){ if(!genValue) return; if(!editId&&!$('f-title').value) { editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); } if(formType!=='login') setEntryType('login'); $('f-pass').value=genValue; meterForm(); tab('add'); }
   function genIntoForm(){ const r=genChars(parseInt($('gen-len').value,10)||20, genOpts()); if(!r.pw) return toast(tr('gen.noset')); $('f-pass').value=r.pw; $('f-pass').type='text'; const cb=document.querySelector('input[data-showpass="f-pass"]'); if(cb) cb.checked=true; meterForm(); }
   function suggestPass(){ const r=genWords(6,'-',false,false); if(!r.pw) return toast(tr('toast.wordsMissing')); $('setup-pass1').value=r.pw; $('setup-pass2').value=r.pw; $('setup-pass1').type=$('setup-pass2').type='text'; $('setup-show').checked=true; meterSetup(); toast(tr('toast.suggest')); }
   function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const st=passStrength(p); const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren(); const s=el('span',null,'▮'.repeat(st+1)+'▯'.repeat(3-st)+' '+tr('pass.s'+st)); s.style.color=col; o.appendChild(s); }
@@ -688,6 +1029,7 @@ const App = (function(){
   /* ---------- Backup export / import ---------- */
   const CAP = window.Capacitor || null;
   const isNative = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
+  const SC = (isNative && CAP.Plugins && CAP.Plugins.SecureClip) ? CAP.Plugins.SecureClip : null;   // eigenes Mini-Plugin (patch-hardening.mjs)
   async function nativeSaveAndShare(name, content, dir, shareText){
     const FS=CAP.Plugins&&CAP.Plugins.Filesystem; if(!FS) throw new Error('Filesystem-Plugin fehlt');
     const w=await FS.writeFile({path:name, data:content, directory:dir||'DOCUMENTS', encoding:'utf8', recursive:true});
@@ -730,7 +1072,7 @@ const App = (function(){
     try{
       let incoming;
       try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); incoming=sanitizeVault(obj).entries; }
-      catch(e){ if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
+      catch(e){ $('import-pass').value=''; if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
       if(!VAULT||!DEK) return;                                   // während des Argon2-Laufs gesperrt → sauber abbrechen
       const before=VAULT.entries.slice(); const m=mergeEntries(VAULT.entries, incoming);
       if(liveCount(m.entries)>MAX_ENTRIES){ $('import-msg').textContent=tr('err.tooMany'); return; }
@@ -743,22 +1085,95 @@ const App = (function(){
     const f=ev&&ev.target&&ev.target.files&&ev.target.files[0]; if(!f||!VAULT) return; const input=ev.target; $('csv-msg').textContent='';
     if(f.size>MAX_FILE_BYTES){ $('csv-msg').textContent=tr('err.fileLarge'); input.value=''; return; }
     const r=new FileReader(); r.onerror=()=>{ $('csv-msg').textContent=tr('bk.readErr'); input.value=''; };
-    r.onload=()=>{ input.value=''; const text=String(r.result);
+    r.onload=()=>{ input.value=''; if(!VAULT||!DEK) return; const text=String(r.result);   // währenddessen gesperrt → abbrechen
       let rows=parseCsv(text,','); if(rows.length&&rows[0].length<2&&text.indexOf(';')>=0) rows=parseCsv(text,';');
       if(rows.length<2){ $('csv-msg').textContent=tr('csv.empty'); return; }
       const map=csvMap(rows[0]); if(!map){ $('csv-msg').textContent=tr('csv.unknown'); return; }
-      const now=Date.now(); const existing=new Set(live().map(e=>e.title+'\u0000'+e.user+'\u0000'+e.pass));
+      const now=Date.now(); const existing=new Set(live().map(dupKey)); const stats={truncated:0};
       const added=[]; let skipped=0, bad=0;
-      for(const row of rows.slice(1)){ const e=csvRowToEntry(map,row,now); if(!e){ bad++; continue; } const key=e.title+'\u0000'+e.user+'\u0000'+e.pass; if(existing.has(key)){ skipped++; continue; } existing.add(key); added.push(e); }
+      for(const row of rows.slice(1)){ const e=csvRowToEntry(map,row,now,stats); if(!e){ bad++; continue; } const key=dupKey(e); if(existing.has(key)){ skipped++; continue; } existing.add(key); added.push(e); }
       if(liveCount(VAULT.entries)+added.length>MAX_ENTRIES){ $('csv-msg').textContent=tr('err.tooMany'); return; }
       const before=VAULT.entries.slice(); VAULT.entries=VAULT.entries.concat(added);
-      persist().then(()=>{ $('csv-msg').textContent=tr('csv.done',{n:added.length,f:tr('fmt.'+map.fmt),s:skipped,b:bad}); renderList(); })
-        .catch(()=>{ VAULT.entries=before; }); };
+      persist().then(()=>{ if(!VAULT) return; $('csv-msg').textContent=tr('csv.done',{n:added.length,f:tr('fmt.'+map.fmt),s:skipped,b:bad})+(stats.truncated?' '+tr('imp.truncated',{t:stats.truncated}):''); renderList(); })
+        .catch(()=>{ if(VAULT) VAULT.entries=before; }); };
     r.readAsText(f);
   }
 
+  /* ---------- Proton-Pass-Export (PGP / ZIP / JSON) ---------- */
+  function protonErr(e){ const c=e&&e.message; return tr(c==='pgpPass'?'pt.wrongPass':c==='pgpAlgo'?'pt.algo':c==='zip64'?'pt.zip64':c==='toolarge'?'err.fileLarge':c==='toomany'?'err.tooMany':'pt.bad'); }
+  function importProton(ev){
+    const f=ev&&ev.target&&ev.target.files&&ev.target.files[0]; if(!f||!VAULT) return; const input=ev.target; $('proton-msg').textContent=''; cancelProton();
+    if(f.size>MAX_FILE_BYTES){ $('proton-msg').textContent=tr('err.fileLarge'); input.value=''; return; }
+    const r=new FileReader(); r.onerror=()=>{ $('proton-msg').textContent=tr('bk.readErr'); input.value=''; };
+    r.onload=async()=>{ input.value=''; if(!VAULT) return;
+      let probe; try{ probe=await protonProbe(new Uint8Array(r.result)); }catch(e){ $('proton-msg').textContent=protonErr(e); return; }
+      if(!VAULT) return; pendingProton=probe;
+      if(probe.kind==='pgp'){ $('proton-msg').textContent=tr('pt.needPass'); show('proton-pass-box'); setTimeout(()=>$('proton-pass').focus(),80); }
+      else doImportProton(); };
+    r.readAsArrayBuffer(f);
+  }
+  function cancelProton(){ pendingProton=null; $('proton-pass').value=''; hide('proton-pass-box'); }
+  async function doImportProton(){
+    if(doImportProton._busy||!pendingProton||!VAULT) return; const probe=pendingProton;
+    const btn=$('proton-btn'), orig=btn.textContent; doImportProton._busy=true; btn.disabled=true; btn.textContent=tr(probe.kind==='pgp'?'busy.decrypting':'busy.importing');
+    try{
+      let res;
+      try{ const obj=await protonLoad(probe, $('proton-pass').value); res=protonExportToEntries(obj, Date.now()); }
+      catch(e){ if(VAULT) $('proton-msg').textContent=protonErr(e); return; }
+      if(!VAULT||!DEK||pendingProton!==probe) return;              // währenddessen gesperrt/abgebrochen
+      const existing=new Set(live().map(dupKey)); const added=[]; let skipped=0;
+      for(const e of res.entries){ const k=dupKey(e); if(existing.has(k)){ skipped++; continue; } existing.add(k); added.push(e); }
+      if(liveCount(VAULT.entries)+added.length>MAX_ENTRIES){ $('proton-msg').textContent=tr('err.tooMany'); return; }
+      const before=VAULT.entries.slice(); VAULT.entries=VAULT.entries.concat(added);
+      try{ await persist(); if(!VAULT) return; $('proton-msg').textContent=tr('pt.done',{n:added.length,v:res.vaults,s:skipped,k:res.skipped})+(res.truncated?' '+tr('imp.truncated',{t:res.truncated}):''); cancelProton(); renderList(); }
+      catch(_){ if(VAULT) VAULT.entries=before; }
+    }finally{ doImportProton._busy=false; btn.disabled=false; btn.textContent=orig; $('proton-pass').value=''; }
+  }
+
+  /* ---------- Aegis-Hürde (TOTP beim Entsperren) ---------- */
+  function totpStart(){
+    if(!VAULT) return; pendingSecret=base32Encode(rand(20));
+    pendingOtpauth=`otpauth://totp/Alien-Pass:Tresor?secret=${pendingSecret}&issuer=Alien-Pass&algorithm=SHA1&digits=6&period=30`;
+    $('totp-secret').textContent=pendingSecret; drawQR($('totp-qr'), pendingOtpauth);
+    hide('totp-off'); show('totp-setup'); hide('totp-on'); $('totp-verify').value=''; err('totp-setup-err'); setTimeout(()=>$('totp-verify').focus(),80);
+  }
+  function drawQR(canvas, text){
+    if(typeof qrMatrix!=='function'){ canvas.style.display='none'; return; }
+    let m; try{ m=qrMatrix(text); }catch(_){ canvas.style.display='none'; return; }
+    canvas.style.display=''; const quiet=4, n=m.size, scale=8, dim=(n+quiet*2)*scale; canvas.width=dim; canvas.height=dim;
+    const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,dim,dim); ctx.fillStyle='#000';
+    for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(m.modules[r][c]) ctx.fillRect((c+quiet)*scale,(r+quiet)*scale,scale,scale);
+  }
+  // Die geteilte QR-PNG (Aegis-Schlüssel) ist transient: an Lebenszyklus-Punkten best-effort löschen (Share-Promise ist kein verlässliches Signal)
+  function dropQrFile(){ if(!isNative) return; try{ const FS=CAP.Plugins&&CAP.Plugins.Filesystem; if(FS) FS.deleteFile({path:'alien-pass-aegis-qr.png',directory:'CACHE'}).catch(()=>{}); }catch(_){} }
+  function clearQrCanvas(){ const q=$('totp-qr'); if(q&&q.width){ q.getContext('2d').clearRect(0,0,q.width,q.height); q.width=q.height=0; } }
+  function blobToBase64(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=rej; r.readAsDataURL(blob); }); }
+  function saveQR(){
+    const c=$('totp-qr'); if(!pendingSecret||!c||c.style.display==='none'||!c.width) return toast(tr('toast.noQr'));
+    c.toBlob(async blob=>{ const fname='alien-pass-aegis-qr.png';
+      if(isNative){ try{ const b64=await blobToBase64(blob); const FS=CAP.Plugins&&CAP.Plugins.Filesystem; const w=await FS.writeFile({path:fname,data:b64,directory:'CACHE',recursive:true});   // app-intern, nur transient via Teilen
+          const SH=CAP.Plugins&&CAP.Plugins.Share; if(SH) await SH.share({title:fname,url:w.uri}); toast(tr('toast.qrSaved')); }catch(_){ toast(tr('toast.qrSaveFail')); } }
+      else { const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=fname; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); toast(tr('toast.qrSaved')); }
+    },'image/png');
+  }
+  function copySecret(){ if(pendingSecret) copyText(pendingSecret,'what.secret'); }
+  function copyOtpauth(){ if(pendingOtpauth) copyText(pendingOtpauth,'what.otpauth'); }
+  async function totpConfirm(){
+    if(!VAULT||!pendingSecret||totpConfirm._busy) return; err('totp-setup-err'); totpConfirm._busy=true;
+    try{
+      const t=normalizeTotp(pendingSecret); const code=$('totp-verify').value.trim();
+      if(!/^\d{6}$/.test(code)||!(await totpValid(t, code))) return err('totp-setup-err',tr('err.totpSetupBad'));
+      if(!VAULT) return; const before=VAULT.totp; VAULT.totp=t;
+      try{ await persist(); }catch(_){ if(VAULT) VAULT.totp=before; return; }
+      pendingSecret=null; pendingOtpauth=''; $('totp-verify').value=''; $('totp-secret').textContent=''; clearQrCanvas(); dropQrFile(); renderSettings(); toast(tr('toast.totpOn'));
+    }finally{ totpConfirm._busy=false; }
+  }
+  function totpCancel(){ pendingSecret=null; pendingOtpauth=''; $('totp-verify').value=''; $('totp-secret').textContent=''; clearQrCanvas(); dropQrFile(); renderSettings(); }
+  async function totpDisable(){ if(!VAULT||!VAULT.totp||!confirm(tr('confirm.totpDisable'))) return; const before=VAULT.totp; VAULT.totp=null; try{ await persist(); }catch(_){ if(VAULT) VAULT.totp=before; return; } renderSettings(); toast(tr('toast.totpOff')); }
+
   /* ---------- Einstellungen ---------- */
   function renderSettings(){ if(!VAULT) return; const s=VAULT.settings; $('set-autolock').value=String(s.autolock); $('set-bglock').value=String(s.bgLock); $('set-clip').value=String(s.clipClear);
+    const on=!!VAULT.totp; $('totp-off').classList.toggle('hidden',on||!!pendingSecret); $('totp-on').classList.toggle('hidden',!on); $('totp-setup').classList.toggle('hidden',!pendingSecret);
     const soft=document.documentElement.getAttribute('data-theme')==='soft'; $('th-dark').classList.toggle('on',!soft); $('th-soft').classList.toggle('on',soft);
     $('about-line').textContent=tr('about',{v:APP_VERSION,m:Math.round(KDF.m/1024),t:KDF.t,p:KDF.p}); }
   function setSetting(key, v){ if(!VAULT) return; const n=Number(v); if(!SETTINGS_ALLOWED[key].includes(n)) return; const before=VAULT.settings[key]; VAULT.settings[key]=n; persist().then(()=>{ resetIdle(); }).catch(()=>{ VAULT.settings[key]=before; renderSettings(); }); }
@@ -789,12 +1204,13 @@ const App = (function(){
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }
   function closeHelp(){ hide('help-overlay'); }
   function toggleLang(){ setLang(LANG==='de'?'en':'de'); }
-  function relabel(){ if(!VAULT) return; $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); renderList(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); }
+  function relabel(){ if(!VAULT) return; $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); renderList(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
   function renderAll(){ renderList(); renderSettings(); renderBackupMsg(); }
   function kdfChanged(){ kdfTouched=true; }
 
-  return {boot,doSetup,doUnlock,lock,tab,newEntry,saveEntry,cancelEdit,editCurrent,deleteCurrent,toggleFavCurrent,openDetail,closeDetail,toggleReveal,copyField,renderList,
-    setGenMode,genNew,genCopy,genUse,genIntoForm,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
+  return {boot,doSetup,doUnlock,doTotp,cancelTotp,lock,tab,newEntry,saveEntry,cancelEdit,editCurrent,deleteCurrent,toggleFavCurrent,openDetail,closeDetail,toggleReveal,copyField,renderList,
+    setEntryType,changeEntryType,setCatFilter,clearCatFilter,setGenMode,genNew,genCopy,genUse,genIntoForm,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
+    importProton,doImportProton,cancelProton,totpStart,totpConfirm,totpCancel,totpDisable,copySecret,copyOtpauth,saveQR,
     setAutolock,setBgLock,setClipClear,theme,changePass,wipeLocal,openHelp,closeHelp,toggleLang,relabel,meterSetup,meterCp,meterForm,kdfChanged};
 })();
 
@@ -811,7 +1227,7 @@ document.addEventListener('click',ev=>{
 document.addEventListener('change',ev=>{
   const elx=ev.target.closest('[data-change]'); if(!elx) return;
   const a=elx.dataset.change; const fn=App[a]; if(typeof fn!=='function') return;
-  if(a==='importCsv'||a==='importVault') return fn(ev);
+  if(a==='importCsv'||a==='importVault'||a==='importProton') return fn(ev);
   fn(elx.value, elx);
 });
 document.addEventListener('input',ev=>{

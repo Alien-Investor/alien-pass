@@ -3,6 +3,10 @@
 
 # Passwort-Exporte anderer Manager (Klartext!) — NIE ins Repo
 *.csv
+# Proton-Exporte (auch verschlüsselt: Nutzerdaten) — NIE ins Repo; die synthetischen Test-Fixtures bleiben erlaubt
+*.pgp
+*.zip
+!test-fixtures/**
 
 # lokale Secrets / Daten
 .env

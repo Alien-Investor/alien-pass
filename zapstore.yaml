@@ -17,16 +17,22 @@ description: |
   not even INTERNET. Your passwords never leave the device in plaintext.
 
   Features:
-  - Entries with title, username, password, URL, notes, TOTP and favourites; instant search
+  - Three entry types: logins (title, username, password, URL, notes, TOTP), encrypted notes and cards
+    (holder, number, expiry, CVV, PIN — masked, copyable); favourites; instant search
+  - Categories like folders: filter chips above the list, suggestions from existing ones
   - Argon2id key derivation (32/64/128 MiB, self-benchmarked at setup) + AES-256-GCM via WebCrypto;
     a random data key is wrapped by your passphrase, file header authenticated (AAD)
   - Auto-lock after inactivity and in the background (immediately up to 5 min)
-  - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app (once due) and on lock
+  - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app and on lock; copied content is flagged
+    sensitive so the Android 13+ system preview hides it
   - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown
   - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time
   - Password health: reused and short passwords and long-unchanged entries flagged — computed locally
   - Encrypted .vault backup and merge between devices (newer change wins, deletions carried for a year)
-  - CSV import from Proton Pass, KeePassXC and Bitwarden
+  - Import Proton Pass exports directly — PGP-encrypted (recommended), ZIP or JSON — with a small built-in
+    OpenPGP reader (AES in WebCrypto); vaults become categories, cards and notes come along
+  - CSV import from KeePassXC, Bitwarden and Proton Pass (folders/groups become categories)
+  - Optional Aegis hurdle: an extra TOTP code on unlock (honestly documented as a hurdle, not a second factor)
   - No Android permissions (the APK carries only the AndroidX-generated signature permission that grants nothing),
     FLAG_SECURE (no screenshots / recents preview), allowBackup=false + data extraction rules (no cloud, adb or D2D backup)
   - Strict CSP: connect-src 'none', no inline script; bundled Argon2 (hash-wasm) hash-checked in the build

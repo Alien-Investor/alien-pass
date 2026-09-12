@@ -1,0 +1,197 @@
+/* Kompakter QR-Encoder (byte-mode, ECC Level M, Versionen 1-12).
+   Algorithmus nach Project Nayuki (MIT), eigenständig reimplementiert.
+   Liefert qrMatrix(text[,forceVersion,forceMask]) -> {size, modules:[[0/1]]}. */
+(function(global){
+  // ECC Level M: EC-Codewörter pro Block + Anzahl Blöcke, je Version (1-basiert)
+  const ECC_M = {1:10,2:16,3:26,4:18,5:24,6:16,7:18,8:22,9:22,10:26,11:30,12:22};
+  const BLK_M = {1:1, 2:1, 3:1, 4:2, 5:2, 6:4, 7:4, 8:4, 9:5, 10:5, 11:5, 12:8};
+  const ALIGN = {1:[],2:[6,18],3:[6,22],4:[6,26],5:[6,30],6:[6,34],
+                 7:[6,22,38],8:[6,24,42],9:[6,26,46],10:[6,28,50],11:[6,30,54],12:[6,32,58]};
+
+  // GF(256) Tabellen, primitiv 0x11d
+  const EXP=new Uint8Array(256), LOG=new Uint8Array(256);
+  (function(){let x=1;for(let i=0;i<255;i++){EXP[i]=x;LOG[x]=i;x<<=1;if(x&0x100)x^=0x11d;}})();
+  function gmul(a,b){return (a===0||b===0)?0:EXP[(LOG[a]+LOG[b])%255];}
+  function rsDivisor(degree){const result=new Array(degree).fill(0);result[degree-1]=1;let root=1;
+    for(let i=0;i<degree;i++){for(let j=0;j<degree;j++){result[j]=gmul(result[j],root);if(j+1<degree)result[j]^=result[j+1];}root=gmul(root,2);}return result;}
+
+  function getBit(x,i){return (x>>>i)&1;}
+
+  function build(text, forceVersion, forceMask){
+    const bytes = (typeof TextEncoder!=='undefined') ? Array.from(new TextEncoder().encode(text))
+                : Array.from(Buffer.from(text,'utf8'));
+    // Version wählen
+    function capacityBytes(v){
+      const size=17+4*v;
+      const {isFunc}=drawFunctions(v,0,true); // nur Funktionszählung
+      let nf=0;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(!isFunc[r][c])nf++;
+      const raw=Math.floor(nf/8);
+      const dataCw = raw - ECC_M[v]*BLK_M[v];
+      const ccBits = v<10?8:16;
+      return Math.floor((dataCw*8 - 4 - ccBits)/8);
+    }
+    let version=forceVersion;
+    if(!version){version=1;while(version<=12 && capacityBytes(version)<bytes.length)version++;if(version>12)throw new Error('Daten zu lang für v12');}
+
+    const size=17+4*version;
+    const ccBits=version<10?8:16;
+
+    // Bitstrom: Modus 0100 + Count + Daten
+    const bits=[];
+    const push=(val,len)=>{for(let i=len-1;i>=0;i--)bits.push((val>>>i)&1);};
+    push(0b0100,4); push(bytes.length,ccBits);
+    for(const b of bytes)push(b,8);
+    // Datencodewort-Anzahl
+    const sizeF=drawFunctions(version,0,true);
+    let nf=0;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(!sizeF.isFunc[r][c])nf++;
+    const rawCw=Math.floor(nf/8);
+    const dataCw=rawCw - ECC_M[version]*BLK_M[version];
+    const capBits=dataCw*8;
+    // Terminator
+    for(let i=0;i<4 && bits.length<capBits;i++)bits.push(0);
+    while(bits.length%8!==0)bits.push(0);
+    // Pad
+    const pads=[0xEC,0x11];let pi=0;
+    while(bits.length<capBits){push(pads[pi%2],8);pi++;}
+    // Datencodewörter
+    const dataBytes=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=(b<<1)|bits[i+j];dataBytes.push(b);}
+
+    // In Blöcke teilen + ECC
+    const numBlocks=BLK_M[version], ecLen=ECC_M[version];
+    const numShort=numBlocks - (rawCw % numBlocks);
+    const shortLen=Math.floor(rawCw/numBlocks); // inkl. ECC
+    const blocksData=[], blocksEcc=[];
+    let off=0;
+    for(let i=0;i<numBlocks;i++){
+      const dlen=(shortLen-ecLen)+(i<numShort?0:1);
+      const d=dataBytes.slice(off,off+dlen);off+=dlen;
+      blocksData.push(d);
+      blocksEcc.push(rsRemainderC(d,ecLen));
+    }
+    // Interleave
+    const maxData=Math.max(...blocksData.map(b=>b.length));
+    const finalCw=[];
+    for(let i=0;i<maxData;i++)for(let b=0;b<numBlocks;b++)if(i<blocksData[b].length)finalCw.push(blocksData[b][i]);
+    for(let i=0;i<ecLen;i++)for(let b=0;b<numBlocks;b++)finalCw.push(blocksEcc[b][i]);
+
+    // Matrix bauen: Funktionen + Daten + Maske
+    function make(mask){
+      const f=drawFunctions(version,mask,false);
+      const m=f.modules, isFunc=f.isFunc;
+      // Codewörter platzieren (Zigzag)
+      let bi=0;const allBits=[];for(const cw of finalCw)for(let i=7;i>=0;i--)allBits.push((cw>>>i)&1);
+      let up=true;
+      for(let col=size-1;col>0;col-=2){
+        if(col===6)col--;
+        for(let r=0;r<size;r++){
+          const row=up?(size-1-r):r;
+          for(let k=0;k<2;k++){
+            const c=col-k;
+            if(!isFunc[row][c]){let bit=bi<allBits.length?allBits[bi]:0;bi++;
+              if(maskCond(mask,row,c))bit^=1;m[row][c]=bit;}
+          }
+        }
+        up=!up;
+      }
+      drawFormat(m,version,mask,size);
+      return m;
+    }
+
+    if(forceMask!==undefined && forceMask!==null) return {size,modules:make(forceMask),version,mask:forceMask};
+    // beste Maske per Penalty
+    let best=0,bestP=Infinity,bestM=null;
+    for(let mk=0;mk<8;mk++){const m=make(mk);const p=penalty(m,size);if(p<bestP){bestP=p;best=mk;bestM=m;}}
+    return {size,modules:bestM,version,mask:best};
+  }
+
+  // RS-Restberechnung (Nayuki)
+  function rsRemainderC(data,degree){
+    const div=rsDivisor(degree);const res=new Array(degree).fill(0);
+    for(const b of data){const factor=b^res[0];res.shift();res.push(0);
+      for(let i=0;i<degree;i++)res[i]^=gmul(div[i],factor);}
+    return res;
+  }
+
+  function maskCond(mask,i,j){switch(mask){
+    case 0:return (i+j)%2===0;case 1:return i%2===0;case 2:return j%3===0;case 3:return (i+j)%3===0;
+    case 4:return (Math.floor(i/2)+Math.floor(j/3))%2===0;case 5:return (i*j)%2+(i*j)%3===0;
+    case 6:return ((i*j)%2+(i*j)%3)%2===0;case 7:return ((i+j)%2+(i*j)%3)%2===0;}}
+
+  // Funktionsmuster zeichnen; countOnly => nur isFunc relevant
+  function drawFunctions(version,mask,countOnly){
+    const size=17+4*version;
+    const m=Array.from({length:size},()=>new Array(size).fill(0));
+    const isFunc=Array.from({length:size},()=>new Array(size).fill(false));
+    const setF=(r,c,v)=>{m[r][c]=v;isFunc[r][c]=true;};
+    // Finder + Separator
+    function finder(R,C){for(let dr=-1;dr<=7;dr++)for(let dc=-1;dc<=7;dc++){const r=R+dr,c=C+dc;if(r<0||c<0||r>=size||c>=size)continue;
+      const d=Math.max(Math.abs(dr-3),Math.abs(dc-3));setF(r,c,(d!==2&&d<=3)?1:0);}}
+    finder(0,0);finder(0,size-7);finder(size-7,0);
+    // Timing
+    for(let i=8;i<size-8;i++){setF(6,i,i%2===0?1:0);setF(i,6,i%2===0?1:0);}
+    // Alignment
+    const ac=ALIGN[version];
+    for(const r of ac)for(const c of ac){
+      // Überlappung mit Findern auslassen
+      if((r<=8&&c<=8)||(r<=8&&c>=size-9)||(r>=size-9&&c<=8))continue;
+      for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const d=Math.max(Math.abs(dr),Math.abs(dc));setF(r+dr,c+dc,(d!==1)?1:0);}
+    }
+    // Dark module
+    setF(size-8,8,1);
+    // Format-Bereiche reservieren (Werte später)
+    for(let i=0;i<=8;i++){if(i!==6){if(!isFunc[8][i]){isFunc[8][i]=true;}if(!isFunc[i][8]){isFunc[i][8]=true;}}}
+    for(let i=0;i<8;i++){isFunc[size-1-i][8]=true;}   // vertikale 2. Kopie
+    for(let i=0;i<8;i++){isFunc[8][size-1-i]=true;}   // horizontale 2. Kopie (inkl. size-8, wie Spec)
+    isFunc[8][8]=true;
+    // Version-Info reservieren (v>=7)
+    if(version>=7){for(let i=0;i<18;i++){const a=size-11+i%3,b=Math.floor(i/3);isFunc[a][b]=true;isFunc[b][a]=true;}}
+    return {modules:m,isFunc,size};
+  }
+
+  function bchDigit(x){let n=0;while(x!==0){n++;x>>>=1;}return n;}
+  function drawFormat(m,version,mask,size){
+    // Format-Info (ECC Level M, M.bit=0) — exakt wie node-qrcode
+    const data=(0<<3)|mask;
+    let d=data<<10;const G15=0x537,G15B=bchDigit(G15);
+    while(bchDigit(d)-G15B>=0)d^=(G15<<(bchDigit(d)-G15B));
+    const bits=((data<<10)|d)^0x5412;
+    for(let i=0;i<15;i++){const mod=(bits>>i)&1;
+      // vertikal
+      if(i<6)m[i][8]=mod;else if(i<8)m[i+1][8]=mod;else m[size-15+i][8]=mod;
+      // horizontal
+      if(i<8)m[8][size-i-1]=mod;else if(i<9)m[8][15-i-1+1]=mod;else m[8][15-i-1]=mod;
+    }
+    m[size-8][8]=1;
+    // Version-Info (v>=7)
+    if(version>=7){
+      let dv=version<<12;const G18=0x1F25,G18B=bchDigit(G18);
+      while(bchDigit(dv)-G18B>=0)dv^=(G18<<(bchDigit(dv)-G18B));
+      const vbits=(version<<12)|dv;
+      for(let i=0;i<18;i++){const row=Math.floor(i/3),col=i%3+size-8-3,mod=(vbits>>i)&1;m[row][col]=mod;m[col][row]=mod;}
+    }
+  }
+
+  function penalty(m,size){
+    let p=0;
+    // Regel1: Reihen von >=5 gleichen
+    for(let r=0;r<size;r++)for(const horiz of [true,false]){let run=1,prev=-1;
+      for(let c=0;c<size;c++){const v=horiz?m[r][c]:m[c][r];if(v===prev)run++;else{if(run>=5)p+=3+(run-5);run=1;prev=v;}}if(run>=5)p+=3+(run-5);}
+    // Regel2: 2x2 Blöcke
+    for(let r=0;r<size-1;r++)for(let c=0;c<size-1;c++){const v=m[r][c];if(v===m[r][c+1]&&v===m[r+1][c]&&v===m[r+1][c+1])p+=3;}
+    // Regel3: Finder-ähnliche Muster
+    const pat1=[1,0,1,1,1,0,1,0,0,0,0],pat2=[0,0,0,0,1,0,1,1,1,0,1];
+    for(let r=0;r<size;r++)for(let c=0;c<size-10;c++){
+      const h=[],vv=[];for(let k=0;k<11;k++){h.push(m[r][c+k]);vv.push(m[c+k]?m[c+k][r]:0);}
+      if(eq(h,pat1)||eq(h,pat2))p+=40;
+    }
+    for(let c=0;c<size;c++)for(let r=0;r<size-10;r++){const v=[];for(let k=0;k<11;k++)v.push(m[r+k][c]);if(eq(v,pat1)||eq(v,pat2))p+=40;}
+    // Regel4: Balance
+    let dark=0;for(let r=0;r<size;r++)for(let c=0;c<size;c++)dark+=m[r][c];
+    const pct=dark*100/(size*size);const k=Math.floor(Math.abs(pct-50)/5);p+=k*10;
+    return p;
+  }
+  function eq(a,b){for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;}
+
+  global.qrMatrix=build;
+  if(typeof module!=='undefined')module.exports={qrMatrix:build};
+})(typeof window!=='undefined'?window:globalThis);
