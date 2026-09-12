@@ -17,7 +17,7 @@ const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
     normalizeTotp,otpauthUri,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
-    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS};`)();
+    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
 const throwsWith=async(fn,code,m)=>{ try{ await fn(); ok(false,m+' (kein Fehler)'); }catch(e){ ok(e&&e.message===code,m+' → '+(e&&e.message)); } };
@@ -305,7 +305,7 @@ console.log('\n[14] v1.1: OpenPGP symmetrisch (gpg-Fixtures: alte Köpfe, Partia
   }
   const f=fixture('data-nocomp.pgp'); const bin=V.pgpDearmor(new TextDecoder().decode(f));
   ok((await V.pgpDecryptSymmetric(bin,'test-passphrase-alien')).length>0,'binär (dearmored) ebenfalls lesbar');
-  const bad=new Uint8Array(bin); bad[bad.length-5]^=1; await throwsWith(()=>V.pgpDecryptSymmetric(bad,'test-passphrase-alien'),'pgpPass','MDC erkennt manipulierte Daten');
+  const bad=new Uint8Array(bin); bad[bad.length-5]^=1; await throwsWith(()=>V.pgpDecryptSymmetric(bad,'test-passphrase-alien'),'pgpMdc','MDC erkennt manipulierte Daten (seit run-3 als Manipulation gemeldet)');
   const badCrc=new TextDecoder().decode(f).replace(/\n=([A-Za-z0-9+/]{4})/,(m,g)=>'\n='+(g[0]==='A'?'B':'A')+g.slice(1)); await throwsWith(()=>V.pgpDecryptSymmetric(new TextEncoder().encode(badCrc),'x'),'pgp','Armor-CRC24 geprüft');
   const pk=V.pgpPackets(bin); ok(pk.length===2&&pk[0].tag===3&&pk[1].tag===18,'Pakete: SKESK + SEIPD');
   // Proton-Variante nachgebaut: neue Köpfe + verschlüsselter Sitzungsschlüssel (ESK) im SKESK
@@ -373,6 +373,46 @@ console.log('\n[16] Audit run-2: Dubletten-Schluessel, Kuerzungszaehler, Textsae
   const t=V.sanitizeEntry(Object.assign({},base,{title:'Harmlos\n\nOK = Abbrechen',cat:NUL})); ok(t.title==='Harmlos OK = Abbrechen'&&t.cat==='','Titel ohne Zeilenumbrueche, NUL-Kategorie wird leer');
   const L1=V.sanitizeEntry(Object.assign({},base,{title:'ALT',updated:'2026-01-02T00:00:00.000Z'})), L2=V.sanitizeEntry(Object.assign({},base,{title:'NEU',updated:'2026-02-02T00:00:00.000Z'})), I=V.sanitizeEntry(Object.assign({},base,{title:'MITTE',updated:'2026-01-15T00:00:00.000Z'}));
   const m1=V.mergeEntries([L1,L2],[I]).entries[0].title, m2=V.mergeEntries([L2,L1],[I]).entries[0].title; ok(m1==='NEU'&&m2==='NEU','mergeEntries dedupliziert local per winner() (Reihenfolge egal)');
+}
+
+console.log('\n[17] v1.2: Fingerabdruck-Slot (Rolle bio, Blob-Format, Schluessel-Laenge)');
+{
+  const kdf=Object.assign({},KDF_TEST,{salt:V.rand(16)});
+  const kek=await V.deriveKek(V.passBytes('pp-bio-test-passphrase'),kdf);
+  const dekX=await V.newDek(); const wrap=await V.wrapDek(dekX,kek,kdf);
+  const secret=V.rand(32); const bk=await V.bioKey(secret);
+  const blob=await V.wrapDek(dekX,bk,kdf,'bio');
+  ok(blob.ct.length===48&&blob.iv.length===12,'bio-Wrap hat dieselbe Groesse wie der Passphrase-Wrap');
+  const raw=V.serializeBioBlob(blob, wrap.ct); const back=V.parseBioBlob(raw);
+  ok(back&&back.w===V.bufToB64(wrap.ct),'Blob trägt den Passphrase-Wrap (w) — Bindung an den Slot der Datei (run-3 #3)');
+  ok(V.parseBioBlob(JSON.stringify({iv:V.bufToB64(blob.iv),ct:V.bufToB64(blob.ct)}))===null,'Blob ohne w → null');
+  let badW=false; try{ V.serializeBioBlob(blob, V.rand(47)); badW=true; }catch(e){ ok(e.message==='bioblob','serializeBioBlob verlangt 48-Byte-Wrap'); } ok(!badW,'falsche Wrap-Länge wirft');
+  ok(back&&V.bufToB64(back.ct)===V.bufToB64(blob.ct)&&V.bufToB64(back.iv)===V.bufToB64(blob.iv),'serializeBioBlob/parseBioBlob Roundtrip');
+  ok(raw.length<512&&!raw.includes(V.bufToB64(secret)),'Blob enthaelt den Zufallsschluessel nicht');
+  const dek=await V.unwrapDek(back,bk,kdf,false,'bio'); const body=await V.encryptBody(V.emptyVault(),dek,kdf);
+  const dek2=await V.unwrapDek(wrap,kek,kdf,false); const v=await V.decryptBody(body,dek2,kdf); ok(v&&v.version===1,'per bio ausgepackter DEK == Passphrase-DEK (Body wechselseitig lesbar)');
+  let crossed=false; try{ await V.unwrapDek(back,bk,kdf,false,'wrap'); crossed=true; }catch(_){ } ok(!crossed,'Rolle bio ist nicht als Passphrase-Slot nutzbar (AAD trennt)');
+  let crossed2=false; try{ await V.unwrapDek(wrap,bk,kdf,false,'bio'); crossed2=true; }catch(_){ } ok(!crossed2,'Passphrase-Wrap ist mit dem bio-Schluessel nicht auspackbar');
+  const kdf2=Object.assign({},kdf,{salt:V.rand(16)}); let other=false; try{ await V.unwrapDek(back,bk,kdf2,false,'bio'); other=true; }catch(_){ } ok(!other,'bio-Blob ist an den Datei-Header (Salt) gebunden — fremder/neuer Tresor scheitert');
+  ok(V.parseBioBlob('{"iv":"AAAA","ct":"AAAA"}')===null&&V.parseBioBlob('nope')===null&&V.parseBioBlob(null)===null&&V.parseBioBlob(JSON.stringify({iv:V.bufToB64(blob.iv),ct:V.bufToB64(blob.ct),w:V.bufToB64(wrap.ct),x:1}))!==null,'parseBioBlob: falsche Laengen/Formate → null, Fremdfelder ignoriert');
+  ok(V.parseBioBlob('{'+'"a":1,'.repeat(200)+'}')===null,'parseBioBlob: Uebergroesse → null');
+  let bad=false; try{ await V.bioKey(V.rand(16)); bad=true; }catch(e){ ok(e.message==='biokey','bioKey verlangt genau 32 Byte'); } ok(!bad,'bioKey(16 Byte) wirft');
+  const bk2=await V.bioKey(V.rand(32)); ok(bk2.extractable===false&&bk2.usages.join()==='wrapKey,unwrapKey','bio-Schluessel nicht extrahierbar, nur wrap/unwrap');
+  const dekW=await V.unwrapDek(wrap,kek,kdf,false); let noWrap=false; try{ await V.wrapDek(dekW,bk,kdf,'bio'); noWrap=true; }catch(_){ } ok(!noWrap,'nicht extrahierbarer Sitzungs-DEK laesst sich NICHT erneut verpacken (Aktivieren braucht die Passphrase)');
+}
+
+console.log('\n[18] Audit run-3: Partial-Body-Bombe, AES-Schluessellaenge, MDC-Fehler als Manipulation');
+{
+  const bomb=new Uint8Array(1+2*3+1); bomb[0]=0xD2; for(let i=0;i<3;i++){ bomb[1+2*i]=0xE0; bomb[2+2*i]=0x41; } bomb[7]=0x00;   // Partial-Laenge 1 Byte
+  let e1=null; try{ V.pgpPackets(bomb); }catch(e){ e1=e.message; } ok(e1==='pgp','erste Partial-Laenge < 512 → pgp (statt Millionen 1-Byte-Ansichten)');
+  const okp=new Uint8Array(1+1+512+1); okp[0]=0xD2; okp[1]=0xE9; okp[514]=0x00; const pk=V.pgpPackets(okp); ok(pk.length===1&&pk[0].tag===18&&pk[0].body.length===512,'erste Partial-Laenge 512 + Endstueck 0 → ein Paket');
+  const many=new Uint8Array(1+1+512+4100*2+1); many[0]=0xD2; many[1]=0xE9; let q=514; for(let i=0;i<4100;i++){ many[q++]=0xE0; many[q++]=0x41; } many[q]=0x00;
+  let e2=null; try{ V.pgpPackets(many); }catch(e){ e2=e.message; } ok(e2==='pgp','mehr als 4096 Teilstuecke → pgp');
+  for(const n of [0,15,17,20,31,33,48]){ let e3=null; try{ V.aesExpand(new Uint8Array(n)); }catch(e){ e3=e.message; } ok(e3==='pgp',`aesExpand(${n} Byte) wirft`); }
+  const fx=V.pgpDearmor(new TextDecoder().decode(readFileSync(FIX+'data-nocomp.pgp'))); const tam=fx.slice(); tam[tam.length-1]^=1;   // binär, letztes Byte (MDC-Hash) gekippt
+  let e4=null; try{ await V.pgpDecryptSymmetric(tam,'test-passphrase-alien'); }catch(e){ e4=e.message; } ok(e4==='pgpMdc','manipulierte Datei (MDC) → pgpMdc, nicht „falsche Passphrase“');
+  let e5=null; try{ await V.pgpDecryptSymmetric(fx,'falsch-falsch-falsch'); }catch(e){ e5=e.message; } ok(e5==='pgpPass','falsche Passphrase → pgpPass');
+  const good=await V.pgpDecryptSymmetric(fx,'test-passphrase-alien'); ok(good&&good.length>0,'unveraenderte Datei entschluesselt weiterhin');
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

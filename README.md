@@ -2,7 +2,8 @@
 
 Lokaler, verschlüsselter **Passwort-Manager** für Android / GrapheneOS.
 Läuft komplett **offline** — keine Cloud, kein Server, kein Konto, keine Telemetrie.
-Die App fordert **keine Android-Berechtigung** an, nicht einmal Internet. Deine Passwörter verlassen das Gerät nie im Klartext.
+Die App fordert **keine Internet-Berechtigung** an — nur die zwei normalen Berechtigungen für den Fingerabdrucksensor (siehe Sicherheit).
+Deine Passwörter verlassen das Gerät nie im Klartext.
 
 Schwester-App des [Sachwert-Tresors](https://codeberg.org/Alien-Investor/sachwert-tresor) — gleiche Architektur, gleiche Härtung, gleicher Alien-Investor-Stil.
 
@@ -79,11 +80,12 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   (8–256 MiB, 1–16 Durchgänge, Arbeitsbudget), keine Übergröße, keine Fremdfelder. Alle Inhalte laufen durch
   eine Feld-Whitelist — auch der lokale Tresor beim Entsperren. Höchstens 10.000 aktive Einträge; Löschmarken
   zählen nicht mit und werden auf 2.000 begrenzt, damit eine fremde Datei den Tresor nicht zufüllen kann.
-- **Keine INTERNET-Permission**: Die Android-App fordert keine Berechtigung von dir oder vom System an — kein Internet,
-  keine Dateien, keine Kontakte. Dass sie nicht nach Hause funken *kann*, erzwingt das Betriebssystem — im Manifest der
-  APK nachprüfbar. Dort steht nur eine von AndroidX automatisch erzeugte, selbst definierte Signatur-Berechtigung
+- **Keine INTERNET-Permission**: Die Android-App fordert genau zwei normale Berechtigungen an, beide für den Fingerabdrucksensor (seit v1.2):
+  `USE_BIOMETRIC` und `USE_FINGERPRINT` (letztere nur bis Android 8.1, `maxSdkVersion=27`, mitgebracht von der AndroidX-Biometrie-Bibliothek).
+  Kein Internet, keine Dateien, keine Kontakte. Dass sie nicht nach Hause funken *kann*, erzwingt das Betriebssystem — im Manifest der
+  APK nachprüfbar (`aapt dump permissions`). Daneben steht dort nur eine von AndroidX automatisch erzeugte, selbst definierte Signatur-Berechtigung
   (`org.alieninvestor.pass.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`), die app-interne Broadcast-Empfänger nicht exportiert;
-  sie gibt keiner anderen App Zugriff und erscheint nicht in den Android-Berechtigungen.
+  sie gibt keiner anderen App Zugriff und erscheint nicht in den Android-Berechtigungen. Der Build bricht ab, sobald irgendeine andere Berechtigung auftaucht.
 - **FLAG_SECURE**: keine Screenshots, kein Screen-Recording, keine Vorschau im App-Switcher.
   **allowBackup=false** verhindert ADB- und Cloud-Backups; **data_extraction_rules.xml** schließt zusätzlich den
   Gerät-zu-Gerät-Transfer aus (Android 12+ ignoriert dort `allowBackup`, auch Seedvault-D2D). Backups machst nur du
@@ -92,8 +94,21 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   Einzige Ergänzung gegenüber dem Sachwert-Tresor ist `'wasm-unsafe-eval'` — Chromium verlangt den Token für
   jede WebAssembly-Kompilierung (Argon2). Er erlaubt ausschließlich WASM, kein String-Eval.
 - **Sperre**: Schlüssel und alle Anzeigen werden aus dem Speicher entfernt; nach Fehlversuchen greift eine
-  Wartezeit. **Kein Autofill, keine Biometrie** (geplant). Nativer Code beschränkt sich auf drei kleine, im Repo
-  einsehbare Stücke: FLAG_SECURE, Backup-Ausschluss und ein Zwischenablage-Plugin (`patch-hardening.mjs`).
+  Wartezeit. **Kein Autofill.** Nativer Code beschränkt sich auf vier kleine, im Repo im Klartext einsehbare Stücke: FLAG_SECURE,
+  Backup-Ausschluss, ein Zwischenablage-Plugin und das Fingerabdruck-Plugin (alle als Quelltext in `patch-hardening.mjs`; der
+  Vendor-Hash-Check steht in `build-www.sh`, ebenfalls Klartext).
+- **Fingerabdruck-Entsperren, ehrlich eingeordnet** (optional, nur Android-App): Der Datenschlüssel wird zusätzlich unter einem
+  32-Byte-Zufallsschlüssel verpackt; den verwahrt der Android-Keystore, gebunden an eine starke Biometrie (Freigabe pro Nutzung mit
+  Bestätigung, StrongBox falls vorhanden, ungültig bei neu eingerichtetem Fingerabdruck). Dieser Slot liegt *außerhalb* der `.vault`-Datei
+  und ist an den Passphrase-Slot der Datei gebunden — das Dateiformat bleibt unverändert, Backups tragen nichts davon mit. Aktivieren
+  verlangt die Passphrase. Ein Fingerabdruck ist kein Geheimnis und lässt sich erzwingen; darum verlangt die App die Passphrase **nach jedem
+  Neustart** (beim nächsten Start wird der Slot verworfen und nach der Passphrase mit frischem Zufall neu angelegt), nach einem
+  Passphrase-Wechsel und bei neuem Fingerabdruck im System. Der Neustart-Zwang ist eine Regel im Code, keine kryptografische Garantie —
+  im Zweifel Handy neu starten. **Welche Biometrie zählt:** Android kennt keine „nur Fingerabdruck“-Bindung; der Schlüssel gilt für jede
+  Biometrie der Klasse „stark“ auf dem Gerät. Wo eine starke Gesichtserkennung eingerichtet ist (manche Stock-Pixel; GrapheneOS hat keine),
+  öffnet auch sie den Tresor, nach einem Bestätigungs-Tipp. Die App setzt einen Fingerabdrucksensor voraus. **„Jetzt sperren“ ist der bewusste
+  Riegel:** Der nächste Start verlangt dann die Passphrase (kein Knopf, kein Prompt), danach gilt der Fingerabdruck wieder — für Grenze,
+  Weitergeben des Handys, jede Lage, in der ein Finger erzwungen werden könnte. Berechtigungen: siehe oben.
 - **Aegis-Hürde, ehrlich eingeordnet**: Der TOTP-Schlüssel liegt verschlüsselt im Tresor selbst und wird erst geprüft, nachdem
   die Passphrase die Datei geöffnet hat. Wer Tresordatei *und* Passphrase besitzt, entschlüsselt sie außerhalb der App — das Format
   steht unten. Die Hürde hilft gegen jemanden, der die Passphrase abgeschaut hat und das entsperrte Handy in der Hand hält.
@@ -108,7 +123,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   vendor/eff/eff-wordlist.js           b7ccf3dd6958efa9000d8d68c63ebfdbab4a98493cf2fbcd25e1fc31ba57a6b7  (aus der .txt erzeugt, im Build gegengeprüft)
   ```
   Der **OpenPGP-Leser** für Proton-Exporte ist eigener, bewusst kleiner Code (nur symmetrische Nachrichten: SKESK v4 mit
-  S2K, SEIPD v1 mit MDC-Prüfung — exakt Protons Variante). AES läuft in WebCrypto, Schlüssel bleiben dort; neuere
+  S2K, SEIPD v1 mit MDC-Prüfung — exakt Protons Variante). Die AES-Blockchiffre dafür ist eigener Code (nur Verschlüsselungsrichtung,
+  WebCrypto kennt weder ECB noch CFB) — die Testsuite prüft sie gegen FIPS-197-Vektoren und WebCrypto; ihre Schlüssel dienen nur dem
+  Import und werden danach genullt, der Tresorschlüssel berührt sie nie. Neuere
   OpenPGP-Varianten (AEAD, Argon2-S2K, Public-Key) werden klar abgewiesen statt still zu scheitern. Der QR-Encoder für die
   Aegis-Einrichtung ist ebenfalls eigener Code (`qr.js`).
 - **Grenzen, ehrlich benannt**: Im Hintergrund leert die Android-App die Zwischenablage nur, solange Android sie nicht eingefroren

@@ -32,3 +32,9 @@ screenshots/** !filter !diff
 # Reihenfolge: nach /README.md, damit auch test-fixtures/proton/README.md Klartext bleibt (letztes passendes Muster gewinnt).
 /qr.js !filter !diff
 test-fixtures/** !filter !diff
+
+# v1.2 (Audit run-3 #9): nativer Code (Java-Quellen für FLAG_SECURE, Backup-Regeln, SecureClip, Biometric) und der Vendor-Hash-Check
+# sind laut README „im Repo einsehbar“ — also KLARTEXT. Enthalten keine Geheimnisse (nur ~/-relative Toolchain-Pfade).
+# build-apk.sh, patch-signing.mjs, make-release.sh, BUILD.md, CLAUDE.md bleiben verschlüsselt.
+/patch-hardening.mjs !filter !diff
+/build-www.sh !filter !diff
