@@ -10,6 +10,11 @@ const words = readFileSync('vendor/eff/eff_large_wordlist.txt','utf8').trim().sp
 globalThis.EFF_WORDS = words;
 
 const src = readFileSync('app.js','utf8');
+// Versionsanzeige (Einstellungen) muss zur Datei VERSION passen — v1.3/v1.4 zeigten noch „1.2“
+{ const vn=(readFileSync('VERSION','utf8').match(/^VERSION_NAME=(.+)$/m)||[])[1]?.trim();
+  const av=(src.match(/^const APP_VERSION = '([^']*)';/m)||[])[1];
+  if(!vn||av!==vn) throw new Error(`APP_VERSION (${av}) != VERSION_NAME (${vn})`);
+  console.log('  ✓ APP_VERSION', av, '= VERSION_NAME'); }
 const a = src.indexOf('/* === VAULT-FORMAT BEGIN ==='), z = src.indexOf('/* === VAULT-FORMAT END === */');
 if(a<0||z<0) throw new Error('Sentinel nicht gefunden');
 const region = src.slice(a, z);

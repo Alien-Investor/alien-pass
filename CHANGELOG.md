@@ -1,5 +1,9 @@
 # Changelog — Alien Pass
 
+## v1.4.1 — 2026-09-13
+- **Versionsanzeige korrigiert:** Die Einstellungen zeigten seit v1.3 weiterhin „v1.2“. Die Anzeige kommt jetzt aus derselben Quelle wie
+  die Versionsnummer der App und wird beim Bauen und im Test gegengeprüft. Sonst keine Änderung; Tresor-Format und Daten bleiben gleich.
+
 ## v1.4 — 2026-09-13
 - **Zusatzfelder (immer geheim):** Jeder Eintrag — Login, Notiz, Karte, Konto — kann bis zu acht frei benannte Zusatzfelder tragen
   (App-PIN, Telefon-Kennwort, Sicherheitsfrage, Auszahlungs-PIN …). Der Wert ist grundsätzlich geheim: im Formular maskiert (ein Schalter
