@@ -18,20 +18,24 @@ description: |
   Your passwords never leave the device in plaintext.
 
   Features:
-  - Four entry types: logins (title, username, password, URL, notes, TOTP), encrypted notes, cards
+  - Four entry types: logins (title, username, optional e-mail, password, URL, notes, TOTP), encrypted notes, cards
     (holder, number, expiry, CVV, PIN — masked, copyable) and bank accounts (holder, IBAN, BIC, bank, PIN); favourites; instant search
+  - Extra fields, always secret (v1.4): up to eight freely named fields per entry (app PIN, phone password, security question …),
+    revealed only on request, each with its own copy button — nothing has to sit in the notes in plain text
   - Categories like folders: filter chips above the list, suggestions from existing ones
   - Argon2id key derivation (32/64/128 MiB, self-benchmarked at setup) + AES-256-GCM via WebCrypto;
     a random data key is wrapped by your passphrase, file header authenticated (AAD)
   - Auto-lock after inactivity and in the background (immediately up to 5 min)
   - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app and on lock; copied content is flagged
     sensitive so the Android 13+ system preview hides it
-  - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown
+  - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown — also right inside the entry form
+    (panel under the password field, same settings as the generator tab)
   - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time
   - Password health: reused and short passwords flagged — computed locally; no forced rotation by age (NIST SP 800-63B)
   - Encrypted .vault backup and merge between devices (newer change wins, deletions carried for a year)
   - Import Proton Pass exports directly — PGP-encrypted (recommended), ZIP or JSON — with a small built-in
-    OpenPGP reader (own AES block cipher, checked against FIPS-197 and WebCrypto in the test suite); vaults become categories, cards and notes come along
+    OpenPGP reader (own AES block cipher, checked against FIPS-197 and WebCrypto in the test suite); vaults become categories, cards and notes come along,
+    hidden custom fields become secret extra fields, a second e-mail address goes into the e-mail field
   - CSV import from KeePassXC, Bitwarden and Proton Pass (folders/groups become categories)
   - Optional Aegis hurdle: an extra TOTP code on unlock (honestly documented as a hurdle, not a second factor)
   - Optional fingerprint unlock (Android keystore, passphrase required after every restart, passphrase change or new fingerprint;
