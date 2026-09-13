@@ -40,3 +40,11 @@ release-build.log
 *.jks
 keystore.properties
 release-signing.properties
+
+# App-Trailer: regenerierbare Artefakte (Screenshots, Frames, Karten, Musik, Videos)
+trailer/out/
+trailer/musik/
+trailer/shots/
+trailer/frames/
+trailer/cards/
+trailer/thumbs/
