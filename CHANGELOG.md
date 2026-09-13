@@ -1,5 +1,24 @@
 # Changelog — Alien Pass
 
+## v1.4 — 2026-09-13
+- **Zusatzfelder (immer geheim):** Jeder Eintrag — Login, Notiz, Karte, Konto — kann bis zu acht frei benannte Zusatzfelder tragen
+  (App-PIN, Telefon-Kennwort, Sicherheitsfrage, Auszahlungs-PIN …). Der Wert ist grundsätzlich geheim: im Formular maskiert (ein Schalter
+  zeigt alle), im Detail nur nach „Anzeigen“, mit eigenem Kopier-Button (Auto-Löschen wie beim Passwort). Bisher landete so etwas im Klartext
+  in den Notizen. Die Bezeichnung ist durchsuchbar, der Wert nie; die Liste zeigt nichts davon. Ein Typwechsel lässt die Zusatzfelder stehen.
+  Beim **Proton-Import** werden versteckte Zusatzfelder („Hidden“) zu Zusatzfeldern statt zu Notizzeilen (die ersten acht; Text-Felder
+  bleiben Notizzeilen). Ein Gerät mit v1.3 oder älter verwirft die Zusatzfelder beim Zusammenführen still: erst alle Geräte aktualisieren.
+- **E-Mail-Feld (optional) beim Login:** für Konten, die Nutzername UND E-Mail-Adresse brauchen. Klartext im Detail mit eigenem Kopier-Button,
+  durchsuchbar; die Liste zeigt weiter den Nutzernamen (die E-Mail nur, wenn kein Nutzername gesetzt ist). Proton-Importe (ZIP/PGP/JSON und CSV)
+  legen eine zweite Adresse jetzt in dieses Feld statt als Zeile „E-Mail: …“ in die Notizen. Auch dieses Feld geht auf älteren Geräten beim
+  Zusammenführen verloren.
+- **Audit run-4 (Diff-Durchsicht, 13.09.2026):** keine ausnutzbare Lücke. Behoben: „Zusatzfelder anzeigen“ blieb nach dem Entfernen der letzten
+  Zeile aktiv (nächste Zeile wäre unmaskiert gewesen); das Generator-Panel hob ein manuelles Verbergen des Passworts bei jeder Regleränderung
+  wieder auf. Neu: der Proton-Import meldet, wenn versteckte Felder über dem Deckel von acht im Klartext in den Notizen gelandet sind.
+- **Generator direkt im Eintragsformular:** „Generieren“ klappt unter dem Passwortfeld ein Panel auf — Zeichen oder Würfelwörter, Länge bzw.
+  Wortzahl, Zeichensätze, Trenner, Großschreibung, „+ Ziffer“ — und schreibt bei jeder Änderung sofort ein neues Passwort ins Feld, mit
+  Entropie-Anzeige. Kein Wechsel in den Generator-Tab mehr nötig. Beide Stellen teilen sich dieselben Einstellungen (nur für die Sitzung,
+  nichts davon liegt im Tresor). „Fertig“ schließt das Panel und maskiert das Feld wieder.
+
 ## v1.3 — 2026-09-12
 - **Neuer Eintragstyp „Konto“** (Bankkonto): Kontoinhaber, IBAN/Kontonummer, BIC/SWIFT, Bank, optional PIN. IBAN und BIC stehen im Detail
   im Klartext (werden zum Überweisen gebraucht), die PIN nur nach „Anzeigen“; die Liste zeigt die IBAN nur als `•••• 1234`. IBAN/BIC werden

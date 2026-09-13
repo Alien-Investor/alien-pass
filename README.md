@@ -50,12 +50,17 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   zum Überweisen gebraucht und stehen auf jeder Rechnung; die Liste zeigt IBAN und Kartennummer nur als `•••• 1234`).
 - **Zwischenablage mit Auto-Löschen** (15/30/60 s): beim Ablauf, beim Zurückkehren in die App (sobald die Zeit abgelaufen ist oder ein Löschen im Hintergrund fehlschlug) und beim Sperren.
   In der Android-App wird Kopiertes als **sensibel** markiert — die System-Vorschau zeigt den Inhalt nicht (Android 13+).
-- **Passwort-Generator**: Zeichen-Modus (8–64 Zeichen, Zeichensätze wählbar, ohne verwechselbare Zeichen)
+- **Passwort-Generator**, auch direkt im Eintragsformular (Panel unter dem Passwortfeld): Zeichen-Modus (8–64 Zeichen, Zeichensätze wählbar, ohne verwechselbare Zeichen)
   und **Diceware** (EFF Large Wordlist, 7.776 Wörter, ~12,9 Bit je Wort). Entropie-Anzeige (im Zeichen-Modus ehrlich um die Pflicht „jeder Zeichensatz kommt vor“ bereinigt), kein Modulo-Bias.
 - **TOTP pro Eintrag** (RFC 6238; SHA-1/256/512, 6–8 Stellen, beliebige Periode) mit Restlaufzeit.
 - **Passwort-Gesundheit**: markiert wiederverwendete und kurze (< 12) Passwörter — rein lokal. Das Alter wird bewusst nicht markiert:
   Zwangsrotation ist ein Anti-Muster (NIST SP 800-63B); gewechselt wird, wenn ein Passwort geleakt sein könnte.
   Erlaubt ein Dienst kein längeres Passwort, schaltet ein Häkchen im Eintrag die „kurz“-Markierung ab.
+- **Nutzername und E-Mail getrennt**: optionales E-Mail-Feld beim Login für Dienste, die beides verlangen — im Detail mit eigenem
+  Kopier-Button, durchsuchbar.
+- **Zusatzfelder, immer geheim**: bis zu acht frei benannte Felder je Eintrag (App-PIN, Telefon-Kennwort, Sicherheitsfrage …), bei jedem
+  Typ. Der Wert erscheint im Detail nur nach „Anzeigen“ und hat einen eigenen Kopier-Button — so muss nichts davon im Klartext in die Notizen.
+  Die Bezeichnung ist durchsuchbar, der Wert nie.
 - **Typwechsel mit Rückfrage**: Wird ein Login nachträglich zur Notiz, Karte oder zum Konto, gehen Passwort/TOTP verloren — die App nennt
   die Felder und fragt; Importe melden gekürzte Notizen (Cap 10.000 Zeichen) und überspringen nur echte Dubletten.
 - **Aegis-Hürde** (optional): nach der Passphrase zusätzlich ein TOTP-Code aus Aegis. Ehrlich benannt als *Hürde*, nicht als
@@ -65,7 +70,8 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   die neuere Änderung, Löschungen werden ein Jahr lang mitgeführt. Die Datei darf eine andere
   Passphrase haben. Sync z.B. über Syncthing.
 - **Umzug aus Proton Pass direkt aus dem Export** — PGP-verschlüsselt (von Proton empfohlen), ZIP oder JSON: Logins inkl. TOTP,
-  Notizen, Kreditkarten, Aliase, WLAN, Identitäten, SSH-Schlüssel; Proton-Tresore werden zu Kategorien, Angepinntes zu Favoriten.
+  Notizen, Kreditkarten, Aliase, WLAN, Identitäten, SSH-Schlüssel; Proton-Tresore werden zu Kategorien, Angepinntes zu Favoriten,
+  versteckte Zusatzfelder zu geheimen Zusatzfeldern.
   Der Klartext liegt damit nie auf dem Handy, die Passphrase des Exports wird nur zum Entschlüsseln verwendet.
 - **Umzug per CSV** aus **KeePassXC** und **Bitwarden** (und Proton Pass) — automatische Erkennung, weitere Formate über
   passende Spaltennamen, Gruppen/Ordner werden zu Kategorien. Dubletten werden übersprungen.

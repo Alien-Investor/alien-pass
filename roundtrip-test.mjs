@@ -16,7 +16,7 @@ const region = src.slice(a, z);
 const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
-    normalizeTotp,otpauthUri,sanitizeBank,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
+    normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
     parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
@@ -104,7 +104,7 @@ console.log('\n[4] Sanitizer');
   ok(x.fav===false,'fav nur echtes true');
   ok(Date.parse(x.updated)<=now+120000,'Zukunfts-updated auf now+2min geklemmt: '+x.updated);
   ok(x.created===x.updated,'created ungültig → = updated');
-  ok(!Object.prototype.hasOwnProperty.call(x,'constructor')&&Object.keys(x).length===16,'nur Whitelist-Felder (16 inkl. type/cat/card/bank/nowarn)');
+  ok(!Object.prototype.hasOwnProperty.call(x,'constructor')&&Object.keys(x).length===18,'nur Whitelist-Felder (18 inkl. type/cat/email/card/bank/extra/nowarn)');
   const y=V.sanitizeEntry({id:'0123456789abcdef',title:'x',updated:'nope'},now); ok(y.updated==='1970-01-01T00:00:00.000Z','ungültiges updated → Epoche (gewinnt nie)');
   const t=V.sanitizeEntry({id:'0123456789abcdef',title:'geheim',pass:'geheim',deleted:'2026-02-01T00:00:00.000Z',updated:'2026-02-01T00:00:00.000Z'},now);
   ok(t.deleted&&t.title===''&&t.pass===''&&t.totp===null,'Tombstone inhaltsleer');
@@ -237,7 +237,7 @@ console.log('\n[10] v1.1: Eintragstypen, Kategorien, Karten, nowarn');
   ok(l.type==='login'&&l.cat.length===40&&l.nowarn===false&&l.card===null,'unbekannter Typ → login; cat gekappt; nowarn nur boolean true; card nur bei Typ card');
   ok(V.sanitizeEntry(E({nowarn:true})).nowarn===true,'nowarn=true bleibt bei login');
   const t=V.sanitizeEntry(E({type:'card',deleted:'2026-01-03T00:00:00.000Z'}));
-  ok(t.type==='login'&&t.cat===''&&t.card===null&&Object.keys(t).length===16,'Tombstone inhaltsleer mit identischer Feldmenge');
+  ok(t.type==='login'&&t.cat===''&&t.card===null&&Array.isArray(t.extra)&&t.extra.length===0&&Object.keys(t).length===18,'Tombstone inhaltsleer mit identischer Feldmenge');
   { const ex=E({title:'x'}); ok(V.canon(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))===V.canon(V.sanitizeEntry(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))),'tombstone() ist sanitizer-stabil (Merge-Gleichstand deterministisch)'); }
   const a=V.sanitizeEntry(E({type:'card',card:{number:'1'},updated:'2026-01-02T00:00:00.000Z'})), b=Object.assign({},a,{card:{number:'2',holder:'',expiry:'',cvv:'',pin:''}});
   ok(V.winner(a,b)===V.winner(b,a),'winner() deterministisch bei Karten-Gleichstand (canon rekursiv)');
@@ -271,7 +271,7 @@ console.log('\n[12] v1.1: Proton-JSON-Export → Einträge');
   const by=t=>r.entries.find(e=>e.title===t);
   const pm=by('Proton Mail'); ok(pm&&pm.type==='login'&&pm.cat==='Privat'&&pm.user==='alien'&&pm.pass==='MarkerPass1!'&&pm.url==='https://mail.proton.me'&&pm.fav===true,'Login: Felder, Tresor → Kategorie, pinned → Favorit');
   ok(pm.totp&&pm.totp.secret==='JBSWY3DPEHPK3PXP'&&pm.totp.issuer==='Proton','Login: totpUri → TOTP-Objekt');
-  ok(pm.notes.includes('Hauptkonto')&&pm.notes.includes('E-Mail: alien@proton.me')&&pm.notes.includes('URL: https://account.proton.me')&&pm.notes.includes('PIN: 4711')&&pm.notes.includes('Backup-Code: abc-def'),'Login: Notiz, Zweit-E-Mail, weitere URLs und Extra-Felder in Notizen');
+  ok(pm.notes.includes('Hauptkonto')&&pm.email==='alien@proton.me'&&!pm.notes.includes('E-Mail:')&&pm.notes.includes('URL: https://account.proton.me')&&!pm.notes.includes('4711')&&pm.extra.length===1&&pm.extra[0].name==='PIN'&&pm.extra[0].value==='4711'&&pm.notes.includes('Backup-Code: abc-def'),'Login: Notiz, Zweit-E-Mail im E-Mail-Feld (nicht in Notizen), weitere URLs, Hidden-Feld → Zusatzfeld (nicht in Notizen), Text-Feld → Notizzeile und Extra-Felder in Notizen');
   ok(pm.created==='2023-11-14T22:13:20.000Z'&&pm.updated==='2025-06-15T15:06:40.000Z','Zeitstempel (Unix-Sekunden) übernommen');
   const kv=by('Karte Visa'); ok(kv&&kv.type==='card'&&kv.card.number==='4111111111111111'&&kv.card.holder==='Max Muster'&&kv.card.expiry==='2029-08'&&kv.card.cvv==='123'&&kv.card.pin==='9876'&&kv.pass==='','creditCard → Karte');
   const no=by('WLAN Zuhause'); ok(no&&no.type==='note'&&no.notes==='Router im Flur','note → Notiz');
@@ -369,7 +369,7 @@ console.log('\n[16] Audit run-2: Dubletten-Schluessel, Kuerzungszaehler, Textsae
   ok(V.dupKey(c1)!==V.dupKey(c2),'Karten mit gleicher Nummer, anderer PIN sind keine Dubletten');
   const obj=JSON.parse(readFileSync(FIX+'data.json','utf8')); obj.vaults.share1.items[0].data.metadata.note='N'.repeat(9990);
   const r=V.protonExportToEntries(obj, Date.now()); const pm=r.entries.find(e=>e.title==='Proton Mail');
-  ok(r.truncated===1&&pm.notes.length===V.CAPS.notes&&pm.notes.includes('PIN: 4711')&&pm.notes.includes('E-Mail: alien@proton.me'),'Proton: Kuerzung gezaehlt, Geheimnisse vor dem Freitext erhalten');
+  ok(r.truncated===1&&pm.notes.length===V.CAPS.notes&&pm.extra[0].value==='4711'&&pm.email==='alien@proton.me','Proton: Kuerzung gezaehlt, Geheimnisse vor dem Freitext erhalten (Hidden-PIN im Zusatzfeld, E-Mail im Feld)');
   ok(V.protonExportToEntries(JSON.parse(readFileSync(FIX+'data.json','utf8')), Date.now()).truncated===0,'ohne Ueberlaenge: truncated=0');
   const st={truncated:0}; const rows=V.parseCsv('title,username,password,notes\nA,u,p,"'+'x'.repeat(10001)+'"\n',','); V.csvRowToEntry(V.csvMap(rows[0]),rows[1],Date.now(),st); ok(st.truncated===1,'CSV: Kuerzung gezaehlt');
   const cleaned=V.line('  '+NUL+'Bank'+ZW+' '+RLO+'X\n\nY  ',40); ok(cleaned==='Bank X Y','line(): Steuer-/Nullbreiten-/Bidi-Zeichen raus, Whitespace kollabiert: '+JSON.stringify(cleaned));
@@ -423,11 +423,11 @@ console.log('\n[19] v1.3: Bankkonto-Typ (Whitelist, Normalisierung, Tombstone, d
   const k=V.sanitizeEntry(E({type:'bank',bank:{holder:'  Max\u200b Muster ',iban:'de89 3704 0044 0532 0130 00x',bic:'cobadeffxxx!',bank:'Commerz\tbank',pin:' 1234 ',extra:1},pass:'p',user:'u',card:{number:'1'}}));
   ok(k.type==='bank'&&k.pass===''&&k.user===''&&k.card===null&&k.totp===null,'bank: Login-/Kartenfelder geleert');
   ok(k.bank.iban==='DE89 3704 0044 0532 0130 00X'&&k.bank.bic==='COBADEFFXXX'&&k.bank.holder==='Max Muster'&&k.bank.bank==='Commerz bank'&&k.bank.pin==='1234'&&!('extra' in k.bank),'bank: IBAN groß/nur alnum+Leerzeichen, BIC nur alnum, Inhaber/Bank line(), PIN getrimmt, Fremdfeld weg: '+JSON.stringify(k.bank));
-  ok(Object.keys(k).length===16&&Object.keys(k.bank).length===5,'16 Felder, Kontoobjekt genau 5');
+  ok(Object.keys(k).length===18&&Object.keys(k.bank).length===5,'18 Felder, Kontoobjekt genau 5');
   ok(V.sanitizeEntry(E({type:'bank',bank:{}})).bank===null&&V.sanitizeEntry(E({type:'bank',bank:'x'})).bank===null&&V.sanitizeEntry(E({type:'bank'})).bank===null,'leeres/kaputtes/fehlendes Konto → null');
   ok(V.sanitizeEntry(E({type:'card',bank:{iban:'DE1'},card:{number:'1'}})).bank===null&&V.sanitizeEntry(E({type:'login',bank:{iban:'DE1'}})).bank===null,'bank-Objekt nur bei Typ bank');
   ok(V.sanitizeBank({iban:'a'.repeat(100)}).iban.length===42&&V.sanitizeBank({bic:'B'.repeat(20)}).bic.length===11,'Caps: IBAN 42, BIC 11');
-  const tb=V.tombstone(k,'2026-02-01T00:00:00.000Z'); ok(tb.bank===null&&Object.keys(tb).length===16&&V.canon(tb)===V.canon(V.sanitizeEntry(tb)),'Tombstone eines Kontos: bank null, sanitizer-stabil');
+  const tb=V.tombstone(k,'2026-02-01T00:00:00.000Z'); ok(tb.bank===null&&Object.keys(tb).length===18&&V.canon(tb)===V.canon(V.sanitizeEntry(tb)),'Tombstone eines Kontos: bank null, sanitizer-stabil');
   const k2=Object.assign({},k,{bank:Object.assign({},k.bank,{pin:'9999'})});
   ok(V.dupKey(k)!==V.dupKey(k2)&&V.dupKey(k)===V.dupKey(Object.assign({},k,{id:'ffffffffffffffff',fav:true,cat:'x'})),'dupKey: PIN-Unterschied trennt, id/fav/cat egal');
   ok(V.winner(k,k2)===V.winner(k2,k),'winner() deterministisch bei Konto-Gleichstand');
@@ -435,6 +435,56 @@ console.log('\n[19] v1.3: Bankkonto-Typ (Whitelist, Normalisierung, Tombstone, d
   // Roundtrip durch die Datei
   const dek=await V.newDek(); const kdf={m:8192,t:1,p:1,salt:V.rand(16)}; const body=await V.encryptBody({entries:[k],settings:{},version:1},dek,kdf);
   const back=await V.decryptBody(body,dek,kdf); ok(back.entries[0].bank.iban===k.bank.iban,'Konto überlebt encryptBody/decryptBody');
+}
+
+console.log('\n[20] v1.4: Zusatzfelder (sanitizeExtra, Whitelist bei jedem Typ, Tombstone, dupKey, Merge, Roundtrip)');
+{
+  const raw=[{name:' App​-PIN ',value:'1234'},{name:'ohne Wert',value:''},{name:'',value:'ohne Name'},'x',null,{name:'Tel\tKennwort',value:' geheim \n'},{name:'x'.repeat(100),value:'y'.repeat(2000)}];
+  const x=V.sanitizeExtra(raw);
+  ok(x.length===3&&x[0].name==='App-PIN'&&x[0].value==='1234'&&x[1].name==='Tel Kennwort'&&x[1].value===' geheim \n','nur Paare mit Name UND Wert, Name über line(), Wert roh (Whitespace bleibt)');
+  ok(x[2].name.length===V.CAPS.xname&&x[2].value.length===V.CAPS.xvalue&&Object.keys(x[2]).length===2,'Caps: Name 40, Wert 1000, genau zwei Felder je Paar');
+  ok(V.sanitizeExtra(null).length===0&&V.sanitizeExtra('a').length===0&&V.sanitizeExtra({}).length===0&&V.sanitizeExtra([{name:'a',value:'b',extra:1}])[0].extra===undefined,'kaputt → [], Fremdfelder im Paar verworfen');
+  const many=Array.from({length:20},(_,i)=>({name:'F'+i,value:'v'+i})); const capped=V.sanitizeExtra(many);
+  ok(capped.length===V.EXTRA_MAX&&capped[0].name==='F0'&&capped[V.EXTRA_MAX-1].name==='F'+(V.EXTRA_MAX-1),'höchstens EXTRA_MAX='+V.EXTRA_MAX+', Reihenfolge erhalten');
+  for(const type of ['login','note','card','bank']){ const e=V.sanitizeEntry(E({type,extra:[{name:'N',value:'V'}],card:{number:'1'},bank:{iban:'DE1'}}));
+    ok(e.extra.length===1&&e.extra[0].name==='N'&&Object.keys(e).length===18,'Typ '+type+': Zusatzfeld getragen, 18 Felder'); }
+  ok(V.sanitizeEntry(E({})).extra.length===0&&Array.isArray(V.sanitizeEntry(E({extra:'x'})).extra),'ohne/kaputtes extra → [] (v1.3-Daten bleiben gültig)');
+  const a=V.sanitizeEntry(E({extra:[{name:'PIN',value:'1'}]})); const b=Object.assign({},a,{extra:[{name:'PIN',value:'2'}]}); const c=Object.assign({},a,{extra:[]});
+  ok(V.dupKey(a)!==V.dupKey(b)&&V.dupKey(a)!==V.dupKey(c)&&V.dupKey(a)===V.dupKey(Object.assign({},a,{id:'ffffffffffffffff',fav:true,cat:'z'})),'dupKey: anderer Wert / fehlendes Feld trennt, id/fav/cat egal');
+  const tb=V.tombstone(a,'2026-02-01T00:00:00.000Z'); ok(tb.extra.length===0&&Object.keys(tb).length===18&&V.canon(tb)===V.canon(V.sanitizeEntry(tb)),'Tombstone: extra leer, sanitizer-stabil');
+  ok(V.winner(a,b)===V.winner(b,a)&&V.canon(V.mergeEntries([a],[b]).entries)===V.canon(V.mergeEntries([b],[a]).entries),'Merge kommutativ bei Gleichstand nur in extra');
+  const newer=Object.assign({},b,{updated:'2026-01-03T00:00:00.000Z'}); const m=V.mergeEntries([a],[newer]);
+  ok(m.entries.length===1&&m.entries[0].extra[0].value==='2'&&m.updated===1,'Merge: neueres extra gewinnt');
+  const dek=await V.newDek(); const kdf={m:8192,t:1,p:1,salt:V.rand(16)}; const body=await V.encryptBody({entries:[a],settings:{},version:1},dek,kdf);
+  const back=await V.decryptBody(body,dek,kdf); ok(back.entries[0].extra[0].value==='1'&&V.sanitizeVault(back).entries[0].extra[0].name==='PIN','Zusatzfeld überlebt encryptBody/decryptBody + sanitizeVault');
+  // Proton: nur „hidden“ wird Zusatzfeld, Deckel EXTRA_MAX, Rest in die Notizen; Text-Felder bleiben Notizzeilen
+  const ef=Array.from({length:V.EXTRA_MAX+2},(_,i)=>({fieldName:'H'+i,type:'hidden',data:{content:'s'+i}})); ef.push({fieldName:'T',type:'text',data:{content:'sichtbar'}}); ef.push({fieldName:'leer',type:'hidden',data:{content:''}});
+  const pe=V.protonItemToEntry({data:{type:'login',metadata:{name:'X'},content:{itemUsername:'u',password:'p'},extraFields:ef}},'',Date.now());
+  ok(pe.extra.length===V.EXTRA_MAX&&pe.extra[0].name==='H0'&&pe.extra[0].value==='s0'&&pe.notes.includes('H'+V.EXTRA_MAX+': s'+V.EXTRA_MAX)&&pe.notes.includes('T: sichtbar')&&!pe.notes.includes('H0: s0')&&!pe.extra.some(x=>x.name==='leer')&&pe.notes.includes('leer: '),'Proton: '+V.EXTRA_MAX+' Hidden → Zusatzfelder, Überzählige + Text → Notizen, leeres Hidden kein Zusatzfeld (bleibt wie bisher Notizzeile)');
+  const st={truncated:0,hiddenOver:0}; V.protonItemToEntry({data:{type:'login',metadata:{name:'X'},content:{},extraFields:ef}},'',Date.now(),st);
+  ok(st.hiddenOver===2&&st.truncated===0,'Proton: Hidden-Felder über dem Deckel werden gezählt (2), Text-Feld nicht');
+  const pr=V.protonExportToEntries({version:'1',vaults:{s:{name:'V',items:[{data:{type:'login',metadata:{name:'X'},content:{},extraFields:ef}}]}}},Date.now());
+  ok(pr.hiddenOver===2&&pr.entries.length===1,'protonExportToEntries meldet hiddenOver');
+  const pn=V.protonItemToEntry({data:{type:'note',metadata:{name:'N',note:'n'},content:{},extraFields:[{fieldName:'Safe-Code',type:'hidden',data:{content:'77'}}]}},'',Date.now());
+  ok(pn.type==='note'&&pn.extra.length===1&&pn.extra[0].name==='Safe-Code'&&pn.notes==='n','Proton-Notiz mit Hidden-Feld → Zusatzfeld auch bei Typ note');
+}
+
+console.log('\n[21] v1.4: E-Mail-Feld (nur login, line(), Cap 200, Tombstone, dupKey, Proton JSON + CSV)');
+{
+  const a=V.sanitizeEntry(E({email:'  max@​example.org\n '})); ok(a.email==='max@example.org'&&Object.keys(a).length===18,'login: email über line() (Nullbreite raus, getrimmt), 18 Felder');
+  ok(V.sanitizeEntry(E({email:'x'.repeat(300)})).email.length===V.CAPS.email&&V.sanitizeEntry(E({})).email===''&&V.sanitizeEntry(E({email:5})).email==='','Cap 200, fehlend/kaputt → \"\"');
+  for(const type of ['note','card','bank']) ok(V.sanitizeEntry(E({type,email:'a@b.de'})).email==='','Typ '+type+': email geleert');
+  const tb=V.tombstone(a,'2026-02-01T00:00:00.000Z'); ok(tb.email===''&&Object.keys(tb).length===18&&V.canon(tb)===V.canon(V.sanitizeEntry(tb)),'Tombstone: email leer, sanitizer-stabil');
+  const b2=Object.assign({},a,{email:'other@example.org'}); ok(V.dupKey(a)!==V.dupKey(b2)&&V.dupKey(a)===V.dupKey(Object.assign({},a,{id:'ffffffffffffffff',fav:true})),'dupKey: andere E-Mail trennt, id/fav egal');
+  const pj=(u,em)=>V.protonItemToEntry({data:{type:'login',metadata:{name:'X'},content:{itemUsername:u,itemEmail:em,password:'p'}}},'',Date.now());
+  ok(pj('max','max@ex.org').user==='max'&&pj('max','max@ex.org').email==='max@ex.org'&&pj('max','max@ex.org').notes==='','Proton JSON: Nutzer + E-Mail → beide Felder, Notizen leer');
+  ok(pj('','only@ex.org').user==='only@ex.org'&&pj('','only@ex.org').email===''&&pj('same@ex.org','same@ex.org').email==='','Proton JSON: nur E-Mail → Nutzername; identisch → kein Doppel');
+  const m=V.csvMap(V.parseCsv('type,name,url,email,username,password,note\nlogin,Shop,https://s.de,a@b.de,maxi,pw,Hallo\nlogin,Shop2,,a@b.de,,pw,\n')[0]);
+  const rows=V.parseCsv('type,name,url,email,username,password,note\nlogin,Shop,https://s.de,a@b.de,maxi,pw,Hallo\nlogin,Shop2,,a@b.de,,pw,\n');
+  const c1=V.csvRowToEntry(m,rows[1],Date.now()), c2=V.csvRowToEntry(m,rows[2],Date.now());
+  ok(c1.user==='maxi'&&c1.email==='a@b.de'&&c1.notes==='Hallo'&&c2.user==='a@b.de'&&c2.email==='','Proton CSV: Nutzer+E-Mail → Felder (Notizen unverändert); nur E-Mail → Nutzername');
+  const dek=await V.newDek(); const kdf={m:8192,t:1,p:1,salt:V.rand(16)}; const body=await V.encryptBody({entries:[a],settings:{},version:1},dek,kdf);
+  ok((await V.decryptBody(body,dek,kdf)).entries[0].email==='max@example.org','E-Mail überlebt encryptBody/decryptBody');
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

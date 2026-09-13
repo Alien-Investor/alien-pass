@@ -33,7 +33,7 @@ const I18N = {
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
   "list.search":"Search (title, user, URL)…",
   "add.titleNew":"New entry",
-  "f.title":"Title *","f.titlePh":"e.g. Proton Mail","f.user":"Username / e-mail","f.pass":"Password","f.gen":"Generate",
+  "f.title":"Title *","f.titlePh":"e.g. Proton Mail","f.user":"Username / e-mail","f.email":"E-mail (optional, in addition to the username)","f.pass":"Password","f.gen":"Generate",
   "f.showpass":"Show password","f.url":"URL / app","f.totp":"TOTP secret (optional)","f.totpPh":"Base32 secret or otpauth:// link",
   "f.notes":"Notes","f.fav":"Favourite (top of the list)","add.save":"Save","btn.cancel":"Cancel",
   "type.login":"Login","type.note":"Note","type.card":"Card","type.bank":"Account",
@@ -41,6 +41,7 @@ const I18N = {
   "f.nowarn":"Service does not allow a longer password (no “short” warning)",
   "f.holder":"Cardholder","f.number":"Card number","f.expiry":"Valid until","f.cvv":"Security code (CVV)","f.pin":"PIN (optional)","f.showcard":"Show card data",
   "f.bholder":"Account holder","f.iban":"IBAN / account number","f.bic":"BIC / SWIFT","f.bank":"Bank","f.bpin":"PIN (optional)","f.showbank":"Show PIN",
+  "f.extra":"Extra fields (secret, e.g. app PIN)","f.extraAdd":"+ Extra field","f.extraShow":"Show extra fields",
   "totp.title":"Second factor","totp.intro":"Enter the current 6-digit code from your <strong>Aegis 2FA manager</strong>.","totp.confirm":"Confirm",
   "pt.title":"Migrate from Proton Pass (PGP / ZIP / JSON)",
   "pt.intro":"Reads the Proton export directly — preferably the <strong>PGP-encrypted</strong> variant (Proton's recommendation): the file can travel to the phone safely and is only decrypted here with its passphrase. Logins, notes, credit cards, aliases, Wi-Fi and identities come over; Proton vaults become categories. The trash is left out.",
@@ -53,9 +54,9 @@ const I18N = {
   "set.totpSetup3":"Aegis now shows a 6-digit code. Enter it to confirm:","set.activate":"Activate",
   "set.totpOnText":"Hurdle active. Unlocking additionally asks for an Aegis code. It applies only to this app on this device — backups do not carry it.","set.totpDisable":"Disable hurdle",
   "gen.title":"Password generator","gen.modeChars":"Characters","gen.modeWords":"Dice words",
-  "gen.new":"Generate new","gen.copy":"Copy","gen.use":"Use in form","gen.len":"Length","gen.noamb":"no l/1/I/O/0",
+  "gen.new":"Generate new","gen.done":"Done","gen.copy":"Copy","gen.use":"Use in form","gen.len":"Length","gen.noamb":"no l/1/I/O/0",
   "gen.words":"Words","gen.sep":"Separator","gen.cap":"Capitalise","gen.num":"+ digit",
-  "gen.effNote":"Word list: EFF Large Wordlist (7,776 words, ~12.9 bits per word). Six words ≈ 77 bits.",
+  "gen.effNote":"Word list: EFF Large Wordlist (7,776 words, ~12.9 bits per word). Six words ≈ 77 bits. The same settings apply to “Generate” in the entry form — a panel with mode, length and character sets opens there.",
   "bk.title":"Encrypted backup",
   "bk.intro":"The <code>.vault</code> file holds the whole vault <strong>encrypted</strong> (Argon2id + AES-256-GCM) — it only opens with the passphrase. Sync it between devices e.g. via Syncthing; nothing is ever exported in plaintext.",
   "bk.export":"Create backup (.vault)",
@@ -95,7 +96,7 @@ const I18N = {
   "help.p1":"A <strong>local, encrypted password manager</strong>. Runs fully <strong>offline</strong> — no cloud, no server, no telemetry, no account. The Android app does not even have an internet permission. Your passwords never leave the device in plaintext.",
   "help.warn":"⚠ There is no reset and no backdoor. Forget your passphrase and the data is gone for good. Make regular backups and keep the passphrase safe.",
   "help.h2":"First steps",
-  "help.l2":"<li><strong>Choose a passphrase</strong> — at least 12 characters, better six dice words (the suggest button builds them from the EFF list). Write it down and store it safely.</li><li>The <strong>key derivation</strong> (Argon2id) benchmarks itself during setup; “Standard” suits current phones.</li><li>Create entries — four types: <strong>Login</strong> (user, password, URL, TOTP), <strong>Note</strong> (encrypted text only), <strong>Card</strong> (holder, number, expiry, CVV, PIN) and <strong>Account</strong> (holder, IBAN, BIC, bank, PIN).</li><li><strong>Categories</strong> work like folders: type one freely in the form (suggestions from existing ones). The list filters via the chips at the top; a category disappears once no entry carries it.</li><li><strong>Changing the type</strong> later is possible, but the old type's fields (e.g. a login's password and TOTP) are deleted — the app asks first. A backup does not bring them back, because the newer change wins when merging.</li><li>Tap an entry → detail view with copy buttons. Passwords, card number, CVV and PINs are only revealed on request; IBAN and BIC are shown in plain (needed for transfers, printed on every invoice).</li>",
+  "help.l2":"<li><strong>Choose a passphrase</strong> — at least 12 characters, better six dice words (the suggest button builds them from the EFF list). Write it down and store it safely.</li><li>The <strong>key derivation</strong> (Argon2id) benchmarks itself during setup; “Standard” suits current phones.</li><li>Create entries — four types: <strong>Login</strong> (user, optional e-mail, password, URL, TOTP), <strong>Note</strong> (encrypted text only), <strong>Card</strong> (holder, number, expiry, CVV, PIN) and <strong>Account</strong> (holder, IBAN, BIC, bank, PIN). Every entry can carry up to eight <strong>extra fields</strong> — freely named (app PIN, phone password, security question …) and always secret: shown in the detail view only on request, each with its own copy button. Nothing of that has to sit in the notes in plain text.</li><li><strong>Categories</strong> work like folders: type one freely in the form (suggestions from existing ones). The list filters via the chips at the top; a category disappears once no entry carries it.</li><li><strong>Changing the type</strong> later is possible, but the old type's fields (e.g. a login's password and TOTP) are deleted — the app asks first. A backup does not bring them back, because the newer change wins when merging.</li><li>Tap an entry → detail view with copy buttons. Passwords, card number, CVV and PINs are only revealed on request; IBAN and BIC are shown in plain (needed for transfers, printed on every invoice).</li>",
   "help.h3":"Clipboard",
   "help.l3":"<li>Copied passwords are cleared by the app after the chosen time (default 30 s), when you return to the app and when it locks.</li><li>In the background the Android app keeps trying to clear until Android freezes it (usually after the second app switch); afterwards it catches up when you return. From Android 13 the system additionally clears the clipboard after about an hour — older Android versions do not.</li><li>The Android app flags copied content as <strong>sensitive</strong>: the system preview shown when copying hides the content (Android 13+). In a browser this protection does not exist.</li>",
   "help.h4":"Generator",
@@ -126,6 +127,9 @@ const T = {
   "err.tooMany":{de:"Zu viele Einträge (max. 10.000).",en:"Too many entries (max. 10,000)."},
   "err.saveFailed":{de:"⚠ Speichern fehlgeschlagen — Änderung verworfen (Speicher voll?).",en:"⚠ Save failed — change discarded (storage full?)."},
   "err.titleReq":{de:"Bitte einen Titel angeben.",en:"Please enter a title."},
+  "err.extraHalf":{de:"Zusatzfeld {n}: Bezeichnung und Wert gehören zusammen — bitte beides ausfüllen oder die Zeile entfernen.",en:"Extra field {n}: label and value belong together — fill in both or remove the row."},
+  "err.extraMax":{de:"Höchstens {n} Zusatzfelder je Eintrag.",en:"At most {n} extra fields per entry."},
+  "f.extraName":{de:"Bezeichnung, z.B. App-PIN",en:"Label, e.g. app PIN"},"f.extraVal":{de:"Wert (geheim)",en:"Value (secret)"},"f.extraDel":{de:"Zusatzfeld entfernen",en:"Remove extra field"},
   "err.totpBad":{de:"TOTP-Schlüssel ungültig (Base32 oder otpauth://-Link erwartet).",en:"Invalid TOTP secret (expected Base32 or otpauth:// link)."},
   "err.cpShort":{de:"Neue Passphrase: mindestens 12 Zeichen.",en:"New passphrase: at least 12 characters."},
   "err.cpMismatch":{de:"Die neuen Passphrasen stimmen nicht überein.",en:"New passphrases do not match."},
@@ -167,17 +171,18 @@ const T = {
   "copy.doneNoClear":{de:"{what} kopiert",en:"{what} copied"},
   "copy.manual":{de:"Kopieren nicht möglich — bitte manuell markieren",en:"Copy not possible — please select manually"},
   "copy.empty":{de:"Nichts zu kopieren",en:"Nothing to copy"},
-  "what.user":{de:"Nutzername",en:"Username"},"what.pass":{de:"Passwort",en:"Password"},"what.url":{de:"URL",en:"URL"},
+  "what.user":{de:"Nutzername",en:"Username"},"what.email":{de:"E-Mail",en:"E-mail"},"what.pass":{de:"Passwort",en:"Password"},"what.url":{de:"URL",en:"URL"},
   "what.totp":{de:"Code",en:"Code"},"what.gen":{de:"Passwort",en:"Password"},"what.notes":{de:"Notizen",en:"Notes"},
   "what.holder":{de:"Inhaber",en:"Holder"},"what.number":{de:"Kartennummer",en:"Card number"},"what.expiry":{de:"Ablauf",en:"Expiry"},"what.cvv":{de:"CVV",en:"CVV"},"what.pin":{de:"PIN",en:"PIN"},"what.iban":{de:"IBAN",en:"IBAN"},"what.bic":{de:"BIC",en:"BIC"},"what.bank":{de:"Bank",en:"Bank"},
-  "what.secret":{de:"Schlüssel",en:"Key"},"what.otpauth":{de:"otpauth-Link",en:"otpauth link"},
+  "what.extra":{de:"Zusatzfeld",en:"Extra field"},"what.secret":{de:"Schlüssel",en:"Key"},"what.otpauth":{de:"otpauth-Link",en:"otpauth link"},
   "d.holder":{de:"Karteninhaber",en:"Cardholder"},"d.number":{de:"Kartennummer",en:"Card number"},"d.expiry":{de:"Gültig bis",en:"Valid until"},"d.cvv":{de:"Prüfnummer (CVV)",en:"Security code (CVV)"},"d.pin":{de:"PIN",en:"PIN"},"d.cat":{de:"Kategorie",en:"Category"},
   "d.bholder":{de:"Kontoinhaber",en:"Account holder"},"d.iban":{de:"IBAN / Kontonummer",en:"IBAN / account number"},"d.bic":{de:"BIC / SWIFT",en:"BIC / SWIFT"},"d.bank":{de:"Bank",en:"Bank"},
   "confirm.typeChange":{de:"Typ wechseln? Dabei werden gelöscht: {f}. Das lässt sich nicht rückgängig machen — auch nicht über ein Backup.",en:"Change the type? This deletes: {f}. It cannot be undone — not even from a backup."},
-  "lostf.f-user":{de:"Nutzername",en:"username"},"lostf.f-pass":{de:"Passwort",en:"password"},"lostf.f-url":{de:"URL",en:"URL"},"lostf.f-totp":{de:"TOTP-Schlüssel",en:"TOTP secret"},
+  "lostf.f-user":{de:"Nutzername",en:"username"},"lostf.f-email":{de:"E-Mail",en:"e-mail"},"lostf.f-pass":{de:"Passwort",en:"password"},"lostf.f-url":{de:"URL",en:"URL"},"lostf.f-totp":{de:"TOTP-Schlüssel",en:"TOTP secret"},
   "lostf.f-holder":{de:"Inhaber",en:"holder"},"lostf.f-number":{de:"Kartennummer",en:"card number"},"lostf.f-expiry":{de:"Ablauf",en:"expiry"},"lostf.f-cvv":{de:"CVV",en:"CVV"},"lostf.f-pin":{de:"PIN",en:"PIN"},
   "lostf.f-bholder":{de:"Kontoinhaber",en:"account holder"},"lostf.f-iban":{de:"IBAN",en:"IBAN"},"lostf.f-bic":{de:"BIC",en:"BIC"},"lostf.f-bank":{de:"Bank",en:"bank"},"lostf.f-bpin":{de:"PIN",en:"PIN"},
   "imp.truncated":{de:"⚠ {t} Eintrag/Einträge auf 10.000 Zeichen Notizen gekürzt.",en:"⚠ {t} entry/entries had notes cut at 10,000 characters."},
+  "imp.hiddenOver":{de:"⚠ {n} versteckte(s) Feld(er) über dem Deckel von {m} je Eintrag stehen im KLARTEXT in den Notizen — bitte prüfen.",en:"⚠ {n} hidden field(s) beyond the cap of {m} per entry are in the notes in PLAIN TEXT — please review."},
   "pill.note":{de:"Notiz",en:"Note"},"pill.card":{de:"Karte",en:"Card"},"pill.bank":{de:"Konto",en:"Account"},"chip.all":{de:"Alle",en:"All"},"chip.none":{de:"Ohne Kategorie",en:"No category"},
   "err.totp6":{de:"Bitte den 6-stelligen Code eingeben.",en:"Please enter the 6-digit code."},
   "err.totpSetupBad":{de:"Code stimmt nicht. In Aegis prüfen.",en:"Code doesn't match. Check in Aegis."},
@@ -203,7 +208,7 @@ const T = {
   "health.ok":{de:"✓ Passwort-Gesundheit: keine Auffälligkeiten",en:"✓ Password health: nothing to report"},
   "health.bad":{de:"⚠ {r} wiederverwendet · {w} kurz",en:"⚠ {r} reused · {w} short"},
   "badge.reused":{de:"doppelt",en:"reused"},"badge.weak":{de:"kurz",en:"short"},
-  "d.user":{de:"Nutzername / E-Mail",en:"Username / e-mail"},"d.pass":{de:"Passwort",en:"Password"},"d.url":{de:"URL / App",en:"URL / app"},
+  "d.user":{de:"Nutzername / E-Mail",en:"Username / e-mail"},"d.email":{de:"E-Mail",en:"E-mail"},"d.pass":{de:"Passwort",en:"Password"},"d.url":{de:"URL / App",en:"URL / app"},
   "d.totp":{de:"TOTP-Code",en:"TOTP code"},"d.notes":{de:"Notizen",en:"Notes"},
   "d.show":{de:"Anzeigen",en:"Show"},"d.hide":{de:"Verbergen",en:"Hide"},"d.copy":{de:"Kopieren",en:"Copy"},
   "d.meta":{de:"Angelegt {c} · Geändert {u}",en:"Created {c} · Updated {u}"},
@@ -213,6 +218,7 @@ const T = {
   "confirm.bigKdf":{de:"Die Datei verlangt {m} MiB Arbeitsspeicher für Argon2 — das kann auf dem Handy abstürzen. Trotzdem versuchen?",en:"The file demands {m} MiB of memory for Argon2 — this may crash on a phone. Try anyway?"},
   "gen.bits":{de:"≈ {b} Bit Entropie",en:"≈ {b} bits of entropy"},
   "gen.noset":{de:"Mindestens einen Zeichensatz wählen.",en:"Select at least one character set."},
+  "gen.done":{de:"Fertig",en:"Done"},
   "bk.done":{de:"Backup gespeichert: {n}",en:"Backup saved: {n}"},
   "bk.doneNative":{de:"Backup geschrieben nach Dokumente: {n}",en:"Backup written to Documents: {n}"},
   "bk.doneShare":{de:"Backup über den Teilen-Dialog bereitgestellt: {n} — dort ein Ziel wählen (Dateien, Syncthing …).",en:"Backup offered via the share sheet: {n} — pick a destination there (Files, Syncthing …)."},
@@ -337,7 +343,8 @@ const SETTINGS_DEFAULT={autolock:2, bgLock:30, clipClear:30};
 const TOMBSTONE_DAYS=365, MAX_TOMBSTONES=2000;   // Löschmarken zählen NICHT zum Eintrags-Cap, sind aber separat begrenzt
 function emptyVault(){ return {version:VAULT_VERSION, entries:[], settings:Object.assign({},SETTINGS_DEFAULT), totp:null, meta:{lastBackup:null, lastBackupCount:0}}; }
 const ID_RE=/^[0-9a-f]{16}$/;
-const CAPS={title:200,user:200,pass:1000,url:2000,notes:10000,issuer:100,label:200,cat:40,holder:100,number:32,expiry:10,cvv:8,pin:12,iban:42,bic:11,bank:100};
+const CAPS={title:200,user:200,pass:1000,url:2000,notes:10000,issuer:100,label:200,email:200,cat:40,holder:100,number:32,expiry:10,cvv:8,pin:12,iban:42,bic:11,bank:100,xname:40,xvalue:1000};
+const EXTRA_MAX=8;   // Zusatzfelder je Eintrag (v1.4)
 const ENTRY_TYPES=['login','note','card','bank'];
 function str(v,cap){ return typeof v==='string' ? v.slice(0,cap) : ''; }
 // Einzeilige Anzeigetexte (Titel, Kategorie): Steuer-, Nullbreiten- und Bidi-Zeichen raus, Whitespace auf ein Leerzeichen, getrimmt
@@ -352,10 +359,15 @@ function sanitizeCard(c){ if(!c||typeof c!=='object'||Array.isArray(c)) return n
 function sanitizeBank(b){ if(!b||typeof b!=='object'||Array.isArray(b)) return null;
   const o={holder:line(b.holder,CAPS.holder), iban:str(b.iban,CAPS.iban).replace(/[^0-9A-Za-z ]/g,'').toUpperCase().replace(/\s+/g,' ').trim(), bic:str(b.bic,CAPS.bic).replace(/[^0-9A-Za-z]/g,'').toUpperCase(), bank:line(b.bank,CAPS.bank), pin:str(b.pin,CAPS.pin).trim()};
   return (o.holder||o.iban||o.bic||o.bank||o.pin)?o:null; }
+// Zusatzfelder (v1.4): frei benannte, IMMER geheime Werte („App-PIN“, „Telefon-Kennwort“ …) — für alle Typen; Name über line(), Wert roh.
+// Nur Paare mit Name UND Wert überleben, höchstens EXTRA_MAX, Reihenfolge bleibt; sonst leeres Array (nie null — Tombstone/Whitelist stabil).
+function sanitizeExtra(list){ if(!Array.isArray(list)) return []; const out=[];
+  for(const x of list){ if(!x||typeof x!=='object'||Array.isArray(x)) continue; const name=line(x.name,CAPS.xname), value=str(x.value,CAPS.xvalue); if(name&&value) out.push({name,value}); if(out.length>=EXTRA_MAX) break; }
+  return out; }
 // Dubletten-Schlüssel für Importe (Typ + identischer Inhalt der tragenden Felder)
 // Kanonisch über alle tragenden Felder (nicht: id/Zeitstempel/fav/nowarn/cat — sonst würde ein umbenannter Proton-Tresor
 // beim Re-Import jeden Eintrag verdoppeln); zwei Einträge, die sich nur in TOTP/URL/Notizen/Kartendaten unterscheiden, sind KEINE Dubletten.
-function dupKey(e){ return canon({type:e.type, title:e.title, user:e.user, pass:e.pass, url:e.url, notes:e.notes, totp:e.totp, card:e.card, bank:e.bank}); }
+function dupKey(e){ return canon({type:e.type, title:e.title, user:e.user, email:e.email||'', pass:e.pass, url:e.url, notes:e.notes, totp:e.totp, card:e.card, bank:e.bank, extra:e.extra||[]}); }
 function isoOrNull(v){ if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(v)) return null; const t=Date.parse(v); return Number.isFinite(t)?new Date(t).toISOString():null; }
 function parseOtpauth(uri){
   let u; try{ u=new URL(uri); }catch(_){ return null; }
@@ -391,12 +403,12 @@ function sanitizeEntry(e, now){
   created=new Date(tc).toISOString(); updated=new Date(tu).toISOString();
   if(e.deleted&&!deleted) deleted=updated;                       // "gelöscht" ohne brauchbares Datum → Änderungsdatum
   if(deleted){ deleted=new Date(Math.min(Date.parse(deleted),maxT)).toISOString();
-    return {id, type:'login', cat:'', title:'', user:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, nowarn:false, fav:false, created, updated, deleted}; }
+    return {id, type:'login', cat:'', title:'', user:'', email:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, extra:[], nowarn:false, fav:false, created, updated, deleted}; }
   // Typ bestimmt, welche Felder überhaupt tragen: login (user/pass/url/totp/nowarn), note (nur Notizen), card (Kartenobjekt), bank (Kontoobjekt)
   const type=entryType(e.type);
-  const o={id, type, cat:line(e.cat,CAPS.cat), title:line(e.title,CAPS.title), user:'', pass:'', url:'', notes:str(e.notes,CAPS.notes),
-           totp:null, card:null, bank:null, nowarn:false, fav:e.fav===true, created, updated, deleted:null};
-  if(type==='login'){ o.user=str(e.user,CAPS.user); o.pass=str(e.pass,CAPS.pass); o.url=str(e.url,CAPS.url); o.totp=normalizeTotp(e.totp); o.nowarn=e.nowarn===true; }
+  const o={id, type, cat:line(e.cat,CAPS.cat), title:line(e.title,CAPS.title), user:'', email:'', pass:'', url:'', notes:str(e.notes,CAPS.notes),
+           totp:null, card:null, bank:null, extra:sanitizeExtra(e.extra), nowarn:false, fav:e.fav===true, created, updated, deleted:null};   // extra gilt für jeden Typ
+  if(type==='login'){ o.user=str(e.user,CAPS.user); o.email=line(e.email,CAPS.email); o.pass=str(e.pass,CAPS.pass); o.url=str(e.url,CAPS.url); o.totp=normalizeTotp(e.totp); o.nowarn=e.nowarn===true; }
   else if(type==='card'){ o.card=sanitizeCard(e.card); }
   else if(type==='bank'){ o.bank=sanitizeBank(e.bank); }
   return o;
@@ -434,7 +446,7 @@ function mergeEntries(local, incoming){
 function purgeTombstones(entries, now){ now=now||Date.now(); const kept=entries.filter(e=>!e.deleted || now-ts(e.deleted) < TOMBSTONE_DAYS*86400000);
   const tombs=kept.filter(e=>e.deleted); if(tombs.length<=MAX_TOMBSTONES) return kept;
   tombs.sort((a,b)=>ts(b.deleted)-ts(a.deleted)); const keep=new Set(tombs.slice(0,MAX_TOMBSTONES).map(e=>e.id)); return kept.filter(e=>!e.deleted||keep.has(e.id)); }
-function tombstone(e, nowIso){ return {id:e.id, type:'login', cat:'', title:'', user:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, nowarn:false, fav:false, created:e.created, updated:nowIso, deleted:nowIso}; }
+function tombstone(e, nowIso){ return {id:e.id, type:'login', cat:'', title:'', user:'', email:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, extra:[], nowarn:false, fav:false, created:e.created, updated:nowIso, deleted:nowIso}; }
 
 /* ---------- TOTP (RFC 6238; SHA1/256/512, 6–8 Stellen, Periode) ---------- */
 async function totpCode(t, forTime){
@@ -507,15 +519,15 @@ function csvRowToEntry(m, row, now, stats){
     if(m.fmt==='bitwarden'&&t!=='login'&&t!=='note') return null;
     if(m.fmt==='proton'&&!['login','note','alias'].includes(t)) return null;
     if(t==='note') type='note'; }
-  let user=g(m.user), notes=g(m.notes);
-  if(m.fmt==='proton'){ const email=g(m.email); if(!user) user=email; else if(email&&email!==user) notes=(notes?notes+'\n':'')+'E-Mail: '+email; }
+  let user=g(m.user), notes=g(m.notes), email='';
+  if(m.fmt==='proton'){ const em=g(m.email); if(!user) user=em; else if(em&&em!==user) email=em; }   // zweite Adresse → eigenes E-Mail-Feld (v1.4), nicht mehr in die Notizen
   // Ordner/Gruppe/Tresor der Quelle → Kategorie (KeePassXC: Pfad „Root/Sub“ → letztes Segment; „Root“ allein = keine)
   let cat=m.cat>=0?g(m.cat).trim():''; if(m.fmt==='keepassxc'){ const seg=cat.split('/').filter(Boolean); cat=seg.length&&seg[seg.length-1]!=='Root'?seg[seg.length-1]:''; }
   const title=g(m.title).trim()||g(m.url).trim()||user.trim();
   if(!title) return null;
   if(stats&&notes.length>CAPS.notes) stats.truncated++;                 // Kürzung wird gemeldet, nie still
   const created=csvDate(m.created>=0?g(m.created):'', now), updated=csvDate(m.updated>=0?g(m.updated):'', now);
-  return sanitizeEntry({id:cryptoId(), type, cat, title, user, pass:g(m.pass), url:g(m.url), notes, totp:g(m.totp)||null,
+  return sanitizeEntry({id:cryptoId(), type, cat, title, user, email, pass:g(m.pass), url:g(m.url), notes, totp:g(m.totp)||null,
     fav:m.fav>=0&&g(m.fav).trim()==='1', created, updated, deleted:null}, now);
 }
 /* ---------- Proton-Pass-Export (JSON aus ZIP / PGP) → Einträge ----------
@@ -539,11 +551,11 @@ function protonItemToEntry(item, vaultName, now, stats){
   const md=d.metadata&&typeof d.metadata==='object'?d.metadata:{}, c=d.content&&typeof d.content==='object'?d.content:{};
   const t=pStr(d.type)||'login'; const title=pStr(md.name).trim(); if(!title) return null;
   const lines=[]; const note=pStr(md.note);                            // Freitext kommt ZULETZT — bei Kürzung bleiben die Geheimnisse
-  const ent={id:cryptoId(), type:'login', cat:pStr(vaultName).trim(), title, user:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, nowarn:false,
+  const ent={id:cryptoId(), type:'login', cat:pStr(vaultName).trim(), title, user:'', email:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, extra:[], nowarn:false,
              fav:item.pinned===true, created:protonTime(item.createTime,now), updated:protonTime(item.modifyTime,now), deleted:null};
   const extra=Array.isArray(d.extraFields)?d.extraFields:[];
   if(t==='login'){
-    const email=pStr(c.itemEmail).trim(), user=pStr(c.itemUsername).trim(); ent.user=user||email; if(user&&email&&email!==user) lines.push('E-Mail: '+email);
+    const email=pStr(c.itemEmail).trim(), user=pStr(c.itemUsername).trim(); ent.user=user||email; if(user&&email&&email!==user) ent.email=email;   // beide vorhanden → eigenes Feld (v1.4)
     ent.pass=pStr(c.password); const urls=(Array.isArray(c.urls)?c.urls:[]).filter(u=>typeof u==='string'&&u.trim()); ent.url=urls.length?urls[0].trim():'';
     for(const u of urls.slice(1)) lines.push('URL: '+u.trim());
     ent.totp=pStr(c.totpUri).trim()||null;
@@ -556,7 +568,10 @@ function protonItemToEntry(item, vaultName, now, stats){
   else if(t==='sshKey'){ ent.type='note'; if(pStr(c.publicKey)) lines.push('Public key: '+c.publicKey); if(pStr(c.privateKey)) lines.push('Private key:\n'+c.privateKey); lines.push(...protonSectionLines(c.sections)); }
   else if(t==='identity'){ ent.type='note'; for(const k of Object.keys(c)){ const v=c[k]; if(typeof v==='string'&&v.trim()) lines.push(k+': '+v.trim()); else if(Array.isArray(v)&&k!=='extraSections') lines.push(...protonFieldLines(v)); } lines.push(...protonSectionLines(c.extraSections)); }
   else { ent.type='note'; lines.push(...protonSectionLines(c.sections)); }   // custom + unbekannte Typen → Notiz
-  lines.push(...protonFieldLines(extra)); if(note) lines.push(note);
+  // Versteckte Zusatzfelder (Proton „Hidden“) werden zu geheimen Zusatzfeldern (max. EXTRA_MAX, Rest wie bisher in die Notizen); Text/TOTP/Datum bleiben Notizzeilen
+  const rest=[]; for(const f of extra){ const fd=f&&typeof f==='object'&&f.data&&typeof f.data==='object'?f.data:f; const hid=f&&f.type==='hidden'&&line(pStr(f.fieldName),CAPS.xname)&&pStr(fd&&fd.content);
+    if(hid&&ent.extra.length<EXTRA_MAX) ent.extra.push({name:f.fieldName, value:fd.content}); else { if(hid&&stats) stats.hiddenOver++; rest.push(f); } }   // über dem Deckel → Notizen, gezählt und gemeldet (Audit run-4 #1)
+  lines.push(...protonFieldLines(rest)); if(note) lines.push(note);
   ent.notes=lines.join('\n');
   if(stats&&ent.notes.length>CAPS.notes) stats.truncated++;             // Kürzung wird gemeldet, nie still
   return sanitizeEntry(ent, now);
@@ -564,12 +579,12 @@ function protonItemToEntry(item, vaultName, now, stats){
 // Gesamter Export → {entries, skipped, vaults}; wirft 'format' (keine Proton-Struktur) oder 'toomany'
 function protonExportToEntries(obj, now){
   if(!obj||typeof obj!=='object'||!obj.vaults||typeof obj.vaults!=='object'||Array.isArray(obj.vaults)) throw new Error('format');
-  now=now||Date.now(); const entries=[]; let skipped=0, vaults=0, total=0; const stats={truncated:0};
+  now=now||Date.now(); const entries=[]; let skipped=0, vaults=0, total=0; const stats={truncated:0, hiddenOver:0};
   for(const key of Object.keys(obj.vaults)){ const v=obj.vaults[key]; if(!v||typeof v!=='object'||!Array.isArray(v.items)) continue; vaults++;
     total+=v.items.length; if(total>MAX_ENTRIES) throw new Error('toomany');
     for(const it of v.items){ const e=protonItemToEntry(it, v.name, now, stats); if(e) entries.push(e); else skipped++; } }
   if(!vaults) throw new Error('format');
-  return {entries, skipped, vaults, truncated:stats.truncated};
+  return {entries, skipped, vaults, truncated:stats.truncated, hiddenOver:stats.hiddenOver};
 }
 
 /* ---------- ZIP-Leser (nur Stored + Deflate, kein ZIP64) ---------- */
@@ -739,7 +754,10 @@ async function protonLoad(probe, passphrase){
    ============================================================ */
 const App = (function(){
   let DEK=null, KDF=null, WRAP=null, VAULT=null;      // Sitzungszustand — auf lock() alles null
-  let editId=null, currentId=null, genMode='chars', genValue='', search='', catFilter=null, formType='login';
+  let editId=null, currentId=null, genValue='', search='', catFilter=null, formType='login';
+  // Generator-Einstellungen: EIN Zustand für Generator-Tab und Formular-Panel (v1.4); nur Sitzung, nie im Tresor. Controls tragen data-gen=<key>.
+  const GEN_DEFAULT={mode:'chars',len:20,wc:6,upper:true,lower:true,digits:true,symbols:true,noamb:false,sep:'-',cap:false,num:false};
+  let GEN=Object.assign({},GEN_DEFAULT);
   let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
   let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
 
@@ -875,8 +893,8 @@ const App = (function(){
   function clearRendered(){
     ['entry-list','health','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
     ['d-title','d-meta','bk-msg','import-msg','csv-msg','proton-msg','about-line','totp-secret'].forEach(id=>{ const n=$(id); if(n) n.textContent=''; });
-    ['f-title','f-cat','f-user','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin','search','import-pass','proton-pass','cp-cur','cp1','cp2','bio-pass','lock-pass','setup-pass1','setup-pass2','totp-code','totp-verify','vault-file','csv-file','proton-file'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
-    $('f-fav').checked=false; $('f-nowarn').checked=false; setEntryType('login'); err('add-err'); err('cp-err'); err('lock-err'); err('setup-err'); err('totp-err'); err('totp-setup-err'); err('bio-err'); bioMsg('');
+    ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin','search','import-pass','proton-pass','cp-cur','cp1','cp2','bio-pass','lock-pass','setup-pass1','setup-pass2','totp-code','totp-verify','vault-file','csv-file','proton-file'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
+    $('f-fav').checked=false; $('f-nowarn').checked=false; clearExtraRows(); fgClose(); genReset(); setEntryType('login'); err('add-err'); err('cp-err'); err('lock-err'); err('setup-err'); err('totp-err'); err('totp-setup-err'); err('bio-err'); bioMsg('');
     maskInputs(''); dropQrFile();
     clearQrCanvas();
     hide('detail-overlay'); hide('help-overlay'); hide('import-pass-box'); hide('proton-pass-box'); hide('totp-setup');
@@ -971,7 +989,7 @@ const App = (function(){
     const all=live().sort((a,b)=>(b.fav-a.fav)||a.title.localeCompare(b.title,undefined,{sensitivity:'base'}));
     renderChips(all); renderCatList();
     let items=catFilter===null?all:all.filter(e=>e.cat===catFilter);
-    if(search) items=items.filter(e=>(e.title+'\n'+e.user+'\n'+e.url+'\n'+e.cat).toLowerCase().includes(search));
+    if(search) items=items.filter(e=>(e.title+'\n'+e.user+'\n'+(e.email||'')+'\n'+e.url+'\n'+e.cat+'\n'+(e.extra||[]).map(x=>x.name).join('\n')).toLowerCase().includes(search));   // Zusatzfeld-Namen ja, Werte nie
     const h=health(); const hEl=$('health'); const bad=h.r.size+h.w.size;
     hEl.textContent=all.length?(bad?tr('health.bad',{r:h.r.size,w:h.w.size}):tr('health.ok')):''; hEl.classList.toggle('bad',bad>0);
     renderBackupHint();
@@ -980,7 +998,7 @@ const App = (function(){
       const row=el('div','entry'); row.dataset.action='openDetail'; row.dataset.arg=e.id;
       row.appendChild(el('div','av',(e.title.trim()[0]||'?').toUpperCase()));
       const main=el('div','main'); main.appendChild(el('div','t',e.title));
-      const sub=e.type==='card'?[e.card&&e.card.holder,e.card&&maskNumber(e.card.number)].filter(Boolean).join(' · '):e.type==='bank'?[e.bank&&e.bank.bank,e.bank&&maskNumber(e.bank.iban)].filter(Boolean).join(' · '):e.type==='note'?'':(e.user||e.url||'');
+      const sub=e.type==='card'?[e.card&&e.card.holder,e.card&&maskNumber(e.card.number)].filter(Boolean).join(' · '):e.type==='bank'?[e.bank&&e.bank.bank,e.bank&&maskNumber(e.bank.iban)].filter(Boolean).join(' · '):e.type==='note'?'':(e.user||e.email||e.url||'');
       main.appendChild(el('div','u',sub)); row.appendChild(main);
       const badges=el('div','badges');
       if(e.fav) badges.appendChild(el('span','pill fav','★'));
@@ -1001,27 +1019,29 @@ const App = (function(){
   }
 
   /* ---------- Formular: neu / bearbeiten / speichern ---------- */
-  function setEntryType(t){ formType=entryType(t); ENTRY_TYPES.forEach(x=>$('ft-'+x).classList.toggle('on',x===formType)); $('grp-login').classList.toggle('hidden',formType!=='login'); $('grp-card').classList.toggle('hidden',formType!=='card'); $('grp-bank').classList.toggle('hidden',formType!=='bank'); }
+  function setEntryType(t){ formType=entryType(t); if(formType!=='login') fgClose(); ENTRY_TYPES.forEach(x=>$('ft-'+x).classList.toggle('on',x===formType)); $('grp-login').classList.toggle('hidden',formType!=='login'); $('grp-card').classList.toggle('hidden',formType!=='card'); $('grp-bank').classList.toggle('hidden',formType!=='bank'); }
   // Typwechsel per Segment: beim Bearbeiten gehen die Felder des alten Typs verloren → benennen und rückfragen (Audit run-2 #2)
   function changeEntryType(t){ t=entryType(t); if(t===formType) return;
-    const lost=(formType==='login'?['f-user','f-pass','f-url','f-totp']:formType==='card'?['f-holder','f-number','f-expiry','f-cvv','f-pin']:formType==='bank'?['f-bholder','f-iban','f-bic','f-bank','f-bpin']:[]).filter(id=>$(id).value);
+    const lost=(formType==='login'?['f-user','f-email','f-pass','f-url','f-totp']:formType==='card'?['f-holder','f-number','f-expiry','f-cvv','f-pin']:formType==='bank'?['f-bholder','f-iban','f-bic','f-bank','f-bpin']:[]).filter(id=>$(id).value);
     if(lost.length&&!confirm(tr('confirm.typeChange',{f:lost.map(id=>tr('lostf.'+id)).join(', ')}))) return;
     setEntryType(t); }
-  function resetForm(){ ['f-title','f-cat','f-user','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin'].forEach(id=>$(id).value=''); $('f-fav').checked=false; $('f-nowarn').checked=false; $('f-meter').textContent=''; err('add-err'); setEntryType('login'); maskInputs('#tab-add'); }
+  function resetForm(){ ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin'].forEach(id=>$(id).value=''); $('f-fav').checked=false; $('f-nowarn').checked=false; $('f-meter').textContent=''; clearExtraRows(); fgClose(); err('add-err'); setEntryType('login'); maskInputs('#tab-add'); }
   function newEntry(){ editId=null; resetForm(); if(catFilter) $('f-cat').value=catFilter; $('add-title').textContent=tr('add.titleNew'); tab('add'); setTimeout(()=>$('f-title').focus(),80); }
   function editCurrent(){ const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); closeDetail(); editId=e.id; resetForm(); setEntryType(e.type);
-    $('f-title').value=e.title; $('f-cat').value=e.cat; $('f-user').value=e.user; $('f-pass').value=e.pass; $('f-url').value=e.url; $('f-notes').value=e.notes; $('f-fav').checked=e.fav; $('f-nowarn').checked=e.nowarn;
+    $('f-title').value=e.title; $('f-cat').value=e.cat; $('f-user').value=e.user; $('f-email').value=e.email||''; $('f-pass').value=e.pass; $('f-url').value=e.url; $('f-notes').value=e.notes; $('f-fav').checked=e.fav; $('f-nowarn').checked=e.nowarn;
     $('f-totp').value=e.totp?((e.totp.algorithm!=='SHA1'||e.totp.digits!==6||e.totp.period!==30||e.totp.issuer||e.totp.label)?otpauthUri(e.totp):e.totp.secret):'';
     const c=e.card||{}; $('f-holder').value=c.holder||''; $('f-number').value=c.number||''; $('f-expiry').value=c.expiry||''; $('f-cvv').value=c.cvv||''; $('f-pin').value=c.pin||'';
     const k=e.bank||{}; $('f-bholder').value=k.holder||''; $('f-iban').value=k.iban||''; $('f-bic').value=k.bic||''; $('f-bank').value=k.bank||''; $('f-bpin').value=k.pin||'';
+    (e.extra||[]).forEach(x=>pushExtraRow(x.name,x.value));
     $('add-title').textContent=tr('add.titleEdit'); meterForm(); tab('add'); }
   function cancelEdit(){ editId=null; resetForm(); tab('list'); }
   function saveEntry(){
     if(!VAULT||saveEntry._busy) return; err('add-err');
     const title=$('f-title').value.trim(); if(!title) return err('add-err',tr('err.titleReq'));
     const totpIn=formType==='login'?$('f-totp').value.trim():''; const totp=totpIn?normalizeTotp(totpIn):null; if(totpIn&&!totp) return err('add-err',tr('err.totpBad'));
+    const xr=readExtraRows(); const half=xr.find(x=>!!line(x.name,CAPS.xname)!==!!x.value); if(half) return err('add-err',tr('err.extraHalf',{n:half.i+1}));   // halbe Zeile → nie still verwerfen
     const now=nowIso();
-    const draft={id:editId||cryptoId(), type:formType, cat:$('f-cat').value, title, user:$('f-user').value, pass:$('f-pass').value, url:$('f-url').value.trim(), notes:$('f-notes').value, totp,
+    const draft={id:editId||cryptoId(), type:formType, extra:xr.filter(x=>x.name&&x.value), cat:$('f-cat').value, title, user:$('f-user').value, email:$('f-email').value, pass:$('f-pass').value, url:$('f-url').value.trim(), notes:$('f-notes').value, totp,
       card:{holder:$('f-holder').value, number:$('f-number').value, expiry:$('f-expiry').value, cvv:$('f-cvv').value, pin:$('f-pin').value},
       bank:{holder:$('f-bholder').value, iban:$('f-iban').value, bic:$('f-bic').value, bank:$('f-bank').value, pin:$('f-bpin').value}, nowarn:$('f-nowarn').checked,
       fav:$('f-fav').checked, created:now, updated:now, deleted:null};
@@ -1037,10 +1057,26 @@ const App = (function(){
       .finally(()=>{ saveEntry._busy=false; $('add-btn').disabled=false; });
   }
   function meterForm(){ renderMeter('f-pass','f-meter'); }
+  // Zusatzfelder im Formular (v1.4): dynamische Zeilen Bezeichnung + geheimer Wert; ein gemeinsamer „anzeigen“-Schalter, dessen
+  // data-showpass-Liste mit den Zeilen mitwächst (maskInputs/Delegation bleiben unverändert). Typwechsel lässt sie stehen (typunabhängig).
+  let extraSeq=0;
+  function extraRows(){ return Array.from($('f-extra').querySelectorAll('.xrow')); }
+  function syncExtraShow(){ const rows=extraRows(), cb=$('f-xshow'); cb.dataset.showpass=rows.map(r=>r.dataset.v).join(','); $('f-xshow-wrap').classList.toggle('hidden',!rows.length); if(!rows.length) cb.checked=false;   // sonst käme die nächste Zeile unmaskiert (Audit run-4 #2)
+    $('f-xadd').disabled=rows.length>=EXTRA_MAX; const t=cb.checked?'text':'password'; rows.forEach(r=>{ $(r.dataset.v).type=t; }); }
+  function pushExtraRow(name, value){ if(extraRows().length>=EXTRA_MAX) return null; const k=++extraSeq, row=el('div','xrow'); row.id='f-x-'+k; row.dataset.n='f-xn-'+k; row.dataset.v='f-xv-'+k;
+    const mk=(id,type,cap,ph)=>{ const i=el('input'); i.id=id; i.type=type; i.maxLength=cap; i.placeholder=ph; i.autocomplete='off'; i.setAttribute('autocapitalize','none'); i.spellcheck=false; return i; };
+    const ni=mk(row.dataset.n,'text',CAPS.xname,tr('f.extraName')); ni.value=name||''; const vi=mk(row.dataset.v,'password',CAPS.xvalue,tr('f.extraVal')); vi.value=value||'';
+    const del=el('button','btn sm ghost','✕'); del.type='button'; del.dataset.action='removeExtraRow'; del.dataset.arg=String(k); del.title=tr('f.extraDel'); del.setAttribute('aria-label',tr('f.extraDel'));
+    row.append(ni,vi,del); $('f-extra').appendChild(row); syncExtraShow(); return row; }
+  function addExtraRow(){ const row=pushExtraRow('',''); if(!row) return toast(tr('err.extraMax',{n:EXTRA_MAX})); $(row.dataset.n).focus(); }
+  function removeExtraRow(k){ const r=$('f-x-'+k); if(!r) return; r.remove(); syncExtraShow(); }
+  function clearExtraRows(){ $('f-extra').replaceChildren(); $('f-xshow').checked=false; syncExtraShow(); }
+  function readExtraRows(){ return extraRows().map((r,i)=>({name:$(r.dataset.n).value, value:$(r.dataset.v).value, i})); }
+  function relabelExtraRows(){ extraRows().forEach(r=>{ $(r.dataset.n).placeholder=tr('f.extraName'); $(r.dataset.v).placeholder=tr('f.extraVal'); const b=r.querySelector('button'); b.title=tr('f.extraDel'); b.setAttribute('aria-label',tr('f.extraDel')); }); }
 
   /* ---------- Detail ---------- */
   // Wert eines Detail-/Kopierfelds (login: user/pass/url/notes; card: holder/number/expiry/cvv/pin; bank: holder/iban/bic/bank/pin — der Typ bestimmt das Objekt)
-  function fieldValue(e, which){ if(!e) return ''; if(e.type==='bank'&&['holder','iban','bic','bank','pin'].includes(which)) return e.bank?e.bank[which]||'':''; if(['holder','number','expiry','cvv','pin'].includes(which)) return e.card?e.card[which]||'':''; return typeof e[which]==='string'?e[which]:''; }
+  function fieldValue(e, which){ if(!e) return ''; const mx=/^x(\d+)$/.exec(which||''); if(mx) return e.extra&&e.extra[+mx[1]]?e.extra[+mx[1]].value:''; if(e.type==='bank'&&['holder','iban','bic','bank','pin'].includes(which)) return e.bank?e.bank[which]||'':''; if(['holder','number','expiry','cvv','pin'].includes(which)) return e.card?e.card[which]||'':''; return typeof e[which]==='string'?e[which]:''; }
   function kv(label, value, opts){
     const box=el('div','kv'); box.appendChild(el('div','k',label));
     const vrow=el('div','vrow'); const v=el('div','v'+(opts&&opts.secret?' secret masked':'')); v.textContent=opts&&opts.secret?'••••••••••••':value; const key=opts&&(opts.copy||opts.id); if(key) v.id='d-'+key; vrow.appendChild(v);
@@ -1065,12 +1101,14 @@ const App = (function(){
       if(k.bank) b.appendChild(kv(tr('d.bank'), k.bank, {copy:'bank'}));
       if(k.pin) b.appendChild(kv(tr('d.pin'), '', {secret:true, copy:'pin'})); }
     if(e.user) b.appendChild(kv(tr('d.user'), e.user, {copy:'user'}));
+    if(e.email) b.appendChild(kv(tr('d.email'), e.email, {copy:'email'}));   // v1.4: zweite Adresse im Klartext, wie der Nutzername
     if(e.pass) b.appendChild(kv(tr('d.pass'), '', {secret:true, copy:'pass'}));
     if(e.url) b.appendChild(kv(tr('d.url'), e.url, {copy:'url'}));   // bewusst Text, kein Link (kein Netz in der App)
     if(e.totp){ const box=el('div','kv'); box.appendChild(el('div','k',tr('d.totp')+(e.totp.issuer?' · '+e.totp.issuer:'')));
       const vrow=el('div','vrow'); const code=el('div','v totp-box','------'); code.id='d-totp'; vrow.appendChild(code);
       const c=el('button','btn sm ghost',tr('d.copy')); c.dataset.action='copyField'; c.dataset.arg='totp'; vrow.appendChild(c); box.appendChild(vrow);
       const bar=el('div','totp-bar'); bar.id='d-totp-bar'; bar.appendChild(el('i')); box.appendChild(bar); b.appendChild(box); startTotp(e.totp); }
+    (e.extra||[]).forEach((x,i)=>b.appendChild(kv(x.name, '', {secret:true, copy:'x'+i})));   // Zusatzfelder: immer geheim, eigener Reveal/Kopieren
     if(e.notes) b.appendChild(kv(tr('d.notes'), e.notes, {copy:'notes'}));
     $('d-meta').textContent=tr('d.meta',{c:fmtDate(e.created),u:fmtDate(e.updated)});
     $('d-fav-btn').textContent=e.fav?tr('d.unfav'):tr('d.fav');
@@ -1078,7 +1116,7 @@ const App = (function(){
   }
   function closeDetail(){ stopTotp(); hide('detail-overlay'); const b=$('d-body'); b.replaceChildren(); $('d-title').textContent=''; $('d-meta').textContent=''; currentId=null; }
   function toggleReveal(which){ which=which||'pass'; const e=byId(currentId), v=$('d-'+which), btn=$('d-reveal-'+which); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?fieldValue(e,which):'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
-  function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,'what.'+which); }
+  function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,/^x\d+$/.test(which)?'what.extra':'what.'+which); }
   function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(()=>{ VAULT.entries=snapshot; }); }
   function deleteCurrent(){ const e=byId(currentId); if(!e) return; if(!confirm(tr('confirm.delete',{t:e.title}))) return;
     const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); VAULT.entries[idx]=tombstone(e, nowIso());
@@ -1090,17 +1128,31 @@ const App = (function(){
   function stopTotp(){ if(totpTimer){ clearInterval(totpTimer); totpTimer=null; } lastCode=''; }
 
   /* ---------- Generator ---------- */
-  function genOpts(){ return {upper:$('gen-upper').checked, lower:$('gen-lower').checked, digits:$('gen-digits').checked, symbols:$('gen-symbols').checked, noamb:$('gen-noamb').checked}; }
-  function setGenMode(m){ genMode=m==='words'?'words':'chars'; $('gm-chars').classList.toggle('on',genMode==='chars'); $('gm-words').classList.toggle('on',genMode==='words'); $('gen-chars-opts').classList.toggle('hidden',genMode!=='chars'); $('gen-words-opts').classList.toggle('hidden',genMode!=='words'); genNew(); }
-  function genNew(){
-    let r; if(genMode==='words'){ const n=parseInt($('gen-wc').value,10); $('gen-wc-v').textContent=n; r=genWords(n,$('gen-sep').value,$('gen-cap').checked,$('gen-num').checked); if(!r.pw) toast(tr('toast.wordsMissing')); }
-    else { const len=parseInt($('gen-len').value,10); $('gen-len-v').textContent=len; r=genChars(len,genOpts()); if(!r.pw){ $('gen-out').textContent=''; $('gen-ent').textContent=tr('gen.noset'); genValue=''; return; } }
-    genValue=r.pw; $('gen-out').textContent=r.pw; $('gen-ent').textContent=r.pw?tr('gen.bits',{b:r.bits}):'';
+  function genOpts(){ return {upper:GEN.upper, lower:GEN.lower, digits:GEN.digits, symbols:GEN.symbols, noamb:GEN.noamb}; }
+  // Zustand → beide Panels (Controls, Zähler, Segmente, Sichtbarkeit der Optionsblöcke)
+  function genSync(){ document.querySelectorAll('[data-gen]').forEach(c=>{ const k=c.dataset.gen; if(!Object.prototype.hasOwnProperty.call(GEN_DEFAULT,k)) return; if(c.type==='checkbox') c.checked=GEN[k]; else c.value=String(GEN[k]); });
+    [['gen-len-v',GEN.len],['fg-len-v',GEN.len],['gen-wc-v',GEN.wc],['fg-wc-v',GEN.wc]].forEach(([id,v])=>{ const n=$(id); if(n) n.textContent=v; });
+    const w=GEN.mode==='words'; [['gm-chars',!w],['gm-words',w],['fgm-chars',!w],['fgm-words',w]].forEach(([id,on])=>{ const n=$(id); if(n) n.classList.toggle('on',on); });
+    [['gen-chars-opts',w],['fg-chars-opts',w],['gen-words-opts',!w],['fg-words-opts',!w]].forEach(([id,h])=>{ const n=$(id); if(n) n.classList.toggle('hidden',h); }); }
+  function genReset(){ GEN=Object.assign({},GEN_DEFAULT); genSync(); }
+  function inFormPanel(elx){ return !!(elx&&elx.closest&&elx.closest('#fg-panel')); }
+  // Control geändert (beide Panels): Wert in den Zustand, beide Panels angleichen, dort neu erzeugen, wo geändert wurde
+  function genChanged(v, elx){ if(!elx||!elx.dataset||!Object.prototype.hasOwnProperty.call(GEN_DEFAULT,elx.dataset.gen)) return; const k=elx.dataset.gen;
+    GEN[k]=elx.type==='checkbox'?elx.checked:(elx.type==='range'?(parseInt(elx.value,10)||GEN_DEFAULT[k]):String(elx.value)); genSync(); inFormPanel(elx)?fgGen():genNew(); }
+  function setGenMode(m, elx){ GEN.mode=m==='words'?'words':'chars'; genSync(); inFormPanel(elx)?fgGen():genNew(); }
+  function genMake(){ if(GEN.mode==='words'){ const r=genWords(GEN.wc,GEN.sep,GEN.cap,GEN.num); if(!r.pw) toast(tr('toast.wordsMissing')); return r; } return genChars(GEN.len,genOpts()); }
+  function genNew(){ genSync();
+    const r=genMake(); if(!r.pw){ $('gen-out').textContent=''; $('gen-ent').textContent=GEN.mode==='chars'?tr('gen.noset'):''; genValue=''; return; }
+    genValue=r.pw; $('gen-out').textContent=r.pw; $('gen-ent').textContent=tr('gen.bits',{b:r.bits});
     $('gen-use').classList.toggle('hidden', false);
   }
+  // Formular-Panel: erzeugt direkt ins Passwortfeld (sichtbar, solange das Panel offen ist)
+  function fgGen(){ genSync(); const r=genMake(); if(!r.pw){ $('fg-ent').textContent=GEN.mode==='chars'?tr('gen.noset'):''; return; }
+    $('f-pass').value=r.pw; $('fg-ent').textContent=tr('gen.bits',{b:r.bits}); meterForm(); }   // Sichtbarkeit bleibt, wie der Nutzer sie gesetzt hat (Audit run-4 #3)
+  function fgClose(){ $('fg-panel').classList.add('hidden'); $('fg-ent').textContent=''; maskInputs('#grp-login'); }
   function genCopy(){ copyText(genValue,'what.gen'); }
   function genUse(){ if(!genValue) return; if(!editId&&!$('f-title').value) { editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); } if(formType!=='login') setEntryType('login'); $('f-pass').value=genValue; meterForm(); tab('add'); }
-  function genIntoForm(){ const r=genChars(parseInt($('gen-len').value,10)||20, genOpts()); if(!r.pw) return toast(tr('gen.noset')); $('f-pass').value=r.pw; $('f-pass').type='text'; const cb=document.querySelector('input[data-showpass="f-pass"]'); if(cb) cb.checked=true; meterForm(); }
+  function genIntoForm(){ $('fg-panel').classList.remove('hidden'); $('f-pass').type='text'; const cb=document.querySelector('input[data-showpass="f-pass"]'); if(cb) cb.checked=true; fgGen(); }   // „Generieren“: Panel auf, EINMAL aufdecken, erzeugen
   function suggestPass(){ const r=genWords(6,'-',false,false); if(!r.pw) return toast(tr('toast.wordsMissing')); $('setup-pass1').value=r.pw; $('setup-pass2').value=r.pw; $('setup-pass1').type=$('setup-pass2').type='text'; $('setup-show').checked=true; meterSetup(); toast(tr('toast.suggest')); }
   function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const st=passStrength(p); const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren(); const s=el('span',null,'▮'.repeat(st+1)+'▯'.repeat(3-st)+' '+tr('pass.s'+st)); s.style.color=col; o.appendChild(s); }
   function meterSetup(){ renderMeter('setup-pass1','setup-meter'); }
@@ -1206,7 +1258,7 @@ const App = (function(){
       for(const e of res.entries){ const k=dupKey(e); if(existing.has(k)){ skipped++; continue; } existing.add(k); added.push(e); }
       if(liveCount(VAULT.entries)+added.length>MAX_ENTRIES){ $('proton-msg').textContent=tr('err.tooMany'); return; }
       const before=VAULT.entries.slice(); VAULT.entries=VAULT.entries.concat(added);
-      try{ await persist(); if(!VAULT) return; $('proton-msg').textContent=tr('pt.done',{n:added.length,v:res.vaults,s:skipped,k:res.skipped})+(res.truncated?' '+tr('imp.truncated',{t:res.truncated}):''); cancelProton(); renderList(); }
+      try{ await persist(); if(!VAULT) return; $('proton-msg').textContent=tr('pt.done',{n:added.length,v:res.vaults,s:skipped,k:res.skipped})+(res.truncated?' '+tr('imp.truncated',{t:res.truncated}):'')+(res.hiddenOver?' '+tr('imp.hiddenOver',{n:res.hiddenOver,m:EXTRA_MAX}):''); cancelProton(); renderList(); }
       catch(_){ if(VAULT) VAULT.entries=before; }
     }finally{ doImportProton._busy=false; btn.disabled=false; btn.textContent=orig; $('proton-pass').value=''; }
   }
@@ -1377,12 +1429,12 @@ const App = (function(){
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }
   function closeHelp(){ hide('help-overlay'); }
   function toggleLang(){ setLang(LANG==='de'?'en':'de'); }
-  function relabel(){ if(!VAULT) return; $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); renderList(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
+  function relabel(){ if(!VAULT) return; $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); relabelExtraRows(); renderList(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
   function renderAll(){ renderList(); renderSettings(); renderBackupMsg(); }
   function kdfChanged(){ kdfTouched=true; }
 
   return {boot,doSetup,doUnlock,doTotp,cancelTotp,lock,tab,newEntry,saveEntry,cancelEdit,editCurrent,deleteCurrent,toggleFavCurrent,openDetail,closeDetail,toggleReveal,copyField,renderList,
-    setEntryType,changeEntryType,setCatFilter,clearCatFilter,setGenMode,genNew,genCopy,genUse,genIntoForm,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
+    setEntryType,changeEntryType,addExtraRow,removeExtraRow,setCatFilter,clearCatFilter,setGenMode,genChanged,genNew,genCopy,genUse,genIntoForm,fgGen,fgClose,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
     importProton,doImportProton,cancelProton,totpStart,totpConfirm,totpCancel,totpDisable,copySecret,copyOtpauth,saveQR,
     setAutolock,setBgLock,setClipClear,theme,changePass,wipeLocal,openHelp,closeHelp,toggleLang,relabel,meterSetup,meterCp,meterForm,kdfChanged,
     doBio,bioEnable,bioDisable,lockNow};

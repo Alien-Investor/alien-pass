@@ -77,6 +77,9 @@ select option{background:#06120f;}
 .btn.icon{padding:6px 8px;letter-spacing:0;}
 .row{display:flex;gap:12px;flex-wrap:wrap;}
 .row>*{flex:1;min-width:120px;}
+.xrow{display:flex;gap:8px;margin-bottom:6px;align-items:stretch;}
+.xrow input{flex:1;min-width:0;}
+.xrow button{flex:0 0 auto;}
 .muted{color:var(--text-dim);font-size:.78rem;line-height:1.5;}
 .warn{border:1px solid rgba(255,136,68,.4);border-radius:4px;background:rgba(255,136,68,.06);padding:12px;color:var(--orange);font-size:.78rem;line-height:1.5;}
 .ok{border:1px solid var(--neon-mid);border-radius:4px;background:var(--neon-dim);padding:12px;color:var(--neon);font-size:.78rem;line-height:1.5;}
@@ -136,6 +139,9 @@ a{color:var(--neon);}
 /* GENERATOR */
 .gen-out{font-family:'Share Tech Mono',monospace;font-size:1.05rem;color:var(--neon);background:rgba(0,0,0,.4);border:1px dashed var(--neon-mid);border-radius:4px;padding:14px;overflow-wrap:anywhere;line-height:1.5;min-height:3.2em;user-select:all;}
 .gen-ent{font-size:.74rem;color:var(--text-mid);margin-top:6px;letter-spacing:1px;}
+.fg-panel{border:1px dashed var(--border);border-radius:4px;padding:10px 12px 12px;margin-top:8px;}
+.fg-panel .seg{margin-bottom:6px;}
+.fg-panel label{margin-top:6px;}
 input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
 .chk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 12px;margin-top:6px;}
 .seg{display:flex;gap:8px;margin-bottom:12px;}
@@ -275,10 +281,45 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         <div id="grp-login">
           <label data-i18n="f.user">Nutzername / E-Mail</label>
           <input id="f-user" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <label data-i18n="f.email">E-Mail (optional, zusätzlich zum Nutzernamen)</label>
+          <input id="f-email" type="text" maxlength="200" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false">
           <label data-i18n="f.pass">Passwort</label>
           <div style="display:flex;gap:8px">
             <input id="f-pass" type="password" maxlength="1000" autocomplete="off" autocapitalize="none" spellcheck="false" style="flex:1">
             <button class="btn sm ghost" data-action="genIntoForm" title="Generieren" data-i18n="f.gen">Generieren</button>
+          </div>
+          <div id="fg-panel" class="fg-panel hidden">
+            <div class="seg">
+              <button id="fgm-chars" class="on" data-action="setGenMode" data-arg="chars" data-i18n="gen.modeChars">Zeichen</button>
+              <button id="fgm-words" data-action="setGenMode" data-arg="words" data-i18n="gen.modeWords">Würfelwörter</button>
+            </div>
+            <div id="fg-chars-opts">
+              <label><span data-i18n="gen.len">Länge</span>: <span id="fg-len-v">20</span></label>
+              <input id="fg-len" type="range" min="8" max="64" value="20" data-gen="len" data-input="genChanged">
+              <div class="chk-grid">
+                <label class="chk"><input type="checkbox" id="fg-upper" checked data-gen="upper" data-change="genChanged"> A–Z</label>
+                <label class="chk"><input type="checkbox" id="fg-lower" checked data-gen="lower" data-change="genChanged"> a–z</label>
+                <label class="chk"><input type="checkbox" id="fg-digits" checked data-gen="digits" data-change="genChanged"> 0–9</label>
+                <label class="chk"><input type="checkbox" id="fg-symbols" checked data-gen="symbols" data-change="genChanged"> !@#$%…</label>
+                <label class="chk"><input type="checkbox" id="fg-noamb" data-gen="noamb" data-change="genChanged"> <span data-i18n="gen.noamb">ohne l/1/I/O/0</span></label>
+              </div>
+            </div>
+            <div id="fg-words-opts" class="hidden">
+              <label><span data-i18n="gen.words">Wörter</span>: <span id="fg-wc-v">6</span></label>
+              <input id="fg-wc" type="range" min="4" max="10" value="6" data-gen="wc" data-input="genChanged">
+              <div class="chk-grid">
+                <label class="chk"><span data-i18n="gen.sep">Trenner</span>
+                  <select id="fg-sep" style="width:auto;padding:4px 8px" data-gen="sep" data-change="genChanged"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
+                </label>
+                <label class="chk"><input type="checkbox" id="fg-cap" data-gen="cap" data-change="genChanged"> <span data-i18n="gen.cap">Großschreibung</span></label>
+                <label class="chk"><input type="checkbox" id="fg-num" data-gen="num" data-change="genChanged"> <span data-i18n="gen.num">+ Ziffer</span></label>
+              </div>
+            </div>
+            <div id="fg-ent" class="gen-ent"></div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn sm" data-action="fgGen" data-i18n="gen.new">Neu erzeugen</button>
+              <button class="btn sm ghost" data-action="fgClose" data-i18n="gen.done">Fertig</button>
+            </div>
           </div>
           <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-pass"> <span data-i18n="f.showpass">Passwort anzeigen</span></label>
           <div id="f-meter" class="meter"></div>
@@ -312,6 +353,10 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
           </div>
           <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-bpin"> <span data-i18n="f.showbank">PIN anzeigen</span></label>
         </div>
+        <label data-i18n="f.extra">Zusatzfelder (geheim, z.B. App-PIN)</label>
+        <div id="f-extra"></div>
+        <div><button id="f-xadd" class="btn sm ghost" data-action="addExtraRow" data-i18n="f.extraAdd">+ Zusatzfeld</button></div>
+        <label class="chk hidden" id="f-xshow-wrap" style="margin-top:6px"><input type="checkbox" id="f-xshow" data-showpass=""> <span data-i18n="f.extraShow">Zusatzfelder anzeigen</span></label>
         <label data-i18n="f.notes">Notizen</label>
         <textarea id="f-notes" maxlength="10000" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
         <label class="chk" style="margin-top:10px"><input type="checkbox" id="f-fav"> <span data-i18n="f.fav">Favorit (oben in der Liste)</span></label>
@@ -340,26 +385,26 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         </div>
         <div id="gen-chars-opts">
           <label><span data-i18n="gen.len">Länge</span>: <span id="gen-len-v">20</span></label>
-          <input id="gen-len" type="range" min="8" max="64" value="20" data-input="genNew">
+          <input id="gen-len" type="range" min="8" max="64" value="20" data-gen="len" data-input="genChanged">
           <div class="chk-grid">
-            <label class="chk"><input type="checkbox" id="gen-upper" checked data-change="genNew"> A–Z</label>
-            <label class="chk"><input type="checkbox" id="gen-lower" checked data-change="genNew"> a–z</label>
-            <label class="chk"><input type="checkbox" id="gen-digits" checked data-change="genNew"> 0–9</label>
-            <label class="chk"><input type="checkbox" id="gen-symbols" checked data-change="genNew"> !@#$%…</label>
-            <label class="chk"><input type="checkbox" id="gen-noamb" data-change="genNew"> <span data-i18n="gen.noamb">ohne l/1/I/O/0</span></label>
+            <label class="chk"><input type="checkbox" id="gen-upper" checked data-gen="upper" data-change="genChanged"> A–Z</label>
+            <label class="chk"><input type="checkbox" id="gen-lower" checked data-gen="lower" data-change="genChanged"> a–z</label>
+            <label class="chk"><input type="checkbox" id="gen-digits" checked data-gen="digits" data-change="genChanged"> 0–9</label>
+            <label class="chk"><input type="checkbox" id="gen-symbols" checked data-gen="symbols" data-change="genChanged"> !@#$%…</label>
+            <label class="chk"><input type="checkbox" id="gen-noamb" data-gen="noamb" data-change="genChanged"> <span data-i18n="gen.noamb">ohne l/1/I/O/0</span></label>
           </div>
         </div>
         <div id="gen-words-opts" class="hidden">
           <label><span data-i18n="gen.words">Wörter</span>: <span id="gen-wc-v">6</span></label>
-          <input id="gen-wc" type="range" min="4" max="10" value="6" data-input="genNew">
+          <input id="gen-wc" type="range" min="4" max="10" value="6" data-gen="wc" data-input="genChanged">
           <div class="chk-grid">
             <label class="chk"><span data-i18n="gen.sep">Trenner</span>
-              <select id="gen-sep" style="width:auto;padding:4px 8px" data-change="genNew"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
+              <select id="gen-sep" style="width:auto;padding:4px 8px" data-gen="sep" data-change="genChanged"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
             </label>
-            <label class="chk"><input type="checkbox" id="gen-cap" data-change="genNew"> <span data-i18n="gen.cap">Großschreibung</span></label>
-            <label class="chk"><input type="checkbox" id="gen-num" data-change="genNew"> <span data-i18n="gen.num">+ Ziffer</span></label>
+            <label class="chk"><input type="checkbox" id="gen-cap" data-gen="cap" data-change="genChanged"> <span data-i18n="gen.cap">Großschreibung</span></label>
+            <label class="chk"><input type="checkbox" id="gen-num" data-gen="num" data-change="genChanged"> <span data-i18n="gen.num">+ Ziffer</span></label>
           </div>
-          <p class="muted" style="margin-top:8px" data-i18n="gen.effNote">Wortliste: EFF Large Wordlist (7.776 Wörter, ~12,9 Bit je Wort). Sechs Wörter ≈ 77 Bit.</p>
+          <p class="muted" style="margin-top:8px" data-i18n="gen.effNote">Wortliste: EFF Large Wordlist (7.776 Wörter, ~12,9 Bit je Wort). Sechs Wörter ≈ 77 Bit. Dieselben Einstellungen gelten für „Generieren“ im Eintragsformular — dort klappt ein Panel mit Modus, Länge und Zeichensätzen auf.</p>
         </div>
       </div>
     </div>
@@ -552,7 +597,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
     <ul data-i18n-html="help.l2">
       <li><strong>Passphrase</strong> vergeben — mindestens 12 Zeichen, besser sechs Würfelwörter (der Vorschlag-Button erzeugt sie aus der EFF-Liste). Aufschreiben und sicher verwahren.</li>
       <li>Die <strong>Schlüsselableitung</strong> (Argon2id) misst sich beim Einrichten selbst; „Standard“ passt für aktuelle Handys.</li>
-      <li>Einträge anlegen — vier Typen: <strong>Login</strong> (Nutzer, Passwort, URL, TOTP), <strong>Notiz</strong> (nur verschlüsselter Text), <strong>Karte</strong> (Inhaber, Nummer, Ablauf, CVV, PIN) und <strong>Konto</strong> (Inhaber, IBAN, BIC, Bank, PIN).</li>
+      <li>Einträge anlegen — vier Typen: <strong>Login</strong> (Nutzer, optional E-Mail, Passwort, URL, TOTP), <strong>Notiz</strong> (nur verschlüsselter Text), <strong>Karte</strong> (Inhaber, Nummer, Ablauf, CVV, PIN) und <strong>Konto</strong> (Inhaber, IBAN, BIC, Bank, PIN). Jeder Eintrag kann bis zu acht <strong>Zusatzfelder</strong> tragen — frei benannt (App-PIN, Telefon-Kennwort, Sicherheitsfrage …) und immer geheim: im Detail nur nach „Anzeigen“, mit eigenem Kopier-Button. So muss nichts davon im Klartext in die Notizen.</li>
       <li><strong>Kategorien</strong> wie Ordner: im Formular frei eintippen (Vorschläge aus den vorhandenen). Die Liste filtert oben per Chip; eine Kategorie verschwindet, sobald kein Eintrag sie mehr trägt.</li>
       <li><strong>Typ ändern</strong> geht auch nachträglich, aber die Felder des alten Typs (z.B. Passwort und TOTP eines Logins) werden dabei gelöscht — die App fragt vorher nach. Ein Backup bringt sie nicht zurück, weil beim Zusammenführen die neuere Änderung gewinnt.</li>
       <li>Auf einen Eintrag tippen → Detailansicht mit Kopier-Buttons. Passwörter, Kartennummer, CVV und PINs erscheinen nur auf Anfrage; IBAN und BIC stehen im Klartext (werden zum Überweisen gebraucht, stehen auf jeder Rechnung).</li>
