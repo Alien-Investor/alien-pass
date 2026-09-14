@@ -46,6 +46,10 @@ description: |
   - Strict CSP: connect-src 'none', no inline script; bundled Argon2 (hash-wasm) hash-checked in the build
   - German / English, offline in-app manual, open source (MIT)
 
+  Signing certificate SHA-256 (verify with AppVerifier), identical for every version:
+  73:C7:17:D8:05:6C:6A:02:B0:8B:AB:BA:24:18:17:F3:93:E4:6D:EA:03:19:D4:FA:26:B8:C3:D8:E1:F9:3C:95
+  apksigner (no separators): 73c717d8056c6a02b08babba241817f393e46dea0319d4fa26b8c3d8e1f93c95
+
 tags:
   - password
   - security
