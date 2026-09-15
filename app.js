@@ -222,6 +222,9 @@ const T = {
   "add.titleEdit":{de:"Eintrag bearbeiten",en:"Edit entry"},
   "list.empty":{de:"Noch keine Einträge.\nTippe auf + oder importiere unter „Sicherung“ aus Proton Pass, KeePassXC oder Bitwarden.",en:"No entries yet.\nTap + or import under “Backup” from Proton Pass, KeePassXC or Bitwarden."},
   "list.noMatch":{de:"Keine Treffer.",en:"No matches."},
+  "list.count1":{de:"1 Eintrag",en:"1 entry"},
+  "list.count":{de:"{n} Einträge",en:"{n} entries"},
+  "list.countOf":{de:"{n} von {t} Einträgen",en:"{n} of {t} entries"},
   "health.ok":{de:"✓ Passwort-Gesundheit: keine Auffälligkeiten",en:"✓ Password health: nothing to report"},
   "health.bad":{de:"⚠ {r} wiederverwendet · {w} kurz",en:"⚠ {r} reused · {w} short"},
   "badge.reused":{de:"doppelt",en:"reused"},"badge.weak":{de:"kurz",en:"short"},
@@ -1142,6 +1145,8 @@ const App = (function(){
       if(h.w.has(e.id)) badges.appendChild(el('span','pill bad',tr('badge.weak')));
       row.appendChild(badges); list.appendChild(row);
     }
+    // Dezente Summe am Listenende: nur lebende Einträge (Papierkorb zählt nicht), bei Filter/Suche „n von t“
+    list.appendChild(el('div','list-count',items.length===all.length?(all.length===1?tr('list.count1'):tr('list.count',{n:all.length})):tr('list.countOf',{n:items.length,t:all.length})));
   }
   function renderBackupHint(){
     const box=$('backup-hint'); box.replaceChildren(); if(!VAULT||!live().length) return;

@@ -10,6 +10,7 @@
   **Die Folge für dich:** der Papierkorb ist jetzt **gerätelokal** — beim Zusammenführen wandert die Löschung auf deine anderen Geräte,
   der Inhalt nicht. Wiederherstellen geht nur dort, wo du gelöscht hast. Außerdem nennt die App den 200er-Deckel jetzt überall, wo sie
   vorher nur „30 Tage“ versprach, und die Rückfrage sagt dir, welcher Eintrag bei vollem Papierkorb vernichtet wird.
+  Dazu drei Funde niedrigen Schweregrads (heute nicht auslösbar oder nur ungenaue Zähler beim Zusammenführen), ebenfalls behoben.
 - **Papierkorb:** Gelöschte Einträge landen für **30 Tage** im Papierkorb und lassen sich vollständig zurückholen — bisher war Löschen
   sofort und unwiderruflich. Der Papierkorb hängt am Symbol rechts neben dem `+` in der Suchzeile; die Zahl daneben sagt, wie viel drin ist.
   Er zeigt **nur Titel, Typ und Löschdatum** — kein Aufdecken, kein Kopieren. Wer den Inhalt braucht, stellt erst wieder her.
@@ -20,7 +21,10 @@
   sie tauchen nie wieder auf.
 - **Eigene Auswahl- und Vorschlagsfelder:** Die Kategorie-Vorschläge beim Bearbeiten und die sechs Auswahlfelder (Schlüsselableitung,
   Trenner, Auto-Sperre, Hintergrund, Zwischenablage) klappten bisher als graue Systemliste auf. Jetzt öffnen sie im Stil der App, mit
-  Filter beim Tippen im Kategoriefeld. Escape oder ein Klick daneben schließt.
+  Filter beim Tippen im Kategoriefeld. Escape oder ein Klick daneben schließt. Auch das Löschen-X im Suchfeld ist jetzt Cyan statt
+  System-Blau.
+- **Anzahl der Einträge:** Am Ende der Liste steht dezent, wie viele Einträge der Tresor hat. Mit Kategorie oder Suche heißt es
+  „12 von 42 Einträgen“, damit sichtbar ist, wie viel der Filter ausblendet. Einträge im Papierkorb zählen nicht mit.
 - **Speichern abgesichert:** Wird der Tresor gesperrt oder die Passphrase gewechselt, während gerade gespeichert wird, schreibt der
   angefangene Vorgang nicht mehr über den neuen Stand. Querfund aus dem Sachwert-Tresor; im Alltag kaum erreichbar, jetzt ausgeschlossen.
 
