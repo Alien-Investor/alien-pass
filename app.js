@@ -774,10 +774,20 @@ const App = (function(){
   const fmtDate=iso=>{ const t=ts(iso); return t?new Date(t).toLocaleDateString(LANG==='de'?'de-DE':'en-GB'):'—'; };
 
   /* ---------- persistence ---------- */
+  // Gesperrt während des await → dieser Blob gehört zu einer toten Sitzung. Aufrufer erkennen das an .locked
+  // und überspringen ihren Rollback (VAULT ist längst null, ein Rollback schriebe nur einen toten Stand zurück).
+  function lockedErr(){ const e=new Error('locked'); e.locked=true; return e; }
+  // Rollback-Helfer für die Aufrufer: Snapshot zurückspielen, außer die Sitzung ist zwischendurch gesperrt worden.
+  const rollback=snap=>e=>{ if(e&&e.locked) return; if(VAULT) VAULT.entries=snap; };
   async function persist(){
     const dek=DEK, kdf=KDF, wrap=WRAP, vault=VAULT;          // Schlüssel-Generation pinnen (lock/changePass während des await)
+    if(!dek||!vault) throw lockedErr();
     const entries=purgeTombstones(vault.entries);              // Purge erst NACH erfolgreichem Schreiben committen
     const body=await encryptBody(Object.assign({},vault,{entries}), dek, kdf);
+    // Nachprüfen: das Pinnen allein genügt nicht, der Stand kann während des await veraltet sein (Querfund Sachwert-Tresor v2.9.1).
+    if(!DEK||VAULT!==vault) throw lockedErr();                 // zwischenzeitlich gesperrt → NICHT mehr schreiben
+    if(DEK!==dek||KDF!==kdf||WRAP!==wrap) return persist();    // Passphrase gewechselt → mit dem neuen Schlüssel neu verschlüsseln,
+                                                               // sonst überschriebe dieser alte Blob den frischen von changePass
     const s=serializeFile(kdf, wrap, body);
     try{ localStorage.setItem(LS_KEY, s); }
     catch(e){ toast(tr('err.saveFailed')); throw e; }
@@ -1053,7 +1063,7 @@ const App = (function(){
     if(idx>=0) VAULT.entries[idx]=entry; else VAULT.entries.push(entry);
     saveEntry._busy=true; $('add-btn').disabled=true;
     persist().then(()=>{ toast(tr('toast.saved')); editId=null; resetForm(); tab('list'); })
-      .catch(()=>{ if(VAULT) VAULT.entries=snapshot; })
+      .catch(rollback(snapshot))
       .finally(()=>{ saveEntry._busy=false; $('add-btn').disabled=false; });
   }
   function meterForm(){ renderMeter('f-pass','f-meter'); }
@@ -1117,10 +1127,10 @@ const App = (function(){
   function closeDetail(){ stopTotp(); hide('detail-overlay'); const b=$('d-body'); b.replaceChildren(); $('d-title').textContent=''; $('d-meta').textContent=''; currentId=null; }
   function toggleReveal(which){ which=which||'pass'; const e=byId(currentId), v=$('d-'+which), btn=$('d-reveal-'+which); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?fieldValue(e,which):'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
   function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,/^x\d+$/.test(which)?'what.extra':'what.'+which); }
-  function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(()=>{ VAULT.entries=snapshot; }); }
+  function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(rollback(snapshot)); }
   function deleteCurrent(){ const e=byId(currentId); if(!e) return; if(!confirm(tr('confirm.delete',{t:e.title}))) return;
     const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); VAULT.entries[idx]=tombstone(e, nowIso());
-    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.deleted')); }).catch(()=>{ VAULT.entries=snapshot; }); }
+    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.deleted')); }).catch(rollback(snapshot)); }
   function startTotp(t){ stopTotp(); let lastCounter=-1; const tick=async()=>{ if(!DEK) return stopTotp(); const now=Date.now(), counter=Math.floor(now/1000/t.period), rem=totpRemaining(t,now);
       if(counter!==lastCounter){ lastCounter=counter; try{ lastCode=await totpCode(t,now); }catch(_){ lastCode=''; } const c=$('d-totp'); if(c) c.textContent=lastCode?lastCode.replace(/(\d{3})(?=\d)/g,'$1 '):'—'; }
       const bar=$('d-totp-bar'); if(bar){ bar.firstChild.style.width=(rem/t.period*100)+'%'; bar.classList.toggle('low',rem<=5); } };
@@ -1184,7 +1194,7 @@ const App = (function(){
       if(!VAULT) return;
       const before={lastBackup:VAULT.meta.lastBackup,lastBackupCount:VAULT.meta.lastBackupCount};
       VAULT.meta.lastBackup=nowIso(); VAULT.meta.lastBackupCount=VAULT.entries.length;
-      try{ await persist(); }catch(_){ if(VAULT) Object.assign(VAULT.meta,before); }
+      try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT) Object.assign(VAULT.meta,before); }
       renderBackupHint();
     }finally{ exportVault._busy=false; }
   }
@@ -1211,7 +1221,7 @@ const App = (function(){
       if(liveCount(m.entries)>MAX_ENTRIES){ $('import-msg').textContent=tr('err.tooMany'); return; }
       VAULT.entries=m.entries;
       try{ await persist(); if(!VAULT) return; $('import-msg').textContent=tr('bk.merged',{a:m.added,u:m.updated,d:m.deleted,t:m.tombstonesIn}); cancelImport(); renderList(); }
-      catch(_){ if(VAULT) VAULT.entries=before; }
+      catch(e){ if(!(e&&e.locked)&&VAULT) VAULT.entries=before; }
     }finally{ doImportVault._busy=false; btn.disabled=false; btn.textContent=orig; }
   }
   function importCsv(ev){
@@ -1228,7 +1238,7 @@ const App = (function(){
       if(liveCount(VAULT.entries)+added.length>MAX_ENTRIES){ $('csv-msg').textContent=tr('err.tooMany'); return; }
       const before=VAULT.entries.slice(); VAULT.entries=VAULT.entries.concat(added);
       persist().then(()=>{ if(!VAULT) return; $('csv-msg').textContent=tr('csv.done',{n:added.length,f:tr('fmt.'+map.fmt),s:skipped,b:bad})+(stats.truncated?' '+tr('imp.truncated',{t:stats.truncated}):''); renderList(); })
-        .catch(()=>{ if(VAULT) VAULT.entries=before; }); };
+        .catch(rollback(before)); };
     r.readAsText(f);
   }
 
@@ -1259,7 +1269,7 @@ const App = (function(){
       if(liveCount(VAULT.entries)+added.length>MAX_ENTRIES){ $('proton-msg').textContent=tr('err.tooMany'); return; }
       const before=VAULT.entries.slice(); VAULT.entries=VAULT.entries.concat(added);
       try{ await persist(); if(!VAULT) return; $('proton-msg').textContent=tr('pt.done',{n:added.length,v:res.vaults,s:skipped,k:res.skipped})+(res.truncated?' '+tr('imp.truncated',{t:res.truncated}):'')+(res.hiddenOver?' '+tr('imp.hiddenOver',{n:res.hiddenOver,m:EXTRA_MAX}):''); cancelProton(); renderList(); }
-      catch(_){ if(VAULT) VAULT.entries=before; }
+      catch(e){ if(!(e&&e.locked)&&VAULT) VAULT.entries=before; }
     }finally{ doImportProton._busy=false; btn.disabled=false; btn.textContent=orig; $('proton-pass').value=''; }
   }
 
@@ -1297,12 +1307,12 @@ const App = (function(){
       const t=normalizeTotp(pendingSecret); const code=$('totp-verify').value.trim();
       if(!/^\d{6}$/.test(code)||!(await totpValid(t, code))) return err('totp-setup-err',tr('err.totpSetupBad'));
       if(!VAULT) return; const before=VAULT.totp; VAULT.totp=t;
-      try{ await persist(); }catch(_){ if(VAULT) VAULT.totp=before; return; }
+      try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT) VAULT.totp=before; return; }
       pendingSecret=null; pendingOtpauth=''; $('totp-verify').value=''; $('totp-secret').textContent=''; clearQrCanvas(); dropQrFile(); renderSettings(); toast(tr('toast.totpOn'));
     }finally{ totpConfirm._busy=false; }
   }
   function totpCancel(){ pendingSecret=null; pendingOtpauth=''; $('totp-verify').value=''; $('totp-secret').textContent=''; clearQrCanvas(); dropQrFile(); renderSettings(); }
-  async function totpDisable(){ if(!VAULT||!VAULT.totp||!confirm(tr('confirm.totpDisable'))) return; const before=VAULT.totp; VAULT.totp=null; try{ await persist(); }catch(_){ if(VAULT) VAULT.totp=before; return; } renderSettings(); toast(tr('toast.totpOff')); }
+  async function totpDisable(){ if(!VAULT||!VAULT.totp||!confirm(tr('confirm.totpDisable'))) return; const before=VAULT.totp; VAULT.totp=null; try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT) VAULT.totp=before; return; } renderSettings(); toast(tr('toast.totpOff')); }
 
   /* ---------- Fingerabdruck-Entsperren (nur Android-App) ----------
      Der DEK wird zusätzlich unter einem 32-Byte-Zufallsschlüssel verpackt (Rolle 'bio', Blob in localStorage, nie in der .vault).
@@ -1399,7 +1409,7 @@ const App = (function(){
     const bc=$('bio-card'); if(bc){ bc.classList.toggle('hidden',!BIO); $('bio-off').classList.toggle('hidden',bioArmed); $('bio-on').classList.toggle('hidden',!bioArmed); }
     const soft=document.documentElement.getAttribute('data-theme')==='soft'; $('th-dark').classList.toggle('on',!soft); $('th-soft').classList.toggle('on',soft);
     $('about-line').textContent=tr('about',{v:APP_VERSION,m:Math.round(KDF.m/1024),t:KDF.t,p:KDF.p}); }
-  function setSetting(key, v){ if(!VAULT) return; const n=Number(v); if(!SETTINGS_ALLOWED[key].includes(n)) return; const before=VAULT.settings[key]; VAULT.settings[key]=n; persist().then(()=>{ resetIdle(); }).catch(()=>{ VAULT.settings[key]=before; renderSettings(); }); }
+  function setSetting(key, v){ if(!VAULT) return; const n=Number(v); if(!SETTINGS_ALLOWED[key].includes(n)) return; const before=VAULT.settings[key]; VAULT.settings[key]=n; persist().then(()=>{ resetIdle(); }).catch(e=>{ if(e&&e.locked) return; if(VAULT){ VAULT.settings[key]=before; renderSettings(); } }); }
   const setAutolock=v=>setSetting('autolock',v), setBgLock=v=>setSetting('bgLock',v), setClipClear=v=>setSetting('clipClear',v);
   function theme(t){ try{ if(t==='soft'){ document.documentElement.setAttribute('data-theme','soft'); localStorage.setItem('alien-theme','soft'); } else { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('alien-theme','dark'); } }catch(_){} renderSettings(); }
   async function changePass(){
@@ -1418,7 +1428,9 @@ const App = (function(){
       const dekX=await newDek(); const wrap=await wrapDek(dekX,kNew,kdf); const dek=await unwrapDek(wrap,kNew,kdf,false);   // DEK-Rotation
       if(!VAULT||!DEK) return;                                   // zwischenzeitlich gesperrt → nichts wiederbeleben
       DEK=dek; KDF=kdf; WRAP=wrap;
-      try{ await persist(); }catch(_){ DEK=old.DEK; KDF=old.KDF; WRAP=old.WRAP; return; }
+      // Bei .locked NICHT zurückrollen: die Sitzung ist zwischendurch gesperrt worden, die alten Schlüssel wiederherzustellen
+      // würde eine gesperrte Sitzung wiederbeleben (DEK/KDF/WRAP sind bereits genullt).
+      try{ await persist(); }catch(e){ if(!(e&&e.locked)){ DEK=old.DEK; KDF=old.KDF; WRAP=old.WRAP; } return; }
       const hadBio=bioArmed||!!bioBlob()||bioMarker(); if(hadBio) bioDrop(true); bioGen++;   // neuer DEK/Salt: alter Slot passt nicht mehr → bewusst neu aktivieren; bioGen++ lässt auch einen laufenden enroll verfallen (Audit run-3 #5)
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr(hadBio?'toast.passChangedBio':'toast.passChanged')); renderSettings();
     }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; }
