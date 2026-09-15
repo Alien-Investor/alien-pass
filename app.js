@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.4.1';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.5';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -31,6 +31,12 @@ const I18N = {
   "lock.showpass":"Show passphrase",
   "lock.unlock":"Unlock",
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
+  "help.hTrash":"Trash",
+  "help.pTrash":"Deleted entries go to the trash for <strong>30 days</strong> \u2014 the icon right of the <strong>+</strong> in the search row; the number next to it says how much is in there. It shows only <strong>title, type and date of deletion</strong>: no reveal, no copy. If you need the content, restore the entry first \u2014 it comes back complete, with password, extra fields and category. <strong>Honestly:</strong> while an entry sits in the trash it is also part of every backup. To get rid of something right away use \u201CDelete permanently\u201D or \u201CEmpty trash\u201D \u2014 that cannot be undone. After 30 days the app clears it out on the next unlock; after that, as before, only the deletion marker remains for a year, for syncing. <strong>A device running version 1.4 or older</strong> empties the trash when merging: the entries stay deleted, they never come back. Update every device first.",
+  "trash.title":"Trash",
+  "trash.intro":"Deleted entries stay here for <strong>30 days</strong> and can be brought back. After that the content is erased for good on the next unlock — only the deletion marker for syncing remains. <strong>While an entry sits here it is also part of every backup.</strong> \u201CDelete permanently\u201D destroys it right away. A device running version 1.4 or older empties the trash when merging.",
+  "trash.back":"Back to entries",
+  "trash.emptyBtn":"Empty trash",
   "list.search":"Search (title, user, URL)…",
   "add.titleNew":"New entry",
   "f.title":"Title *","f.titlePh":"e.g. Proton Mail","f.user":"Username / e-mail","f.email":"E-mail (optional, in addition to the username)","f.pass":"Password","f.gen":"Generate",
@@ -144,7 +150,17 @@ const T = {
   "toast.vaultCreated":{de:"Tresor erstellt — Passphrase sicher aufbewahren!",en:"Vault created — keep the passphrase safe!"},
   "toast.autolocked":{de:"Automatisch gesperrt",en:"Locked automatically"},
   "toast.saved":{de:"Gespeichert",en:"Saved"},
-  "toast.deleted":{de:"Eintrag gelöscht",en:"Entry deleted"},
+  "toast.trashed":{de:"In den Papierkorb gelegt — {d} Tage wiederherstellbar",en:"Moved to the trash — restorable for {d} days"},
+  "toast.restored":{de:"Eintrag wiederhergestellt",en:"Entry restored"},
+  "toast.purged":{de:"Eintrag endgültig gelöscht",en:"Entry permanently deleted"},
+  "toast.trashEmptied":{de:"Papierkorb geleert",en:"Trash emptied"},
+  "trash.btn":{de:"Papierkorb",en:"Trash"},
+  "trash.count":{de:"{n} im Papierkorb — jeweils {d} Tage ab dem Löschen wiederherstellbar.",en:"{n} in the trash — each restorable for {d} days after deletion."},
+  "trash.empty":{de:"Der Papierkorb ist leer.",en:"The trash is empty."},
+  "trash.untitled":{de:"(ohne Titel)",en:"(untitled)"},
+  "trash.deletedOn":{de:"gelöscht am {d}",en:"deleted on {d}"},
+  "trash.restore":{de:"Wiederherstellen",en:"Restore"},
+  "trash.purge":{de:"Endgültig löschen",en:"Delete permanently"},
   "toast.passChanged":{de:"Passphrase geändert, Datenschlüssel erneuert",en:"Passphrase changed, data key rotated"},
   "toast.passChangedBio":{de:"Passphrase geändert, Datenschlüssel erneuert — Fingerabdruck deaktiviert, in den Einstellungen neu aktivieren",en:"Passphrase changed, data key rotated — fingerprint disabled, re-enable it in Settings"},
   "busy.checking":{de:"Prüfe…",en:"Checking…"},
@@ -213,7 +229,9 @@ const T = {
   "d.show":{de:"Anzeigen",en:"Show"},"d.hide":{de:"Verbergen",en:"Hide"},"d.copy":{de:"Kopieren",en:"Copy"},
   "d.meta":{de:"Angelegt {c} · Geändert {u}",en:"Created {c} · Updated {u}"},
   "d.fav":{de:"★ Favorit",en:"★ Favourite"},"d.unfav":{de:"☆ Kein Favorit",en:"☆ Not a favourite"},
-  "confirm.delete":{de:"Eintrag „{t}“ wirklich löschen? (Wird beim Sync auf andere Geräte übernommen.)",en:"Really delete “{t}”? (Deletion syncs to other devices.)"},
+  "confirm.delete":{de:"Eintrag „{t}“ in den Papierkorb legen? {d} Tage wiederherstellbar, danach endgültig. (Wird beim Sync auf andere Geräte übernommen.)",en:"Move “{t}” to the trash? Restorable for {d} days, then gone for good. (Deletion syncs to other devices.)"},
+  "confirm.purge":{de:"„{t}“ endgültig löschen? Das lässt sich nicht rückgängig machen.",en:"Delete “{t}” permanently? This cannot be undone."},
+  "confirm.emptyTrash":{de:"Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.",en:"Permanently delete all {n} entries in the trash? This cannot be undone."},
   "confirm.wipe":{de:"Den Tresor auf diesem Gerät wirklich löschen? Ohne Backup sind alle Passwörter weg.",en:"Really delete the vault on this device? Without a backup all passwords are gone."},
   "confirm.bigKdf":{de:"Die Datei verlangt {m} MiB Arbeitsspeicher für Argon2 — das kann auf dem Handy abstürzen. Trotzdem versuchen?",en:"The file demands {m} MiB of memory for Argon2 — this may crash on a phone. Try anyway?"},
   "gen.bits":{de:"≈ {b} Bit Entropie",en:"≈ {b} bits of entropy"},
@@ -256,6 +274,7 @@ function applyI18n(){
   });
   document.documentElement.setAttribute('lang',LANG);
   const lb=document.getElementById('lang-btn'); if(lb) lb.textContent=(LANG==='de'?'DE':'EN');
+  if(typeof App!=='undefined'&&App.syncCombos) App.syncCombos();   // Optionen tragen data-i18n → Knopfbeschriftung nachziehen
 }
 function setLang(l){ LANG=l; try{localStorage.setItem(LANG_KEY,l);}catch(_){ } applyI18n(); if(typeof App!=='undefined'&&App.relabel) App.relabel(); }
 
@@ -802,6 +821,9 @@ const App = (function(){
   const nowIso=()=>new Date().toISOString();
   const live=()=>VAULT?VAULT.entries.filter(e=>!e.deleted):[];
   const byId=id=>VAULT?VAULT.entries.find(e=>e.id===id&&!e.deleted):null;
+  // Papierkorb: gelöscht, aber noch mit Inhalt. Gewipte Löschmarken gehören NICHT dazu — dort ist nichts wiederherzustellen.
+  const trash=()=>VAULT?VAULT.entries.filter(e=>e.deleted&&!isWiped(e)).sort((a,b)=>ts(b.deleted)-ts(a.deleted)):[];
+  const trashById=id=>VAULT?VAULT.entries.find(e=>e.id===id&&e.deleted&&!isWiped(e)):null;
   const fmtDate=iso=>{ const t=ts(iso); return t?new Date(t).toLocaleDateString(LANG==='de'?'de-DE':'en-GB'):'—'; };
 
   /* ---------- persistence ---------- */
@@ -828,7 +850,7 @@ const App = (function(){
 
   /* ---------- boot / setup / unlock / lock ---------- */
   function boot(){
-    loadLockState(); dropQrFile();
+    loadLockState(); dropQrFile(); syncCombos();   // Knopfbeschriftungen der Auswahlfelder aus den Selects setzen
     const raw=localStorage.getItem(LS_KEY);
     if(!raw){ screen('setup'); setTimeout(()=>$('setup-pass1').focus(),100); benchKdf(); bioDrop(true); }   // ohne Tresor kein Fingerabdruck-Slot
     else { screen('lock'); setTimeout(()=>$('lock-pass').focus(),100); bioProbe(bioAuto); }   // bioAuto wird erst von afterGate() wieder gesetzt (nach „Jetzt sperren“ kein Auto-Prompt bis zur nächsten Entsperrung, Audit run-3)
@@ -844,7 +866,7 @@ const App = (function(){
       await argon2Raw(passBytes('alien-pass-benchmark'), {m:KDF_DEFAULT.m,t:KDF_DEFAULT.t,p:KDF_DEFAULT.p,salt:rand(16)});
       const ms=Math.round(performance.now()-t0);
       let key='bench.done';
-      if(!kdfTouched){ if(ms>2500){ $('setup-kdf').value='32768'; key='bench.light'; } else if(ms<400){ $('setup-kdf').value='131072'; key='bench.strong'; } }
+      if(!kdfTouched){ if(ms>2500){ $('setup-kdf').value='32768'; key='bench.light'; } else if(ms<400){ $('setup-kdf').value='131072'; key='bench.strong'; } syncCombo('setup-kdf'); }
       $('setup-bench').textContent=tr(key,{ms});
     }catch(_){ $('setup-bench').textContent=''; }
   }
@@ -932,15 +954,16 @@ const App = (function(){
   }
   // Nach dem Sperren darf nichts Entschlüsseltes im DOM oder in Formularfeldern bleiben
   function clearRendered(){
-    ['entry-list','health','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
-    ['d-title','d-meta','bk-msg','import-msg','csv-msg','proton-msg','about-line','totp-secret'].forEach(id=>{ const n=$(id); if(n) n.textContent=''; });
+    ['entry-list','health','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-menu','trash-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
+    ['d-title','d-meta','bk-msg','import-msg','csv-msg','proton-msg','about-line','totp-secret','trash-msg','trash-n'].forEach(id=>{ const n=$(id); if(n) n.textContent=''; });
     ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin','search','import-pass','proton-pass','cp-cur','cp1','cp2','bio-pass','lock-pass','setup-pass1','setup-pass2','totp-code','totp-verify','vault-file','csv-file','proton-file'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
     $('f-fav').checked=false; $('f-nowarn').checked=false; clearExtraRows(); fgClose(); genReset(); setEntryType('login'); err('add-err'); err('cp-err'); err('lock-err'); err('setup-err'); err('totp-err'); err('totp-setup-err'); err('bio-err'); bioMsg('');
-    maskInputs(''); dropQrFile();
+    maskInputs(''); dropQrFile(); closeMenus();
     clearQrCanvas();
     hide('detail-overlay'); hide('help-overlay'); hide('import-pass-box'); hide('proton-pass-box'); hide('totp-setup');
     doImportVault._busy=false; const ib=$('import-btn'); if(ib){ ib.disabled=false; }
     doImportProton._busy=false; const pb=$('proton-btn'); if(pb){ pb.disabled=false; }
+    tab('list');   // sonst stünde nach dem Entsperren die (leere) Papierkorb-Ansicht offen
   }
 
   /* ---------- Auto-Lock: Idle + Hintergrund (unabhängig voneinander) ---------- */
@@ -993,11 +1016,14 @@ const App = (function(){
   }
 
   /* ---------- tabs ---------- */
+  const TAB_ACTIVE={trash:'list'};   // Ansichten ohne eigenen Tab-Knopf: welcher Knopf markiert bleibt
   function tab(name){
     if(name!=='add'&&editId){ editId=null; resetForm(); }   // sonst überschreibt „Neu“ später still den zuletzt bearbeiteten Eintrag
-    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+    const mark=TAB_ACTIVE[name]||name;
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===mark));
     document.querySelectorAll('.tabview').forEach(v=>v.classList.toggle('hidden',v.id!=='tab-'+name));
     if(name==='gen'&&!genValue) genNew();
+    if(name==='trash') renderTrash();
     if(name==='list') renderList();
     if(name==='settings') renderSettings();
     if(name==='backup') renderBackupMsg();
@@ -1013,7 +1039,36 @@ const App = (function(){
   }
   const cats=()=>[...new Set(live().map(e=>e.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
   const maskNumber=n=>{ const d=(n||'').replace(/\s/g,''); return d?'•••• '+d.slice(-4):''; };
-  function renderCatList(){ const dl=$('cat-list'); dl.replaceChildren(); for(const c of cats()){ const o=document.createElement('option'); o.value=c; dl.appendChild(o); } }
+  /* ---------- Eigene Auswahl-/Vorschlagsfelder (v1.5) ----------
+     Das native <select> bleibt als Wertspeicher im DOM (nur unsichtbar) — so gelten alle bestehenden Leseseiten
+     weiter: $('fg-sep').value, genSync() über [data-gen], die data-change-Delegation, der Listener auf setup-kdf.
+     Grund für den Umbau: die aufgeklappte System-Liste ist grau und nicht gestaltbar (option{background} ist alles,
+     was CSS erreicht). Kategorienamen sind Nutzerdaten → ausschließlich textContent, nie innerHTML. */
+  function closeMenus(){ document.querySelectorAll('.combo-menu').forEach(m=>{ m.classList.add('hidden'); m.replaceChildren(); }); }
+  function comboOpt(label, action, arg, on, selId){ const b=el('button','combo-opt'+(on?' on':''),label); b.dataset.action=action; b.dataset.arg=arg; if(selId) b.dataset.sel=selId; return b; }
+  // --- Auswahlfeld mit fester Optionsliste (sechs Stück) ---
+  function syncCombo(id){ const sel=$(id), lab=$('cb-'+id); if(!sel||!lab) return; const o=sel.options[sel.selectedIndex]; lab.textContent=o?o.textContent:''; }
+  function syncCombos(){ document.querySelectorAll('.combo-native').forEach(sel=>syncCombo(sel.id)); }
+  function toggleCombo(id){ const menu=$('cm-'+id), sel=$(id); if(!menu||!sel) return;
+    const wasOpen=!menu.classList.contains('hidden'); closeMenus(); if(wasOpen) return;
+    for(const o of sel.options) menu.appendChild(comboOpt(o.textContent,'chooseOpt',o.value,o.value===sel.value,id));
+    menu.classList.remove('hidden'); }
+  function chooseOpt(value, elx){ const sel=$(elx&&elx.dataset.sel); closeMenus(); if(!sel) return;
+    sel.value=value; syncCombo(sel.id);
+    sel.dispatchEvent(new Event('change',{bubbles:true})); }   // die bestehende change-Delegation übernimmt von hier
+  // --- Kategorie: freies Textfeld mit Vorschlägen ---
+  function renderCatMenu(all){ const menu=$('cat-menu'), inp=$('f-cat'); if(!menu||!inp) return false;
+    menu.replaceChildren(); const q=all?'':(inp.value||'').trim().toLowerCase();
+    const items=cats().filter(c=>!q||c.toLowerCase().includes(q));
+    if(!items.length){ menu.classList.add('hidden'); return false; }
+    for(const c of items) menu.appendChild(comboOpt(c,'pickCat',c,c===inp.value.trim()));
+    menu.classList.remove('hidden'); return true; }
+  function openCatMenu(){ closeMenus(); renderCatMenu(); }
+  function toggleCatMenu(){ const menu=$('cat-menu'); const wasOpen=menu&&!menu.classList.contains('hidden');
+    closeMenus(); if(wasOpen) return;
+    renderCatMenu(true); }   // der Pfeil zeigt ALLE Kategorien, ohne das Getippte zu verwerfen
+  function catInput(){ if(!$('cat-menu')) return; renderCatMenu(); }
+  function pickCat(v){ const inp=$('f-cat'); if(inp) inp.value=v; closeMenus(); }
   function renderChips(all){
     const box=$('cat-chips'); box.replaceChildren(); const cs=cats(); if(!cs.length){ catFilter=null; return; }
     const hasNone=all.some(e=>!e.cat);
@@ -1028,7 +1083,7 @@ const App = (function(){
     search=($('search').value||'').trim().toLowerCase();
     const list=$('entry-list'); list.replaceChildren();
     const all=live().sort((a,b)=>(b.fav-a.fav)||a.title.localeCompare(b.title,undefined,{sensitivity:'base'}));
-    renderChips(all); renderCatList();
+    renderChips(all); renderTrashBtn();
     let items=catFilter===null?all:all.filter(e=>e.cat===catFilter);
     if(search) items=items.filter(e=>(e.title+'\n'+e.user+'\n'+(e.email||'')+'\n'+e.url+'\n'+e.cat+'\n'+(e.extra||[]).map(x=>x.name).join('\n')).toLowerCase().includes(search));   // Zusatzfeld-Namen ja, Werte nie
     const h=health(); const hEl=$('health'); const bad=h.r.size+h.w.size;
@@ -1060,13 +1115,13 @@ const App = (function(){
   }
 
   /* ---------- Formular: neu / bearbeiten / speichern ---------- */
-  function setEntryType(t){ formType=entryType(t); if(formType!=='login') fgClose(); ENTRY_TYPES.forEach(x=>$('ft-'+x).classList.toggle('on',x===formType)); $('grp-login').classList.toggle('hidden',formType!=='login'); $('grp-card').classList.toggle('hidden',formType!=='card'); $('grp-bank').classList.toggle('hidden',formType!=='bank'); }
+  function setEntryType(t){ formType=entryType(t); closeMenus(); if(formType!=='login') fgClose(); ENTRY_TYPES.forEach(x=>$('ft-'+x).classList.toggle('on',x===formType)); $('grp-login').classList.toggle('hidden',formType!=='login'); $('grp-card').classList.toggle('hidden',formType!=='card'); $('grp-bank').classList.toggle('hidden',formType!=='bank'); }
   // Typwechsel per Segment: beim Bearbeiten gehen die Felder des alten Typs verloren → benennen und rückfragen (Audit run-2 #2)
   function changeEntryType(t){ t=entryType(t); if(t===formType) return;
     const lost=(formType==='login'?['f-user','f-email','f-pass','f-url','f-totp']:formType==='card'?['f-holder','f-number','f-expiry','f-cvv','f-pin']:formType==='bank'?['f-bholder','f-iban','f-bic','f-bank','f-bpin']:[]).filter(id=>$(id).value);
     if(lost.length&&!confirm(tr('confirm.typeChange',{f:lost.map(id=>tr('lostf.'+id)).join(', ')}))) return;
     setEntryType(t); }
-  function resetForm(){ ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin'].forEach(id=>$(id).value=''); $('f-fav').checked=false; $('f-nowarn').checked=false; $('f-meter').textContent=''; clearExtraRows(); fgClose(); err('add-err'); setEntryType('login'); maskInputs('#tab-add'); }
+  function resetForm(){ ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin'].forEach(id=>$(id).value=''); $('f-fav').checked=false; $('f-nowarn').checked=false; $('f-meter').textContent=''; clearExtraRows(); fgClose(); closeMenus(); err('add-err'); setEntryType('login'); maskInputs('#tab-add'); }
   function newEntry(){ editId=null; resetForm(); if(catFilter) $('f-cat').value=catFilter; $('add-title').textContent=tr('add.titleNew'); tab('add'); setTimeout(()=>$('f-title').focus(),80); }
   function editCurrent(){ const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); closeDetail(); editId=e.id; resetForm(); setEntryType(e.type);
     $('f-title').value=e.title; $('f-cat').value=e.cat; $('f-user').value=e.user; $('f-email').value=e.email||''; $('f-pass').value=e.pass; $('f-url').value=e.url; $('f-notes').value=e.notes; $('f-fav').checked=e.fav; $('f-nowarn').checked=e.nowarn;
@@ -1159,9 +1214,55 @@ const App = (function(){
   function toggleReveal(which){ which=which||'pass'; const e=byId(currentId), v=$('d-'+which), btn=$('d-reveal-'+which); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?fieldValue(e,which):'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
   function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,/^x\d+$/.test(which)?'what.extra':'what.'+which); }
   function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(rollback(snapshot)); }
-  function deleteCurrent(){ const e=byId(currentId); if(!e) return; if(!confirm(tr('confirm.delete',{t:e.title}))) return;
-    const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); VAULT.entries[idx]=tombstone(e, nowIso());
-    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.deleted')); }).catch(rollback(snapshot)); }
+  function deleteCurrent(){ const e=byId(currentId); if(!e) return; if(!confirm(tr('confirm.delete',{t:e.title,d:TRASH_DAYS}))) return;
+    const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(), iso=nowIso();
+    VAULT.entries[idx]=Object.assign({},e,{updated:iso, deleted:iso});     // in den Papierkorb — der Inhalt bleibt TRASH_DAYS erhalten
+    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.trashed',{d:TRASH_DAYS})); }).catch(rollback(snapshot)); }
+
+  /* ---------- Papierkorb (v1.5) ---------- */
+  // Zähler am Symbol in der Suchzeile; leer bleibt das Symbol sichtbar (nur gedimmt), damit man es findet, bevor man es braucht.
+  function renderTrashBtn(){ const b=$('trash-btn'), n=$('trash-n'); if(!b||!n) return; const c=trash().length;
+    n.textContent=c?String(c):''; b.classList.toggle('ghost',c===0); b.title=b.ariaLabel=tr('trash.btn'); }
+  function openTrash(){ tab('trash'); }
+  // BEWUSST nur Titel, Typ und Löschdatum: kein Aufdecken, kein Kopieren. Wer den Inhalt braucht, stellt erst wieder her —
+  // sonst wäre ein per fremder .vault eingeschleuster Eintrag mit vertrautem Titel ein bequemer Phishing-Weg.
+  function renderTrash(){
+    if(!VAULT) return;
+    const list=$('trash-list'); list.replaceChildren();
+    const items=trash();
+    $('trash-msg').textContent=items.length?tr('trash.count',{n:items.length,d:TRASH_DAYS}):'';
+    $('trash-empty-btn').classList.toggle('hidden',!items.length);
+    renderTrashBtn();
+    if(!items.length){ list.appendChild(el('div','empty',tr('trash.empty'))); return; }
+    for(const e of items){
+      const row=el('div','entry');
+      row.appendChild(el('div','av',(e.title.trim()[0]||'?').toUpperCase()));
+      const main=el('div','main'); main.appendChild(el('div','t',e.title||tr('trash.untitled')));
+      main.appendChild(el('div','u',tr('trash.deletedOn',{d:fmtDate(e.deleted)}))); row.appendChild(main);
+      const badges=el('div','badges');
+      if(e.type!=='login') badges.appendChild(el('span','pill type',tr('pill.'+e.type)));
+      row.appendChild(badges);
+      list.appendChild(row);
+      const acts=el('div','row'); acts.style.margin='0 0 12px';
+      const r=el('button','btn sm',tr('trash.restore')); r.dataset.action='restoreEntry'; r.dataset.arg=e.id;
+      const d=el('button','btn sm danger',tr('trash.purge')); d.dataset.action='purgeEntry'; d.dataset.arg=e.id;
+      acts.appendChild(r); acts.appendChild(d); list.appendChild(acts);
+    }
+  }
+  function restoreEntry(id){ const e=trashById(id); if(!e) return toast(tr('toast.noEntry'));
+    if(liveCount(VAULT.entries)>=MAX_ENTRIES) return toast(tr('err.tooMany'));
+    const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice();
+    VAULT.entries[idx]=Object.assign({},e,{updated:nowIso(), deleted:null});   // neueres updated ⇒ schlägt die Löschmarke auf anderen Geräten
+    persist().then(()=>{ renderTrash(); renderList(); toast(tr('toast.restored')); }).catch(rollback(snapshot)); }
+  function purgeEntry(id){ const e=trashById(id); if(!e) return; if(!confirm(tr('confirm.purge',{t:e.title||tr('trash.untitled')}))) return;
+    const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice();
+    VAULT.entries[idx]=tombstone(e, nowIso());                                 // updated=jetzt ⇒ der leere Stand gewinnt überall
+    persist().then(()=>{ renderTrash(); renderList(); toast(tr('toast.purged')); }).catch(rollback(snapshot)); }
+  function emptyTrash(){ if(!VAULT) return; const t=trash(); if(!t.length) return;
+    if(!confirm(tr('confirm.emptyTrash',{n:t.length}))) return;
+    const snapshot=VAULT.entries.slice(), iso=nowIso(), ids=new Set(t.map(e=>e.id));
+    VAULT.entries=VAULT.entries.map(e=>ids.has(e.id)?tombstone(e,iso):e);
+    persist().then(()=>{ renderTrash(); renderList(); toast(tr('toast.trashEmptied')); }).catch(rollback(snapshot)); }
   function startTotp(t){ stopTotp(); let lastCounter=-1; const tick=async()=>{ if(!DEK) return stopTotp(); const now=Date.now(), counter=Math.floor(now/1000/t.period), rem=totpRemaining(t,now);
       if(counter!==lastCounter){ lastCounter=counter; try{ lastCode=await totpCode(t,now); }catch(_){ lastCode=''; } const c=$('d-totp'); if(c) c.textContent=lastCode?lastCode.replace(/(\d{3})(?=\d)/g,'$1 '):'—'; }
       const bar=$('d-totp-bar'); if(bar){ bar.firstChild.style.width=(rem/t.period*100)+'%'; bar.classList.toggle('low',rem<=5); } };
@@ -1174,7 +1275,8 @@ const App = (function(){
   function genSync(){ document.querySelectorAll('[data-gen]').forEach(c=>{ const k=c.dataset.gen; if(!Object.prototype.hasOwnProperty.call(GEN_DEFAULT,k)) return; if(c.type==='checkbox') c.checked=GEN[k]; else c.value=String(GEN[k]); });
     [['gen-len-v',GEN.len],['fg-len-v',GEN.len],['gen-wc-v',GEN.wc],['fg-wc-v',GEN.wc]].forEach(([id,v])=>{ const n=$(id); if(n) n.textContent=v; });
     const w=GEN.mode==='words'; [['gm-chars',!w],['gm-words',w],['fgm-chars',!w],['fgm-words',w]].forEach(([id,on])=>{ const n=$(id); if(n) n.classList.toggle('on',on); });
-    [['gen-chars-opts',w],['fg-chars-opts',w],['gen-words-opts',!w],['fg-words-opts',!w]].forEach(([id,h])=>{ const n=$(id); if(n) n.classList.toggle('hidden',h); }); }
+    [['gen-chars-opts',w],['fg-chars-opts',w],['gen-words-opts',!w],['fg-words-opts',!w]].forEach(([id,h])=>{ const n=$(id); if(n) n.classList.toggle('hidden',h); });
+    syncCombos(); }   // Knopfbeschriftungen der Trenner-Auswahl nachziehen
   function genReset(){ GEN=Object.assign({},GEN_DEFAULT); genSync(); }
   function inFormPanel(elx){ return !!(elx&&elx.closest&&elx.closest('#fg-panel')); }
   // Control geändert (beide Panels): Wert in den Zustand, beide Panels angleichen, dort neu erzeugen, wo geändert wurde
@@ -1435,7 +1537,7 @@ const App = (function(){
   function lockNow(){ if(BIO&&(bioArmed||bioBlob())) setBioHold(true); bioAuto=false; lock(); }   // bewusst gesperrt: Riegel, nächster Start nur mit Passphrase
 
   /* ---------- Einstellungen ---------- */
-  function renderSettings(){ if(!VAULT) return; const s=VAULT.settings; $('set-autolock').value=String(s.autolock); $('set-bglock').value=String(s.bgLock); $('set-clip').value=String(s.clipClear);
+  function renderSettings(){ if(!VAULT) return; const s=VAULT.settings; $('set-autolock').value=String(s.autolock); $('set-bglock').value=String(s.bgLock); $('set-clip').value=String(s.clipClear); syncCombos();
     const on=!!VAULT.totp; $('totp-off').classList.toggle('hidden',on||!!pendingSecret); $('totp-on').classList.toggle('hidden',!on); $('totp-setup').classList.toggle('hidden',!pendingSecret);
     const bc=$('bio-card'); if(bc){ bc.classList.toggle('hidden',!BIO); $('bio-off').classList.toggle('hidden',bioArmed); $('bio-on').classList.toggle('hidden',!bioArmed); }
     const soft=document.documentElement.getAttribute('data-theme')==='soft'; $('th-dark').classList.toggle('on',!soft); $('th-soft').classList.toggle('on',soft);
@@ -1472,11 +1574,12 @@ const App = (function(){
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }
   function closeHelp(){ hide('help-overlay'); }
   function toggleLang(){ setLang(LANG==='de'?'en':'de'); }
-  function relabel(){ if(!VAULT) return; $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); relabelExtraRows(); renderList(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
+  function relabel(){ if(!VAULT) return; $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); relabelExtraRows(); renderList(); renderTrash(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
   function renderAll(){ renderList(); renderSettings(); renderBackupMsg(); }
   function kdfChanged(){ kdfTouched=true; }
 
   return {boot,doSetup,doUnlock,doTotp,cancelTotp,lock,tab,newEntry,saveEntry,cancelEdit,editCurrent,deleteCurrent,toggleFavCurrent,openDetail,closeDetail,toggleReveal,copyField,renderList,
+    openTrash,renderTrash,restoreEntry,purgeEntry,emptyTrash,closeMenus,syncCombos,toggleCombo,chooseOpt,openCatMenu,toggleCatMenu,catInput,pickCat,
     setEntryType,changeEntryType,addExtraRow,removeExtraRow,setCatFilter,clearCatFilter,setGenMode,genChanged,genNew,genCopy,genUse,genIntoForm,fgGen,fgClose,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
     importProton,doImportProton,cancelProton,totpStart,totpConfirm,totpCancel,totpDisable,copySecret,copyOtpauth,saveQR,
     setAutolock,setBgLock,setClipClear,theme,changePass,wipeLocal,openHelp,closeHelp,toggleLang,relabel,meterSetup,meterCp,meterForm,kdfChanged,
@@ -1487,6 +1590,8 @@ const App = (function(){
    CSP ohne 'unsafe-inline': KEINE Inline-Handler (auch nicht in dynamisch erzeugtem Markup) —
    alles läuft über data-Attribute + diese Listener. Die Funktion muss im App-Export stehen. */
 document.addEventListener('click',ev=>{
+  // Klick außerhalb eines Kombifelds schließt jedes offene Menü (es gibt keinen anderen globalen Schließ-Weg)
+  if(!ev.target.closest('.combo')) App.closeMenus();
   const sp=ev.target.closest('[data-showpass]');
   if(sp){ const t=sp.checked?'text':'password'; sp.dataset.showpass.split(',').forEach(id=>{ const f=document.getElementById(id); if(f) f.type=t; }); return; }
   const elx=ev.target.closest('[data-action]'); if(!elx) return;
@@ -1504,7 +1609,7 @@ document.addEventListener('input',ev=>{
   const fn=App[elx.dataset.input]; if(typeof fn==='function') fn(elx.value, elx);
 });
 document.addEventListener('keydown',ev=>{
-  if(ev.key==='Escape'){ App.closeDetail(); App.closeHelp(); return; }
+  if(ev.key==='Escape'){ App.closeMenus(); App.closeDetail(); App.closeHelp(); return; }
   if(ev.key!=='Enter') return;
   const elx=ev.target.closest('[data-enter]'); if(!elx) return;
   const fn=App[elx.dataset.enter]; if(typeof fn==='function') fn();

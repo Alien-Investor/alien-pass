@@ -144,6 +144,19 @@ a{color:var(--neon);}
 .fg-panel label{margin-top:6px;}
 input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
 .chk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 12px;margin-top:6px;}
+/* Eigene Auswahl-/Vorschlagsfelder: das native <select> bleibt als Wertspeicher im DOM (unsichtbar),
+   darüber liegt ein eigener Knopf plus Menü — die System-Liste klappt sonst grau auf und ist nicht gestaltbar. */
+.combo{position:relative;}
+.combo-row{display:flex;gap:8px;}
+.combo-row input{flex:1;}
+.combo-native{display:none;}
+.combo-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:3px;color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:.9rem;padding:9px 10px;cursor:pointer;text-align:left;}
+.combo-btn:hover{border-color:var(--neon-mid);}
+.caret{color:var(--text-dim);flex:none;}
+.combo-menu{position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:60;background:var(--card-bg);border:1px solid var(--neon-mid);border-radius:3px;max-height:190px;overflow-y:auto;box-shadow:0 0 14px rgba(0,255,204,.2);}
+.combo-opt{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--border);color:var(--text-mid);font-family:'Share Tech Mono',monospace;font-size:.85rem;letter-spacing:1px;padding:10px;cursor:pointer;}
+.combo-opt:last-child{border-bottom:0;}
+.combo-opt:hover,.combo-opt.on{color:var(--neon);background:var(--neon-dim);}
 .seg{display:flex;gap:8px;margin-bottom:12px;}
 .seg button{flex:1;background:none;border:1px solid var(--border);color:var(--text-dim);padding:8px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:.74rem;letter-spacing:1px;text-transform:uppercase;}
 .seg button.on{color:var(--neon);background:var(--neon-dim);border-color:var(--neon-mid);}
@@ -200,11 +213,15 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
       <label class="chk" style="margin-top:8px"><input type="checkbox" id="setup-show" data-showpass="setup-pass1,setup-pass2"> <span data-i18n="setup.showpass">Passphrase anzeigen (zum Kontrollieren)</span></label>
       <button class="btn ghost sm" style="margin-top:10px" data-action="suggestPass" data-i18n="setup.suggest">Passphrase vorschlagen (6 Würfelwörter)</button>
       <label style="margin-top:14px" data-i18n="setup.kdf">Schlüsselableitung (Argon2id)</label>
-      <select id="setup-kdf">
+      <div class="combo">
+        <button class="combo-btn" data-action="toggleCombo" data-arg="setup-kdf"><span id="cb-setup-kdf"></span><span class="caret">▾</span></button>
+        <select class="combo-native" id="setup-kdf">
         <option value="32768" data-i18n="setup.kdfLight">Leicht — 32 MiB (ältere Geräte)</option>
         <option value="65536" selected data-i18n="setup.kdfStd">Standard — 64 MiB</option>
         <option value="131072" data-i18n="setup.kdfStrong">Stark — 128 MiB</option>
       </select>
+        <div id="cm-setup-kdf" class="combo-menu hidden"></div>
+      </div>
       <div id="setup-bench" class="muted" style="margin-top:6px"></div>
       <div id="setup-err" class="warn hidden" style="margin-top:12px"></div>
       <button id="setup-btn" class="btn" style="margin-top:16px;width:100%" data-action="doSetup" data-i18n="setup.create">Tresor erstellen</button>
@@ -255,11 +272,26 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         <div class="search-row">
           <input id="search" type="search" placeholder="Suchen (Titel, Nutzer, URL)…" data-i18n-ph="list.search" data-input="renderList" autocomplete="off" autocapitalize="none" spellcheck="false">
           <button class="btn sm" data-action="newEntry" title="Neuer Eintrag">+</button>
+          <button id="trash-btn" class="btn sm icon ghost" data-action="openTrash" title="Papierkorb" aria-label="Papierkorb"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.6 7l.8 12a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9L17.4 7"/><path d="M10 11v6"/><path d="M14 11v6"/></svg><span id="trash-n"></span></button>
         </div>
         <div id="cat-chips" class="chips"></div>
         <div id="health" class="health"></div>
         <div id="backup-hint"></div>
         <div id="entry-list"></div>
+      </div>
+    </div>
+
+    <!-- PAPIERKORB (eigene Ansicht ohne Tab-Knopf; „Einträge“ bleibt markiert) -->
+    <div id="tab-trash" class="tabview hidden">
+      <div class="card">
+        <h2 data-i18n="trash.title">Papierkorb</h2>
+        <p class="muted" data-i18n-html="trash.intro">Gelöschte Einträge bleiben <strong>30 Tage</strong> hier und lassen sich zurückholen. Danach wird der Inhalt beim nächsten Entsperren endgültig gelöscht — nur die Löschmarke für den Abgleich bleibt. <strong>Solange ein Eintrag hier liegt, steht er auch in jedem Backup.</strong> „Endgültig löschen“ vernichtet ihn sofort. Ein Gerät mit Version 1.4 oder älter leert den Papierkorb beim Zusammenführen.</p>
+        <div id="trash-msg" class="muted" style="margin-top:8px"></div>
+        <div id="trash-list" style="margin-top:12px"></div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn ghost" data-action="tab" data-arg="list" data-i18n="trash.back">Zurück zu den Einträgen</button>
+          <button id="trash-empty-btn" class="btn danger" data-action="emptyTrash" data-i18n="trash.emptyBtn">Papierkorb leeren</button>
+        </div>
       </div>
     </div>
 
@@ -276,8 +308,13 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         <label data-i18n="f.title">Titel *</label>
         <input id="f-title" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z.B. Proton Mail" data-i18n-ph="f.titlePh">
         <label data-i18n="f.cat">Kategorie (Ordner)</label>
-        <input id="f-cat" type="text" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" list="cat-list" placeholder="z.B. Privat, Arbeit, Finanzen — leer = ohne" data-i18n-ph="f.catPh">
-        <datalist id="cat-list"></datalist>
+        <div class="combo" id="cat-combo">
+          <div class="combo-row">
+            <input id="f-cat" type="text" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z.B. Privat, Arbeit, Finanzen — leer = ohne" data-i18n-ph="f.catPh" data-action="openCatMenu" data-input="catInput">
+            <button class="btn sm ghost" data-action="toggleCatMenu" aria-label="Kategorien"><span class="caret">▾</span></button>
+          </div>
+          <div id="cat-menu" class="combo-menu hidden"></div>
+        </div>
         <div id="grp-login">
           <label data-i18n="f.user">Nutzername / E-Mail</label>
           <input id="f-user" type="text" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false">
@@ -309,7 +346,11 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
               <input id="fg-wc" type="range" min="4" max="10" value="6" data-gen="wc" data-input="genChanged">
               <div class="chk-grid">
                 <label class="chk"><span data-i18n="gen.sep">Trenner</span>
-                  <select id="fg-sep" style="width:auto;padding:4px 8px" data-gen="sep" data-change="genChanged"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
+                  <div class="combo" style="width:auto;min-width:86px">
+                    <button class="combo-btn" style="padding:4px 8px" data-action="toggleCombo" data-arg="fg-sep"><span id="cb-fg-sep"></span><span class="caret">▾</span></button>
+                    <select class="combo-native" id="fg-sep" data-gen="sep" data-change="genChanged"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
+                    <div id="cm-fg-sep" class="combo-menu hidden"></div>
+                  </div>
                 </label>
                 <label class="chk"><input type="checkbox" id="fg-cap" data-gen="cap" data-change="genChanged"> <span data-i18n="gen.cap">Großschreibung</span></label>
                 <label class="chk"><input type="checkbox" id="fg-num" data-gen="num" data-change="genChanged"> <span data-i18n="gen.num">+ Ziffer</span></label>
@@ -399,7 +440,11 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
           <input id="gen-wc" type="range" min="4" max="10" value="6" data-gen="wc" data-input="genChanged">
           <div class="chk-grid">
             <label class="chk"><span data-i18n="gen.sep">Trenner</span>
-              <select id="gen-sep" style="width:auto;padding:4px 8px" data-gen="sep" data-change="genChanged"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
+              <div class="combo" style="width:auto;min-width:86px">
+                <button class="combo-btn" style="padding:4px 8px" data-action="toggleCombo" data-arg="gen-sep"><span id="cb-gen-sep"></span><span class="caret">▾</span></button>
+                <select class="combo-native" id="gen-sep" data-gen="sep" data-change="genChanged"><option value="-">-</option><option value=" ">␣</option><option value=".">.</option><option value="">∅</option></select>
+                <div id="cm-gen-sep" class="combo-menu hidden"></div>
+              </div>
             </label>
             <label class="chk"><input type="checkbox" id="gen-cap" data-gen="cap" data-change="genChanged"> <span data-i18n="gen.cap">Großschreibung</span></label>
             <label class="chk"><input type="checkbox" id="gen-num" data-gen="num" data-change="genChanged"> <span data-i18n="gen.num">+ Ziffer</span></label>
@@ -462,27 +507,39 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
       <div class="card">
         <h2 data-i18n="set.secTitle">Sicherheit</h2>
         <label data-i18n="set.autolock">Sperren nach Inaktivität</label>
-        <select id="set-autolock" data-change="setAutolock" style="max-width:260px">
+        <div class="combo" style="max-width:260px">
+          <button class="combo-btn" data-action="toggleCombo" data-arg="set-autolock"><span id="cb-set-autolock"></span><span class="caret">▾</span></button>
+          <select class="combo-native" id="set-autolock" data-change="setAutolock">
           <option value="0" data-i18n="set.off">Aus</option>
           <option value="1" data-i18n="set.al1">1 Minute</option>
           <option value="2" data-i18n="set.al2">2 Minuten</option>
           <option value="5" data-i18n="set.al5">5 Minuten</option>
           <option value="15" data-i18n="set.al15">15 Minuten</option>
         </select>
+          <div id="cm-set-autolock" class="combo-menu hidden"></div>
+        </div>
         <label data-i18n="set.bgLock">Sperren im Hintergrund nach</label>
-        <select id="set-bglock" data-change="setBgLock" style="max-width:260px">
+        <div class="combo" style="max-width:260px">
+          <button class="combo-btn" data-action="toggleCombo" data-arg="set-bglock"><span id="cb-set-bglock"></span><span class="caret">▾</span></button>
+          <select class="combo-native" id="set-bglock" data-change="setBgLock">
           <option value="0" data-i18n="set.bg0">sofort</option>
           <option value="30" data-i18n="set.bg30">30 Sekunden</option>
           <option value="60" data-i18n="set.bg60">1 Minute</option>
           <option value="300" data-i18n="set.bg300">5 Minuten</option>
         </select>
+          <div id="cm-set-bglock" class="combo-menu hidden"></div>
+        </div>
         <label data-i18n="set.clip">Zwischenablage leeren nach</label>
-        <select id="set-clip" data-change="setClipClear" style="max-width:260px">
+        <div class="combo" style="max-width:260px">
+          <button class="combo-btn" data-action="toggleCombo" data-arg="set-clip"><span id="cb-set-clip"></span><span class="caret">▾</span></button>
+          <select class="combo-native" id="set-clip" data-change="setClipClear">
           <option value="15" data-i18n="set.c15">15 Sekunden</option>
           <option value="30" data-i18n="set.c30">30 Sekunden</option>
           <option value="60" data-i18n="set.c60">1 Minute</option>
           <option value="0" data-i18n="set.cOff">nur beim Sperren (nicht empfohlen)</option>
         </select>
+          <div id="cm-set-clip" class="combo-menu hidden"></div>
+        </div>
         <p class="muted" style="margin-top:8px" data-i18n="set.clipNote">Hinweis: In der Android-App wird Kopiertes als „sensibel“ markiert — die System-Vorschau zeigt den Inhalt dann nicht an (Android 13+). Die App leert die Zwischenablage nach der eingestellten Zeit — auch im Hintergrund, solange Android die App nicht eingefroren hat (das passiert meist nach dem zweiten App-Wechsel); spätestens beim Zurückkehren in die App und beim Sperren. Ab Android 13 leert das System die Zwischenablage zusätzlich nach etwa einer Stunde selbst, auf älteren Versionen nicht.</p>
         <div style="margin-top:14px">
           <button class="btn ghost" data-action="lockNow"><svg class="ic" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> <span data-i18n="set.lockNow">Jetzt sperren</span></button>
@@ -632,6 +689,9 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
 
     <h2 data-i18n="help.h6">Passwort-Gesundheit</h2>
     <p data-i18n-html="help.p6">Die Liste markiert <strong>wiederverwendete</strong> Passwörter und <strong>kurze</strong> (unter 12 Zeichen). Das Alter wird bewusst nicht markiert: Ein starkes Zufallspasswort wird mit der Zeit nicht schwächer, und Zwangsrotation ist ein Anti-Muster (NIST SP 800-63B, BSI) — ein Passwort wechselt man, wenn es geleakt sein könnte, nicht nach Kalender. Erlaubt ein Dienst kein längeres Passwort, schaltet das Häkchen „Dienst erlaubt kein längeres Passwort“ im Eintrag die „kurz“-Markierung ab. Alles wird lokal berechnet — es gibt keine Abfrage von Leak-Datenbanken, denn die App hat kein Netz.</p>
+
+    <h2 data-i18n="help.hTrash">Papierkorb</h2>
+    <p data-i18n-html="help.pTrash">Gelöschte Einträge landen für <strong>30 Tage</strong> im Papierkorb — das Symbol rechts neben dem <strong>+</strong> in der Suchzeile, die Zahl daneben sagt, wie viel drin ist. Dort stehen nur <strong>Titel, Typ und Löschdatum</strong>: kein Aufdecken, kein Kopieren. Wer den Inhalt braucht, stellt den Eintrag erst wieder her — dann ist er vollständig zurück, mit Passwort, Zusatzfeldern und Kategorie. <strong>Ehrlich dazu:</strong> Solange ein Eintrag im Papierkorb liegt, steht er auch in jedem Backup. Wer etwas sofort loswerden will, nimmt „Endgültig löschen“ oder „Papierkorb leeren“ — das ist nicht umkehrbar. Nach 30 Tagen räumt die App beim nächsten Entsperren selbst auf; danach bleibt wie bisher ein Jahr lang nur die Löschmarke für den Abgleich. <strong>Ein Gerät mit Version 1.4 oder älter</strong> leert den Papierkorb beim Zusammenführen: die Einträge bleiben gelöscht, sie tauchen nie wieder auf. Erst alle Geräte aktualisieren.</p>
 
     <h2 data-i18n="help.h7">Backup &amp; Sync</h2>
     <ul data-i18n-html="help.l7">

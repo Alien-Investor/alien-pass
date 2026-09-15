@@ -1,5 +1,20 @@
 # Changelog — Alien Pass
 
+## v1.5 — 2026-09-15
+- **Papierkorb:** Gelöschte Einträge landen für **30 Tage** im Papierkorb und lassen sich vollständig zurückholen — bisher war Löschen
+  sofort und unwiderruflich. Der Papierkorb hängt am Symbol rechts neben dem `+` in der Suchzeile; die Zahl daneben sagt, wie viel drin ist.
+  Er zeigt **nur Titel, Typ und Löschdatum** — kein Aufdecken, kein Kopieren. Wer den Inhalt braucht, stellt erst wieder her.
+  „Endgültig löschen“ und „Papierkorb leeren“ vernichten sofort. Nach 30 Tagen räumt die App beim nächsten Entsperren selbst auf;
+  danach bleibt wie bisher ein Jahr lang nur die Löschmarke für den Abgleich zwischen Geräten.
+  **Ehrlich dazu:** Solange ein Eintrag im Papierkorb liegt, steht er auch in jedem Backup. Wer etwas wirklich sofort loswerden will,
+  nutzt „Endgültig löschen“. Ein Gerät mit v1.4 oder älter leert den Papierkorb beim Zusammenführen — dort bleiben die Einträge gelöscht,
+  sie tauchen nie wieder auf.
+- **Eigene Auswahl- und Vorschlagsfelder:** Die Kategorie-Vorschläge beim Bearbeiten und die sechs Auswahlfelder (Schlüsselableitung,
+  Trenner, Auto-Sperre, Hintergrund, Zwischenablage) klappten bisher als graue Systemliste auf. Jetzt öffnen sie im Stil der App, mit
+  Filter beim Tippen im Kategoriefeld. Escape oder ein Klick daneben schließt.
+- **Speichern abgesichert:** Wird der Tresor gesperrt oder die Passphrase gewechselt, während gerade gespeichert wird, schreibt der
+  angefangene Vorgang nicht mehr über den neuen Stand. Querfund aus dem Sachwert-Tresor; im Alltag kaum erreichbar, jetzt ausgeschlossen.
+
 ## v1.4.1 — 2026-09-13
 - **Versionsanzeige korrigiert:** Die Einstellungen zeigten seit v1.3 weiterhin „v1.2“. Die Anzeige kommt jetzt aus derselben Quelle wie
   die Versionsnummer der App und wird beim Bauen und im Test gegengeprüft. Sonst keine Änderung; Tresor-Format und Daten bleiben gleich.
