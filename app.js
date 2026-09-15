@@ -341,6 +341,12 @@ const VAULT_VERSION=1;
 const SETTINGS_ALLOWED={autolock:[0,1,2,5,15], bgLock:[0,30,60,300], clipClear:[0,15,30,60]};
 const SETTINGS_DEFAULT={autolock:2, bgLock:30, clipClear:30};
 const TOMBSTONE_DAYS=365, MAX_TOMBSTONES=2000;   // Löschmarken zählen NICHT zum Eintrags-Cap, sind aber separat begrenzt
+// Papierkorb (v1.5): Inhalt gelöschter Einträge bleibt TRASH_DAYS erhalten, höchstens MAX_TRASH Stück.
+// TRASH_DAYS MUSS < TOMBSTONE_DAYS sein — sonst könnte purgeTombstones einen Papierkorb-Eintrag MIT Inhalt
+// droppen, statt ihn vorher auf die Löschmarke zurückzuschneiden.
+// MAX_TRASH ist die tragende Grenze, nicht Kosmetik: ein Eintrag kann ~22 KB tragen (notes 10k + pass 1k +
+// url 2k + 8 Zusatzfelder), 2000 davon sprengten die localStorage-Quota.
+const TRASH_DAYS=30, MAX_TRASH=200;
 function emptyVault(){ return {version:VAULT_VERSION, entries:[], settings:Object.assign({},SETTINGS_DEFAULT), totp:null, meta:{lastBackup:null, lastBackupCount:0}}; }
 const ID_RE=/^[0-9a-f]{16}$/;
 const CAPS={title:200,user:200,pass:1000,url:2000,notes:10000,issuer:100,label:200,email:200,cat:40,holder:100,number:32,expiry:10,cvv:8,pin:12,iban:42,bic:11,bank:100,xname:40,xvalue:1000};
@@ -391,7 +397,10 @@ function normalizeTotp(v){
   return {secret, algorithm:alg, digits, period, issuer:str(o.issuer,CAPS.issuer), label:str(o.label,CAPS.label)};
 }
 function otpauthUri(t){ const lbl=encodeURIComponent(t.label||t.issuer||'Alien Pass'); let s=`otpauth://totp/${lbl}?secret=${t.secret}`; if(t.issuer) s+=`&issuer=${encodeURIComponent(t.issuer)}`; if(t.algorithm!=='SHA1') s+=`&algorithm=${t.algorithm}`; if(t.digits!==6) s+=`&digits=${t.digits}`; if(t.period!==30) s+=`&period=${t.period}`; return s; }
-// Whitelist: baut ein frisches Objekt; ungültige ID → null (Aufrufer verwirft). Tombstones sind inhaltsleer.
+// Whitelist: baut ein frisches Objekt; ungültige ID → null (Aufrufer verwirft).
+// Seit v1.5 laufen GELÖSCHTE Einträge durch dieselbe Whitelist wie lebende (Papierkorb) — sie behalten ihren Inhalt und
+// verlieren ihn erst durch wipeTrash()/tombstone(). Ein Gerät mit v1.4 oder älter räumt sie beim Laden ab: gewollte,
+// dokumentierte Degradation (Datenverlust nur bei bereits Gelöschtem — nie ein Wiederauferstehen).
 function sanitizeEntry(e, now){
   if(!e||typeof e!=='object'||Array.isArray(e)) return null;
   const id=typeof e.id==='string'?e.id.toLowerCase():''; if(!ID_RE.test(id)) return null;
@@ -402,12 +411,12 @@ function sanitizeEntry(e, now){
   const tc=Math.min(Date.parse(created),maxT); let tu=Math.min(Date.parse(updated),maxT); if(tu<tc) tu=tc;
   created=new Date(tc).toISOString(); updated=new Date(tu).toISOString();
   if(e.deleted&&!deleted) deleted=updated;                       // "gelöscht" ohne brauchbares Datum → Änderungsdatum
-  if(deleted){ deleted=new Date(Math.min(Date.parse(deleted),maxT)).toISOString();
-    return {id, type:'login', cat:'', title:'', user:'', email:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, extra:[], nowarn:false, fav:false, created, updated, deleted}; }
+  // Löschdatum klemmen (stand bis v1.4 im Wipe-Zweig): eine fremde Datei darf die Papierkorb-Frist nicht in die Zukunft schieben.
+  if(deleted) deleted=new Date(Math.min(Date.parse(deleted),maxT)).toISOString();
   // Typ bestimmt, welche Felder überhaupt tragen: login (user/pass/url/totp/nowarn), note (nur Notizen), card (Kartenobjekt), bank (Kontoobjekt)
   const type=entryType(e.type);
   const o={id, type, cat:line(e.cat,CAPS.cat), title:line(e.title,CAPS.title), user:'', email:'', pass:'', url:'', notes:str(e.notes,CAPS.notes),
-           totp:null, card:null, bank:null, extra:sanitizeExtra(e.extra), nowarn:false, fav:e.fav===true, created, updated, deleted:null};   // extra gilt für jeden Typ
+           totp:null, card:null, bank:null, extra:sanitizeExtra(e.extra), nowarn:false, fav:e.fav===true, created, updated, deleted};   // extra gilt für jeden Typ
   if(type==='login'){ o.user=str(e.user,CAPS.user); o.email=line(e.email,CAPS.email); o.pass=str(e.pass,CAPS.pass); o.url=str(e.url,CAPS.url); o.totp=normalizeTotp(e.totp); o.nowarn=e.nowarn===true; }
   else if(type==='card'){ o.card=sanitizeCard(e.card); }
   else if(type==='bank'){ o.bank=sanitizeBank(e.bank); }
@@ -418,11 +427,19 @@ function canon(v){ if(v===undefined||v===null||typeof v!=='object') return JSON.
 const liveCount=list=>list.reduce((n,e)=>n+(e.deleted?0:1),0);
 function ts(v){ const t=Date.parse(v); return Number.isFinite(t)?t:0; }
 // Deterministischer Gewinner: neueres updated; Gleichstand → Tombstone; sonst größerer kanonischer JSON-String.
-function winner(a,b){ const ta=ts(a.updated), tb=ts(b.updated); if(ta!==tb) return ta>tb?a:b; if(!!a.deleted!==!!b.deleted) return a.deleted?a:b; return canon(a)>=canon(b)?a:b; }
+// Unter ZWEI Löschmarken gewinnt die gewipte. Nötig, weil canon() den inhaltsvollen Stand fast immer voranstellt
+// ("pass":"pw" > "pass":"", "totp":{…} > "totp":null) — ohne die Regel machte ein Gerät, dessen Uhr abweicht, jeden
+// Wipe wieder rückgängig, und der Re-Import derselben Datei wäre nicht mehr idempotent.
+// NICHT über "kleinerer canon()" abkürzen: bei einem INHALTSLOSEN card-/bank-Eintrag ist die gewipte Gestalt die
+// größere ("type":"card" < "type":"login"). Es braucht das explizite isWiped-Prädikat.
+function winner(a,b){ const ta=ts(a.updated), tb=ts(b.updated); if(ta!==tb) return ta>tb?a:b;
+  if(!!a.deleted!==!!b.deleted) return a.deleted?a:b;
+  if(a.deleted&&b.deleted){ const wa=isWiped(a), wb=isWiped(b); if(wa!==wb) return wa?a:b; }
+  return canon(a)>=canon(b)?a:b; }
 function dedupeEntries(list){ const m=new Map(); for(const e of list){ const cur=m.get(e.id); m.set(e.id, cur?winner(cur,e):e); } return [...m.values()]; }
 // Cap gilt nur für LIVE-Einträge; Tombstones werden gepurgt/gekappt statt gezählt (sonst könnte eine
 // fremde Datei den Tresor mit unsichtbaren Löschmarken bis an den Cap füllen und der nächste eigene Eintrag brickt ihn).
-function sanitizeEntries(list, now){ if(!Array.isArray(list)) return []; if(list.length>MAX_ENTRIES*4) throw new Error('toomany'); const out=[]; for(const e of list){ const s=sanitizeEntry(e,now); if(s) out.push(s); } const d=purgeTombstones(dedupeEntries(out), now); if(liveCount(d)>MAX_ENTRIES) throw new Error('toomany'); return d; }
+function sanitizeEntries(list, now){ if(!Array.isArray(list)) return []; if(list.length>MAX_ENTRIES*4) throw new Error('toomany'); const out=[]; for(const e of list){ const s=sanitizeEntry(e,now); if(s) out.push(s); } const d=purgeTombstones(wipeTrash(dedupeEntries(out), now), now); if(liveCount(d)>MAX_ENTRIES) throw new Error('toomany'); return d; }
 function sanitizeSettings(s){ const o={}; for(const k in SETTINGS_DEFAULT){ const v=s&&typeof s==='object'?Number(s[k]):NaN; o[k]=SETTINGS_ALLOWED[k].includes(v)?v:SETTINGS_DEFAULT[k]; } return o; }
 function sanitizeVault(v, now){
   if(!v||typeof v!=='object') throw new Error('format');
@@ -446,7 +463,21 @@ function mergeEntries(local, incoming){
 function purgeTombstones(entries, now){ now=now||Date.now(); const kept=entries.filter(e=>!e.deleted || now-ts(e.deleted) < TOMBSTONE_DAYS*86400000);
   const tombs=kept.filter(e=>e.deleted); if(tombs.length<=MAX_TOMBSTONES) return kept;
   tombs.sort((a,b)=>ts(b.deleted)-ts(a.deleted)); const keep=new Set(tombs.slice(0,MAX_TOMBSTONES).map(e=>e.id)); return kept.filter(e=>!e.deleted||keep.has(e.id)); }
-function tombstone(e, nowIso){ return {id:e.id, type:'login', cat:'', title:'', user:'', email:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, extra:[], nowarn:false, fav:false, created:e.created, updated:nowIso, deleted:nowIso}; }
+// Löschmarken-Gestalt zu einem Eintrag: inhaltsleer, Zeitstempel unverändert. Basis von tombstone(), isWiped() und wipeTrash().
+function tombFrom(e){ return {id:e.id, type:'login', cat:'', title:'', user:'', email:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, extra:[], nowarn:false, fav:false, created:e.created, updated:e.updated, deleted:e.deleted}; }
+// Sofortige, endgültige Löschmarke: Inhalt weg UND updated=jetzt — schlägt damit jeden älteren Stand auf anderen Geräten.
+function tombstone(e, nowIso){ return tombFrom({id:e.id, created:e.created, updated:nowIso, deleted:nowIso}); }
+// Gelöscht UND inhaltsleer. Stützt sich darauf, dass tombFrom() sanitizer-stabil ist (Test [22]).
+function isWiped(e){ return !!e.deleted && canon(e)===canon(tombFrom(e)); }
+// Papierkorb räumen: abgelaufene und überzählige Einträge auf die Löschmarke zurückschneiden — OHNE updated anzuheben.
+// Sonst gälte der Wipe als Änderung (gewänne überall, und renderBackupHint() mahnte ohne Nutzeraktion).
+// Der Merge braucht das nicht: winner() bevorzugt bei Gleichstand ohnehin die gewipte Gestalt.
+// Rein und nicht-mutierend — die Aufrufer rollen über eine flache Array-Kopie zurück.
+function wipeTrash(entries, now){ now=now||Date.now();
+  const trash=entries.filter(e=>e.deleted&&!isWiped(e)); if(!trash.length) return entries;
+  trash.sort((a,b)=>ts(b.deleted)-ts(a.deleted));                                     // jüngste Löschung zuerst — die ältesten weichen
+  const wipe=new Set(trash.filter((e,i)=>i>=MAX_TRASH||now-ts(e.deleted)>=TRASH_DAYS*86400000).map(e=>e.id));
+  return wipe.size?entries.map(e=>wipe.has(e.id)?tombFrom(e):e):entries; }
 
 /* ---------- TOTP (RFC 6238; SHA1/256/512, 6–8 Stellen, Periode) ---------- */
 async function totpCode(t, forTime){
@@ -782,7 +813,7 @@ const App = (function(){
   async function persist(){
     const dek=DEK, kdf=KDF, wrap=WRAP, vault=VAULT;          // Schlüssel-Generation pinnen (lock/changePass während des await)
     if(!dek||!vault) throw lockedErr();
-    const entries=purgeTombstones(vault.entries);              // Purge erst NACH erfolgreichem Schreiben committen
+    const entries=purgeTombstones(wipeTrash(vault.entries));   // Wipe/Purge erst NACH erfolgreichem Schreiben committen
     const body=await encryptBody(Object.assign({},vault,{entries}), dek, kdf);
     // Nachprüfen: das Pinnen allein genügt nicht, der Stand kann während des await veraltet sein (Querfund Sachwert-Tresor v2.9.1).
     if(!DEK||VAULT!==vault) throw lockedErr();                 // zwischenzeitlich gesperrt → NICHT mehr schreiben

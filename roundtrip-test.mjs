@@ -22,6 +22,7 @@ const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
     normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
+    tombFrom,isWiped,wipeTrash,TRASH_DAYS,MAX_TRASH,TOMBSTONE_DAYS,
     parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
@@ -112,7 +113,8 @@ console.log('\n[4] Sanitizer');
   ok(!Object.prototype.hasOwnProperty.call(x,'constructor')&&Object.keys(x).length===18,'nur Whitelist-Felder (18 inkl. type/cat/email/card/bank/extra/nowarn)');
   const y=V.sanitizeEntry({id:'0123456789abcdef',title:'x',updated:'nope'},now); ok(y.updated==='1970-01-01T00:00:00.000Z','ungültiges updated → Epoche (gewinnt nie)');
   const t=V.sanitizeEntry({id:'0123456789abcdef',title:'geheim',pass:'geheim',deleted:'2026-02-01T00:00:00.000Z',updated:'2026-02-01T00:00:00.000Z'},now);
-  ok(t.deleted&&t.title===''&&t.pass===''&&t.totp===null,'Tombstone inhaltsleer');
+  ok(t.deleted&&t.title==='geheim'&&t.pass==='geheim'&&Object.keys(t).length===18,'Papierkorb (v1.5): Inhalt überlebt das Laden, 18 Felder');
+  { const w=V.tombFrom(t); ok(w.title===''&&w.pass===''&&w.totp===null&&w.deleted===t.deleted&&V.isWiped(w),'tombFrom() ist inhaltsleer, behält die Zeitstempel und gilt als gewipt'); }
   const t2=V.sanitizeEntry({id:'0123456789abcdef',title:'x',deleted:true,updated:'2026-02-01T00:00:00.000Z'},now); ok(t2.deleted==='2026-02-01T00:00:00.000Z','deleted=true ohne Datum → updated');
   // TOTP
   ok(V.normalizeTotp('JBSWY3DPEHPK3PXP').secret==='JBSWY3DPEHPK3PXP','Base32 normalisiert');
@@ -242,7 +244,8 @@ console.log('\n[10] v1.1: Eintragstypen, Kategorien, Karten, nowarn');
   ok(l.type==='login'&&l.cat.length===40&&l.nowarn===false&&l.card===null,'unbekannter Typ → login; cat gekappt; nowarn nur boolean true; card nur bei Typ card');
   ok(V.sanitizeEntry(E({nowarn:true})).nowarn===true,'nowarn=true bleibt bei login');
   const t=V.sanitizeEntry(E({type:'card',deleted:'2026-01-03T00:00:00.000Z'}));
-  ok(t.type==='login'&&t.cat===''&&t.card===null&&Array.isArray(t.extra)&&t.extra.length===0&&Object.keys(t).length===18,'Tombstone inhaltsleer mit identischer Feldmenge');
+  ok(t.type==='card'&&t.title==='T'&&Object.keys(t).length===18&&!V.isWiped(t),'gelöschter Karteneintrag behält Typ und Inhalt (Papierkorb), 18 Felder');
+  { const tb=V.tombstone(t,'2026-01-05T00:00:00.000Z'); ok(tb.type==='login'&&tb.cat===''&&tb.card===null&&Array.isArray(tb.extra)&&tb.extra.length===0&&Object.keys(tb).length===18&&V.isWiped(tb),'tombstone() normalisiert auf die leere Gestalt mit identischer Feldmenge'); }
   { const ex=E({title:'x'}); ok(V.canon(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))===V.canon(V.sanitizeEntry(V.tombstone(ex,'2026-01-05T00:00:00.000Z'))),'tombstone() ist sanitizer-stabil (Merge-Gleichstand deterministisch)'); }
   const a=V.sanitizeEntry(E({type:'card',card:{number:'1'},updated:'2026-01-02T00:00:00.000Z'})), b=Object.assign({},a,{card:{number:'2',holder:'',expiry:'',cvv:'',pin:''}});
   ok(V.winner(a,b)===V.winner(b,a),'winner() deterministisch bei Karten-Gleichstand (canon rekursiv)');
@@ -490,6 +493,91 @@ console.log('\n[21] v1.4: E-Mail-Feld (nur login, line(), Cap 200, Tombstone, du
   ok(c1.user==='maxi'&&c1.email==='a@b.de'&&c1.notes==='Hallo'&&c2.user==='a@b.de'&&c2.email==='','Proton CSV: Nutzer+E-Mail → Felder (Notizen unverändert); nur E-Mail → Nutzername');
   const dek=await V.newDek(); const kdf={m:8192,t:1,p:1,salt:V.rand(16)}; const body=await V.encryptBody({entries:[a],settings:{},version:1},dek,kdf);
   ok((await V.decryptBody(body,dek,kdf)).entries[0].email==='max@example.org','E-Mail überlebt encryptBody/decryptBody');
+}
+
+
+console.log('\n[22] v1.5: Papierkorb (sanitizeEntry behält Inhalt, tombFrom/isWiped, wipeTrash, winner, Konvergenz)');
+{
+  const DAY=86400000, now=Date.now();
+  const iso=d=>new Date(now-d*DAY).toISOString(), tsOf=v=>Date.parse(v)||0;
+  const del=(o,d)=>V.sanitizeEntry(E(Object.assign({deleted:iso(d), updated:iso(d)},o)), now);
+
+  // --- Sanitizer: gelöschte Einträge laufen durch dieselbe Whitelist wie lebende ---
+  const t1=del({type:'login', title:'Proton', pass:'geheim', email:'a@b.de', cat:'Arbeit', extra:[{name:'App-PIN',value:'1234'}]},1);
+  ok(t1.deleted&&t1.title==='Proton'&&t1.pass==='geheim'&&t1.email==='a@b.de'&&t1.cat==='Arbeit'&&t1.extra.length===1&&Object.keys(t1).length===18,
+     'gelöschter Login behält Titel/Passwort/E-Mail/Kategorie/Zusatzfeld, 18 Felder');
+  const t1b=del({type:'bank', bank:{holder:'Max', iban:'de89 3704 0044 0532 0130 00', bic:'cobadeff', bank:'Bank', pin:'1234'}},1);
+  ok(t1b.type==='bank'&&t1b.bank&&t1b.bank.iban==='DE89 3704 0044 0532 0130 00'&&t1b.bank.bic==='COBADEFF','gelöschtes Konto behält Typ und normalisiertes Kontoobjekt');
+  const t1c=del({type:'card', card:{number:'4111-1111 1111-1111', cvv:'123'}},1);
+  ok(t1c.type==='card'&&t1c.card&&t1c.card.number==='41111111 11111111'&&t1c.card.cvv==='123','gelöschte Karte behält Typ und normalisiertes Kartenobjekt');
+  const fut=V.sanitizeEntry(E({deleted:new Date(now+400*DAY).toISOString(), updated:'2026-01-02T00:00:00.000Z'}), now);
+  ok(Date.parse(fut.deleted)<=now+120000,'Zukunfts-deleted auf now+2min geklemmt (fremde Datei kann die Frist nicht verschieben): '+fut.deleted);
+  const t1d=V.sanitizeEntry(Object.assign(E({deleted:iso(1)}),{fremdfeld:'weg', __proto__:{polluted:1}}), now);
+  ok(!Object.prototype.hasOwnProperty.call(t1d,'fremdfeld')&&Object.keys(t1d).length===18,'Fremdfeld auch am gelöschten Eintrag verworfen, 18 Felder');
+  ok(del({notes:'n'.repeat(20000)},1).notes.length===V.CAPS.notes,'Caps greifen auch am gelöschten Eintrag (notes gekürzt)');
+
+  // --- tombFrom / isWiped / tombstone ---
+  const w1=V.tombFrom(t1);
+  ok(w1.created===t1.created&&w1.updated===t1.updated&&w1.deleted===t1.deleted&&w1.title===''&&w1.pass===''&&w1.extra.length===0&&Object.keys(w1).length===18,
+     'tombFrom() übernimmt created/updated/deleted, leert den Rest, 18 Felder');
+  ok(V.isWiped(w1)&&!V.isWiped(t1)&&!V.isWiped(V.sanitizeEntry(E({title:'',user:'',pass:''}))),
+     'isWiped: gewipt ja, Papierkorb nein, lebender Leer-Eintrag nein (deleted fehlt)');
+  for(const type of ['login','note','card','bank']){ const x=del({type, card:{number:'1'}, bank:{iban:'DE1'}},1), wx=V.tombFrom(x);
+    ok(V.canon(wx)===V.canon(V.sanitizeEntry(wx, now)),'tombFrom() ist sanitizer-stabil, Typ '+type); }
+  const tb=V.tombstone(t1,'2026-03-01T00:00:00.000Z');
+  ok(tb.created===t1.created&&tb.updated==='2026-03-01T00:00:00.000Z'&&tb.deleted==='2026-03-01T00:00:00.000Z'&&V.isWiped(tb)&&Object.keys(tb).length===18,
+     'tombstone(): created erhalten, updated=deleted=jetzt, gewipt, 18 Felder');
+  // Der Fall, der die Abkürzung "bei Gleichstand gewinnt der KLEINERE canon()" verbietet:
+  const empt=V.sanitizeEntry({id:'0123456789abcdef', type:'card', title:'', deleted:iso(1), updated:iso(1)}, now);
+  ok(!V.isWiped(empt)&&V.canon(V.tombFrom(empt))>V.canon(empt)&&V.winner(V.tombFrom(empt),empt).type==='login',
+     'inhaltsloser Karten-Eintrag: gewipte Gestalt hat den GRÖSSEREN canon() — winner() braucht isWiped, nicht den Stringvergleich');
+
+  // --- wipeTrash ---
+  const fresh=del({title:'frisch'},V.TRASH_DAYS-1), old=del({title:'alt'},V.TRASH_DAYS+1), alive=V.sanitizeEntry(E({title:'lebt'}));
+  const inp=[fresh,old,alive], out=V.wipeTrash(inp, now);
+  ok(out.find(e=>e.id===fresh.id)===fresh,'frischer Papierkorb-Eintrag überlebt IDENTISCH (kein neues Objekt)');
+  const oldOut=out.find(e=>e.id===old.id);
+  ok(V.isWiped(oldOut)&&oldOut.updated===old.updated&&oldOut.deleted===old.deleted,'abgelaufener Eintrag wird gewipt, updated und deleted bleiben unverändert');
+  ok(out.find(e=>e.id===alive.id)===alive,'lebender Eintrag bleibt unangetastet');
+  ok(inp[1]===old&&old.title==='alt','wipeTrash mutiert das Eingabe-Array nicht');
+  ok(V.canon(V.wipeTrash(out,now))===V.canon(out)&&V.wipeTrash(V.wipeTrash(inp,now),now).length===3,'wipeTrash ist idempotent');
+  { const onlyLive=[alive]; ok(V.wipeTrash(onlyLive,now)===onlyLive,"ohne Papierkorb gibt wipeTrash dasselbe Array zurück"); }
+  ok(V.TRASH_DAYS<V.TOMBSTONE_DAYS,`TRASH_DAYS (${V.TRASH_DAYS}) < TOMBSTONE_DAYS (${V.TOMBSTONE_DAYS}) — sonst droppt purgeTombstones Inhalt`);
+  { const many=[]; for(let i=0;i<V.MAX_TRASH+50;i++) many.push(del({title:'T'+i}, 1+i/1000));
+    const capped=V.wipeTrash(many, now), kept=capped.filter(e=>!V.isWiped(e));
+    ok(kept.length===V.MAX_TRASH&&capped.length===many.length,`MAX_TRASH: genau ${V.MAX_TRASH} behalten Inhalt, keiner entfernt (${kept.length}/${capped.length})`);
+    ok(kept.every(e=>tsOf(e.deleted)>=Math.max(...capped.filter(x=>V.isWiped(x)).map(x=>tsOf(x.deleted)))),'über dem Deckel weichen die ÄLTESTEN Löschungen'); }
+
+  // --- winner / Merge ---
+  const A=del({title:'Konto'},5), B=V.tombFrom(A);
+  ok(V.winner(A,B)===B&&V.winner(B,A)===B,'Gleichstand, beide gelöscht: die gewipte Gestalt gewinnt beidseitig');
+  const restored=Object.assign({},A,{deleted:null, updated:new Date(now).toISOString()});
+  ok(V.mergeEntries([B],[restored]).entries[0].deleted===null&&V.mergeEntries([restored],[B]).entries[0].deleted===null,'Wiederherstellen (neueres updated) schlägt die Löschmarke beidseitig');
+  const mi=V.mergeEntries([B],[A]);
+  ok(V.isWiped(mi.entries[0])&&mi.added===0&&mi.updated===0&&mi.deleted===0,'Re-Import eines inhaltsvollen Stands über eine gewipte Löschmarke ist idempotent (0/0/0)');
+  { const setA=[alive,fresh,old,V.tombstone(del({},2),iso(2))], setB=[V.tombFrom(fresh),alive,old];
+    const ab=V.sanitizeEntries(V.mergeEntries(setA,setB).entries, now), ba=V.sanitizeEntries(V.mergeEntries(setB,setA).entries, now);
+    ok(JSON.stringify(ab.map(V.canon).sort())===JSON.stringify(ba.map(V.canon).sort()),'Pipeline kommutativ über live / Papierkorb / abgelaufen / Löschmarke');
+    const abc=V.sanitizeEntries(V.mergeEntries(V.mergeEntries(setA,setB).entries,[alive]).entries, now);
+    const a_bc=V.sanitizeEntries(V.mergeEntries(setA,V.mergeEntries(setB,[alive]).entries).entries, now);
+    ok(JSON.stringify(abc.map(V.canon).sort())===JSON.stringify(a_bc.map(V.canon).sort()),'Pipeline assoziativ'); }
+  { // Zwei Geräte, Uhrversatz: A hat gewipt, B noch nicht — beide Richtungen enden gewipt, zweite Runde ändert nichts
+    const bDev=del({title:'Sparkasse'},V.TRASH_DAYS+2), aDev=V.tombFrom(bDev);
+    const r1=V.sanitizeEntries(V.mergeEntries([aDev],[bDev]).entries, now), r2=V.sanitizeEntries(V.mergeEntries([bDev],[aDev]).entries, now);
+    ok(V.isWiped(r1[0])&&V.isWiped(r2[0])&&V.canon(r1[0])===V.canon(r2[0]),'Zwei-Geräte-Konvergenz: beide Richtungen enden gewipt');
+    ok(V.canon(V.sanitizeEntries(V.mergeEntries(r1,r2).entries, now)[0])===V.canon(r1[0]),'zweite Sync-Runde ändert nichts mehr'); }
+
+  // --- Pipeline, Grenzen, Roundtrip ---
+  { const mix=[]; for(let i=0;i<150;i++) mix.push(del({title:'P'+i},1)); for(let i=0;i<10;i++) mix.push(V.sanitizeEntry(E({title:'L'+i})));
+    const s=V.sanitizeEntries(mix, now);
+    ok(V.liveCount(s)===10&&s.filter(e=>!V.isWiped(e)&&e.deleted).length===150,'Papierkorb zählt nicht gegen MAX_ENTRIES (10 live, 150 im Papierkorb)'); }
+  { const gone=del({title:'uralt'},V.TOMBSTONE_DAYS+1);
+    const s=V.sanitizeEntries([gone,alive], now);
+    ok(!s.find(e=>e.id===gone.id),'über TOMBSTONE_DAYS: erst gewipt, dann gedroppt — nie inhaltsvoll gedroppt'); }
+  { const dek=await V.newDek(); const kdf={m:8192,t:1,p:1,salt:V.rand(16)};
+    const body=await V.encryptBody({version:1,entries:[t1],settings:{},totp:null,meta:{}},dek,kdf);
+    const back=V.sanitizeVault(await V.decryptBody(body,dek,kdf), now).entries[0];
+    ok(back.title==='Proton'&&back.pass==='geheim'&&back.deleted===t1.deleted,'Papierkorb-Eintrag überlebt encryptBody/decryptBody/sanitizeVault mit Inhalt'); }
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);
