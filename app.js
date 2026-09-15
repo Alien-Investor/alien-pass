@@ -32,9 +32,9 @@ const I18N = {
   "lock.unlock":"Unlock",
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
   "help.hTrash":"Trash",
-  "help.pTrash":"Deleted entries go to the trash for <strong>30 days</strong> \u2014 the icon right of the <strong>+</strong> in the search row; the number next to it says how much is in there. It shows only <strong>title, type and date of deletion</strong>: no reveal, no copy. If you need the content, restore the entry first \u2014 it comes back complete, with password, extra fields and category. <strong>Honestly:</strong> while an entry sits in the trash it is also part of every backup. To get rid of something right away use \u201CDelete permanently\u201D or \u201CEmpty trash\u201D \u2014 that cannot be undone. After 30 days the app clears it out on the next unlock; after that, as before, only the deletion marker remains for a year, for syncing. <strong>A device running version 1.4 or older</strong> empties the trash when merging: the entries stay deleted, they never come back. Update every device first.",
+  "help.pTrash":"Deleted entries go to the trash for <strong>30 days</strong> \u2014 the icon right of the <strong>+</strong> in the search row; the number next to it says how much is in there. It shows only <strong>title, type and date of deletion</strong>: no reveal, no copy. If you need the content, restore the entry first \u2014 it comes back complete, with password, extra fields and category. <strong>The trash holds 200 entries</strong>; once it is full the next deletion destroys the oldest one immediately and for good, and the confirmation tells you which one. <strong>Honestly:</strong> while an entry sits in the trash it is also part of every backup of this device. To get rid of something right away use \u201CDelete permanently\u201D or \u201CEmpty trash\u201D \u2014 that cannot be undone. After 30 days the app clears it out on the next unlock; after that only the deletion marker remains, until a year after the deletion. <strong>The trash is device-local</strong> (since the September 2026 audit): a deletion travels to your other devices when merging, the <em>content</em> does not. So you can only restore on the device where you deleted. That is deliberate \u2014 otherwise a planted backup file could displace your entire trash. <strong>A device running version 1.4 or older</strong> empties the trash when merging: the entries stay deleted, they never come back.",
   "trash.title":"Trash",
-  "trash.intro":"Deleted entries stay here for <strong>30 days</strong> and can be brought back. After that the content is erased for good on the next unlock — only the deletion marker for syncing remains. <strong>While an entry sits here it is also part of every backup.</strong> \u201CDelete permanently\u201D destroys it right away. A device running version 1.4 or older empties the trash when merging.",
+  "trash.intro":"Deleted entries stay here for <strong>30 days</strong> and can be brought back, at most <strong>200</strong> at a time — once the trash is full, every further deletion destroys the oldest one straight away. After that the content is erased for good on the next unlock; the deletion marker for syncing remains until a year after the deletion. <strong>While an entry sits here it is also part of every backup of this device.</strong> \u201CDelete permanently\u201D destroys it right away. <strong>The trash is device-local:</strong> the deletion travels to your other devices when merging, the content does not — you can only restore where you deleted.",
   "trash.back":"Back to entries",
   "trash.emptyBtn":"Empty trash",
   "list.search":"Search (title, user, URL)…",
@@ -155,7 +155,8 @@ const T = {
   "toast.purged":{de:"Eintrag endgültig gelöscht",en:"Entry permanently deleted"},
   "toast.trashEmptied":{de:"Papierkorb geleert",en:"Trash emptied"},
   "trash.btn":{de:"Papierkorb",en:"Trash"},
-  "trash.count":{de:"{n} im Papierkorb — jeweils {d} Tage ab dem Löschen wiederherstellbar.",en:"{n} in the trash — each restorable for {d} days after deletion."},
+  "trash.count":{de:"{n} im Papierkorb — jeweils {d} Tage ab dem Löschen wiederherstellbar (höchstens {m}).",en:"{n} in the trash — each restorable for {d} days after deletion (at most {m})."},
+  "trash.countFull":{de:"{n} im Papierkorb — das ist die Höchstzahl. Jede weitere Löschung vernichtet die älteste sofort und endgültig.",en:"{n} in the trash — that is the maximum. Every further deletion destroys the oldest one immediately and for good."},
   "trash.empty":{de:"Der Papierkorb ist leer.",en:"The trash is empty."},
   "trash.untitled":{de:"(ohne Titel)",en:"(untitled)"},
   "trash.deletedOn":{de:"gelöscht am {d}",en:"deleted on {d}"},
@@ -230,6 +231,7 @@ const T = {
   "d.meta":{de:"Angelegt {c} · Geändert {u}",en:"Created {c} · Updated {u}"},
   "d.fav":{de:"★ Favorit",en:"★ Favourite"},"d.unfav":{de:"☆ Kein Favorit",en:"☆ Not a favourite"},
   "confirm.delete":{de:"Eintrag „{t}“ in den Papierkorb legen? {d} Tage wiederherstellbar, danach endgültig. (Wird beim Sync auf andere Geräte übernommen.)",en:"Move “{t}” to the trash? Restorable for {d} days, then gone for good. (Deletion syncs to other devices.)"},
+  "confirm.deleteFull":{de:"Eintrag „{t}“ in den Papierkorb legen? Der Papierkorb ist voll ({m}) — dabei wird „{o}“ (gelöscht am {od}) sofort und endgültig vernichtet. (Die Löschung wird beim Sync übernommen, der Papierkorb-Inhalt bleibt auf diesem Gerät.)",en:"Move “{t}” to the trash? The trash is full ({m}) — doing so destroys “{o}” (deleted on {od}) immediately and for good. (The deletion syncs to other devices, the trash content stays on this one.)"},
   "confirm.purge":{de:"„{t}“ endgültig löschen? Das lässt sich nicht rückgängig machen.",en:"Delete “{t}” permanently? This cannot be undone."},
   "confirm.emptyTrash":{de:"Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.",en:"Permanently delete all {n} entries in the trash? This cannot be undone."},
   "confirm.wipe":{de:"Den Tresor auf diesem Gerät wirklich löschen? Ohne Backup sind alle Passwörter weg.",en:"Really delete the vault on this device? Without a backup all passwords are gone."},
@@ -245,6 +247,7 @@ const T = {
   "bk.stale":{de:"⚠ Letztes Backup vor {d} Tagen — seitdem {n} Änderung(en).",en:"⚠ Last backup {d} days ago — {n} change(s) since."},
   "bk.readErr":{de:"Datei konnte nicht gelesen werden.",en:"Could not read the file."},
   "bk.merged":{de:"Zusammengeführt: {a} neu, {u} aktualisiert, {d} gelöscht ({t} Löschmarken in der Datei).",en:"Merged: {a} new, {u} updated, {d} deleted ({t} deletion markers in the file)."},
+  "bk.wiped":{de:"{n} eigene Papierkorb-Einträge wurden dabei geleert.",en:"{n} of your own trash entries were emptied in the process."},
   "bk.mergeFail":{de:"Falsche Passphrase oder beschädigte Datei.",en:"Wrong passphrase or damaged file."},
   "csv.unknown":{de:"Format nicht erkannt — Kopfzeile braucht mindestens Titel/Name und Passwort.",en:"Format not recognised — header needs at least title/name and password."},
   "csv.done":{de:"{n} Einträge importiert ({f}), {s} Dubletten übersprungen, {b} Zeilen unbrauchbar. Jetzt die CSV-Datei löschen!",en:"{n} entries imported ({f}), {s} duplicates skipped, {b} rows unusable. Delete the CSV file now!"},
@@ -361,8 +364,9 @@ const SETTINGS_ALLOWED={autolock:[0,1,2,5,15], bgLock:[0,30,60,300], clipClear:[
 const SETTINGS_DEFAULT={autolock:2, bgLock:30, clipClear:30};
 const TOMBSTONE_DAYS=365, MAX_TOMBSTONES=2000;   // Löschmarken zählen NICHT zum Eintrags-Cap, sind aber separat begrenzt
 // Papierkorb (v1.5): Inhalt gelöschter Einträge bleibt TRASH_DAYS erhalten, höchstens MAX_TRASH Stück.
-// TRASH_DAYS MUSS < TOMBSTONE_DAYS sein — sonst könnte purgeTombstones einen Papierkorb-Eintrag MIT Inhalt
-// droppen, statt ihn vorher auf die Löschmarke zurückzuschneiden.
+// TRASH_DAYS MUSS < TOMBSTONE_DAYS sein — sonst könnte der ALTERS-Zweig von purgeTombstones einen
+// Papierkorb-Eintrag MIT Inhalt droppen, statt ihn vorher auf die Löschmarke zurückzuschneiden.
+// Der ANZAHL-Zweig ist damit NICHT abgedeckt; er zählt seit Audit run-5 nur noch gewipte Marken.
 // MAX_TRASH ist die tragende Grenze, nicht Kosmetik: ein Eintrag kann ~22 KB tragen (notes 10k + pass 1k +
 // url 2k + 8 Zusatzfelder), 2000 davon sprengten die localStorage-Quota.
 const TRASH_DAYS=30, MAX_TRASH=200;
@@ -470,18 +474,49 @@ function sanitizeVault(v, now){
 // Merge (kommutativ, assoziativ, idempotent) — Ergebnis + Zähler. incoming ist bereits sanitisiert.
 function mergeEntries(local, incoming){
   const map=new Map(); for(const e of local){ const c=map.get(e.id); map.set(e.id, c?winner(c,e):e); }   // local defensiv deduplizieren (Kommutativität)
-  let added=0, updated=0, deleted=0;
+  let added=0, updated=0, deleted=0, wiped=0;
   for(const inc of dedupeEntries(incoming)){
     const loc=map.get(inc.id);
     if(!loc){ map.set(inc.id,inc); if(!inc.deleted) added++; continue; }
     const w=winner(loc,inc); if(w===loc) continue;
-    map.set(inc.id,inc); if(inc.deleted&&!loc.deleted) deleted++; else if(!inc.deleted) updated++;
+    // Jede Ersetzung wird gezählt (Audit run-5 #4): gelöscht→gelöscht fiel bisher durch beide Zweige, und eine
+    // Wiederauferstehung galt als „aktualisiert“, obwohl der Eintrag für den Nutzer NEU in der Liste steht.
+    map.set(inc.id,inc);
+    if(inc.deleted&&!loc.deleted) deleted++;
+    else if(!inc.deleted) (loc.deleted?added++:updated++);
+    else wiped++;
   }
-  return {entries:[...map.values()], added, updated, deleted, tombstonesIn:incoming.reduce((n,e)=>n+(e.deleted?1:0),0)};
+  return {entries:[...map.values()], added, updated, deleted, wiped, tombstonesIn:incoming.reduce((n,e)=>n+(e.deleted?1:0),0)};
 }
+// Nur GEWIPTE Löschmarken zählen gegen MAX_TOMBSTONES — ein Papierkorb-Eintrag mit Inhalt wird hier nie
+// entfernt (Audit run-5 #2: der Anzahl-Zweig verwarf ihn samt Inhalt, die Invariante oben deckte nur den Alters-Zweig).
+// wipeTrash hat inhaltsvolle Einträge bereits auf MAX_TRASH gekappt, sie brauchen die Marken-Quote nicht.
 function purgeTombstones(entries, now){ now=now||Date.now(); const kept=entries.filter(e=>!e.deleted || now-ts(e.deleted) < TOMBSTONE_DAYS*86400000);
-  const tombs=kept.filter(e=>e.deleted); if(tombs.length<=MAX_TOMBSTONES) return kept;
-  tombs.sort((a,b)=>ts(b.deleted)-ts(a.deleted)); const keep=new Set(tombs.slice(0,MAX_TOMBSTONES).map(e=>e.id)); return kept.filter(e=>!e.deleted||keep.has(e.id)); }
+  const tombs=kept.filter(e=>e.deleted&&isWiped(e)); if(tombs.length<=MAX_TOMBSTONES) return kept;
+  tombs.sort((a,b)=>ts(b.deleted)-ts(a.deleted)); const keep=new Set(tombs.slice(0,MAX_TOMBSTONES).map(e=>e.id)); return kept.filter(e=>!e.deleted||!isWiped(e)||keep.has(e.id)); }
+// Eingehende Einträge einer FREMDEN Datei zurechtschneiden, bevor sie in den Merge gehen (Audit run-5 #1/#2).
+// Drei Regeln, jede gegen einen belegten Angriff:
+//   1. Papierkorb-INHALT ist gerätelokal — eine Löschung reist als Marke, der Inhalt nie. Sonst belegen 200
+//      fremde Einträge (deren `deleted` die Klemmung auf now+2min zu den jüngsten macht) alle MAX_TRASH-Plätze
+//      und verdrängen den gesamten eigenen Papierkorb.
+//   2. Eine eingehende Marke verdrängt keinen eigenen Papierkorb-Eintrag, der dieselbe Löschung mit Inhalt
+//      festhält — sonst zerstörte schon der Rückweg vom eigenen Zweitgerät den eigenen Papierkorb.
+//   3. Marken zu IDs, die der Tresor nie gesehen hat, füllen nur den Rest des Marken-Deckels — sonst verdrängen
+//      2000 fremde Marken die eigenen, und ohne Marke holt das nächste eigene Backup Gelöschtes wieder lebend zurück.
+function shapeIncoming(local, incoming){
+  const mineTrash=new Map(), known=new Set(); let ownTombs=0;
+  for(const e of local){ known.add(e.id); if(e.deleted){ if(isWiped(e)) ownTombs++; else mineTrash.set(e.id,e); } }
+  let budget=Math.max(0, MAX_TOMBSTONES-ownTombs);
+  const out=[];
+  for(const e of incoming){
+    if(!e.deleted){ out.push(e); continue; }                   // lebende Einträge unverändert
+    const loc=mineTrash.get(e.id);
+    if(loc&&ts(e.updated)<=ts(loc.updated)) continue;          // Regel 2
+    if(!known.has(e.id)){ if(budget<=0) continue; budget--; }  // Regel 3
+    out.push(isWiped(e)?e:tombFrom(e));                        // Regel 1
+  }
+  return out;
+}
 // Löschmarken-Gestalt zu einem Eintrag: inhaltsleer, Zeitstempel unverändert. Basis von tombstone(), isWiped() und wipeTrash().
 function tombFrom(e){ return {id:e.id, type:'login', cat:'', title:'', user:'', email:'', pass:'', url:'', notes:'', totp:null, card:null, bank:null, extra:[], nowarn:false, fav:false, created:e.created, updated:e.updated, deleted:e.deleted}; }
 // Sofortige, endgültige Löschmarke: Inhalt weg UND updated=jetzt — schlägt damit jeden älteren Stand auf anderen Geräten.
@@ -835,10 +870,12 @@ const App = (function(){
   async function persist(){
     const dek=DEK, kdf=KDF, wrap=WRAP, vault=VAULT;          // Schlüssel-Generation pinnen (lock/changePass während des await)
     if(!dek||!vault) throw lockedErr();
+    const list=vault.entries;                                  // Eintragsstand mitpinnen (Audit run-5 #6)
     const entries=purgeTombstones(wipeTrash(vault.entries));   // Wipe/Purge erst NACH erfolgreichem Schreiben committen
     const body=await encryptBody(Object.assign({},vault,{entries}), dek, kdf);
     // Nachprüfen: das Pinnen allein genügt nicht, der Stand kann während des await veraltet sein (Querfund Sachwert-Tresor v2.9.1).
     if(!DEK||VAULT!==vault) throw lockedErr();                 // zwischenzeitlich gesperrt → NICHT mehr schreiben
+    if(vault.entries!==list) return persist();                 // Eintragsstand veraltet → neu rechnen statt den alten committen
     if(DEK!==dek||KDF!==kdf||WRAP!==wrap) return persist();    // Passphrase gewechselt → mit dem neuen Schlüssel neu verschlüsseln,
                                                                // sonst überschriebe dieser alte Blob den frischen von changePass
     const s=serializeFile(kdf, wrap, body);
@@ -1214,7 +1251,11 @@ const App = (function(){
   function toggleReveal(which){ which=which||'pass'; const e=byId(currentId), v=$('d-'+which), btn=$('d-reveal-'+which); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?fieldValue(e,which):'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
   function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,/^x\d+$/.test(which)?'what.extra':'what.'+which); }
   function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(rollback(snapshot)); }
-  function deleteCurrent(){ const e=byId(currentId); if(!e) return; if(!confirm(tr('confirm.delete',{t:e.title,d:TRASH_DAYS}))) return;
+  function deleteCurrent(){ const e=byId(currentId); if(!e) return;
+    // Bei vollem Papierkorb vernichtet diese Löschung die älteste — das muss dastehen, bevor der Nutzer zustimmt (Audit run-5 #1).
+    const t=trash(), full=t.length>=MAX_TRASH, oldest=full?t[t.length-1]:null;
+    if(!confirm(full?tr('confirm.deleteFull',{t:e.title,m:MAX_TRASH,o:oldest.title||tr('trash.untitled'),od:fmtDate(oldest.deleted)})
+                    :tr('confirm.delete',{t:e.title,d:TRASH_DAYS}))) return;
     const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(), iso=nowIso();
     VAULT.entries[idx]=Object.assign({},e,{updated:iso, deleted:iso});     // in den Papierkorb — der Inhalt bleibt TRASH_DAYS erhalten
     persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.trashed',{d:TRASH_DAYS})); }).catch(rollback(snapshot)); }
@@ -1230,7 +1271,7 @@ const App = (function(){
     if(!VAULT) return;
     const list=$('trash-list'); list.replaceChildren();
     const items=trash();
-    $('trash-msg').textContent=items.length?tr('trash.count',{n:items.length,d:TRASH_DAYS}):'';
+    $('trash-msg').textContent=items.length?(items.length>=MAX_TRASH?tr('trash.countFull',{n:items.length}):tr('trash.count',{n:items.length,d:TRASH_DAYS,m:MAX_TRASH})):'';
     $('trash-empty-btn').classList.toggle('hidden',!items.length);
     renderTrashBtn();
     if(!items.length){ list.appendChild(el('div','empty',tr('trash.empty'))); return; }
@@ -1317,6 +1358,9 @@ const App = (function(){
   async function exportVault(){
     if(!VAULT||exportVault._busy) return; exportVault._busy=true;
     try{
+      // Erst persistieren, dann lesen: sonst exportiert die Datei den Stand VOR dem Aufräumen beim Entsperren
+      // und trägt Papierkorb-Inhalte, die die App längst als geräumt anzeigt (Audit run-5 #3).
+      try{ await persist(); }catch(e){ if(e&&e.locked) return; }
       const raw=localStorage.getItem(LS_KEY); const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
       // Erst die Datei schreiben — der Backup-Stempel darf nur nach Erfolg gesetzt werden
       try{ if(isNative){
@@ -1350,10 +1394,11 @@ const App = (function(){
       try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); incoming=sanitizeVault(obj).entries; }
       catch(e){ $('import-pass').value=''; if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
       if(!VAULT||!DEK) return;                                   // während des Argon2-Laufs gesperrt → sauber abbrechen
+      incoming=shapeIncoming(VAULT.entries, incoming);          // Papierkorb-Inhalt bleibt gerätelokal, fremde Marken verdrängen keine eigenen (Audit run-5)
       const before=VAULT.entries.slice(); const m=mergeEntries(VAULT.entries, incoming);
       if(liveCount(m.entries)>MAX_ENTRIES){ $('import-msg').textContent=tr('err.tooMany'); return; }
       VAULT.entries=m.entries;
-      try{ await persist(); if(!VAULT) return; $('import-msg').textContent=tr('bk.merged',{a:m.added,u:m.updated,d:m.deleted,t:m.tombstonesIn}); cancelImport(); renderList(); }
+      try{ await persist(); if(!VAULT) return; $('import-msg').textContent=tr('bk.merged',{a:m.added,u:m.updated,d:m.deleted,t:m.tombstonesIn})+(m.wiped?' '+tr('bk.wiped',{n:m.wiped}):''); cancelImport(); renderList(); }
       catch(e){ if(!(e&&e.locked)&&VAULT) VAULT.entries=before; }
     }finally{ doImportVault._busy=false; btn.disabled=false; btn.textContent=orig; }
   }
@@ -1563,7 +1608,7 @@ const App = (function(){
       DEK=dek; KDF=kdf; WRAP=wrap;
       // Bei .locked NICHT zurückrollen: die Sitzung ist zwischendurch gesperrt worden, die alten Schlüssel wiederherzustellen
       // würde eine gesperrte Sitzung wiederbeleben (DEK/KDF/WRAP sind bereits genullt).
-      try{ await persist(); }catch(e){ if(!(e&&e.locked)){ DEK=old.DEK; KDF=old.KDF; WRAP=old.WRAP; } return; }
+      try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT){ DEK=old.DEK; KDF=old.KDF; WRAP=old.WRAP; } return; }
       const hadBio=bioArmed||!!bioBlob()||bioMarker(); if(hadBio) bioDrop(true); bioGen++;   // neuer DEK/Salt: alter Slot passt nicht mehr → bewusst neu aktivieren; bioGen++ lässt auch einen laufenden enroll verfallen (Audit run-3 #5)
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr(hadBio?'toast.passChangedBio':'toast.passChanged')); renderSettings();
     }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; }

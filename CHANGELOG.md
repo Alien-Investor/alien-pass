@@ -1,13 +1,22 @@
 # Changelog — Alien Pass
 
 ## v1.5 — 2026-09-15
+- **Sicherheits-Audit run-5 (15.09.2026) vor der Auslieferung:** Drei Funde mittleren Schweregrads, alle behoben. (1) Eine untergeschobene
+  `.vault` von 79 KB konnte den **kompletten eigenen Papierkorb** verdrängen — die Einträge einer fremden Datei bekommen beim Einlesen
+  immer den jüngsten Löschzeitpunkt und drängten die eigenen aus dem 200er-Deckel. (2) Dieselbe Mechanik eine Ebene höher verdrängte die
+  **Löschmarken**; ohne Marke holte das nächste Einspielen eines älteren eigenen Backups gelöschte Einträge **wieder lebendig zurück**,
+  auch solche, die über „Endgültig löschen“ vernichtet worden waren — dieser Teil betraf auch v1.4 und früher. (3) Ein Backup, das direkt
+  nach dem Entsperren erstellt wurde, enthielt noch Papierkorb-Inhalte, die die App im selben Moment als geräumt anzeigte.
+  **Die Folge für dich:** der Papierkorb ist jetzt **gerätelokal** — beim Zusammenführen wandert die Löschung auf deine anderen Geräte,
+  der Inhalt nicht. Wiederherstellen geht nur dort, wo du gelöscht hast. Außerdem nennt die App den 200er-Deckel jetzt überall, wo sie
+  vorher nur „30 Tage“ versprach, und die Rückfrage sagt dir, welcher Eintrag bei vollem Papierkorb vernichtet wird.
 - **Papierkorb:** Gelöschte Einträge landen für **30 Tage** im Papierkorb und lassen sich vollständig zurückholen — bisher war Löschen
   sofort und unwiderruflich. Der Papierkorb hängt am Symbol rechts neben dem `+` in der Suchzeile; die Zahl daneben sagt, wie viel drin ist.
   Er zeigt **nur Titel, Typ und Löschdatum** — kein Aufdecken, kein Kopieren. Wer den Inhalt braucht, stellt erst wieder her.
   „Endgültig löschen“ und „Papierkorb leeren“ vernichten sofort. Nach 30 Tagen räumt die App beim nächsten Entsperren selbst auf;
   danach bleibt wie bisher ein Jahr lang nur die Löschmarke für den Abgleich zwischen Geräten.
-  **Ehrlich dazu:** Solange ein Eintrag im Papierkorb liegt, steht er auch in jedem Backup. Wer etwas wirklich sofort loswerden will,
-  nutzt „Endgültig löschen“. Ein Gerät mit v1.4 oder älter leert den Papierkorb beim Zusammenführen — dort bleiben die Einträge gelöscht,
+  **Ehrlich dazu:** Solange ein Eintrag im Papierkorb liegt, steht er auch in jedem Backup dieses Geräts. Wer etwas wirklich sofort
+  loswerden will, nutzt „Endgültig löschen“. Mehr als 200 Einträge fasst der Papierkorb nicht. Ein Gerät mit v1.4 oder älter leert den Papierkorb beim Zusammenführen — dort bleiben die Einträge gelöscht,
   sie tauchen nie wieder auf.
 - **Eigene Auswahl- und Vorschlagsfelder:** Die Kategorie-Vorschläge beim Bearbeiten und die sechs Auswahlfelder (Schlüsselableitung,
   Trenner, Auto-Sperre, Hintergrund, Zwischenablage) klappten bisher als graue Systemliste auf. Jetzt öffnen sie im Stil der App, mit

@@ -63,17 +63,21 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   Die Bezeichnung ist durchsuchbar, der Wert nie.
 - **Typwechsel mit Rückfrage**: Wird ein Login nachträglich zur Notiz, Karte oder zum Konto, gehen Passwort/TOTP verloren — die App nennt
   die Felder und fragt; Importe melden gekürzte Notizen (Cap 10.000 Zeichen) und überspringen nur echte Dubletten.
-- **Papierkorb**: Gelöschtes bleibt **30 Tage** wiederherstellbar (Symbol rechts neben dem `+` in der Suchzeile, mit Zähler). Der
-  Papierkorb zeigt nur Titel, Typ und Löschdatum — kein Aufdecken, kein Kopieren; wer den Inhalt braucht, stellt erst wieder her.
-  „Endgültig löschen“ und „Papierkorb leeren“ vernichten sofort. **Solange ein Eintrag im Papierkorb liegt, steht er auch in jedem
-  Backup.** Nach 30 Tagen räumt die App beim nächsten Entsperren selbst auf.
+- **Papierkorb**: Gelöschtes bleibt **30 Tage** wiederherstellbar (Symbol rechts neben dem `+` in der Suchzeile, mit Zähler), höchstens
+  **200 Einträge** gleichzeitig — ist der Papierkorb voll, vernichtet die nächste Löschung die älteste sofort, und die Rückfrage sagt,
+  welche das ist. Der Papierkorb zeigt nur Titel, Typ und Löschdatum — kein Aufdecken, kein Kopieren; wer den Inhalt braucht, stellt erst
+  wieder her. „Endgültig löschen“ und „Papierkorb leeren“ vernichten sofort. **Solange ein Eintrag im Papierkorb liegt, steht er auch in
+  jedem Backup dieses Geräts.** Nach 30 Tagen räumt die App beim nächsten Entsperren selbst auf.
+  **Der Papierkorb ist gerätelokal**: beim Zusammenführen wandert die *Löschung* auf die anderen Geräte, der *Inhalt* nicht —
+  wiederherstellen lässt sich ein Eintrag nur dort, wo er gelöscht wurde. Das ist Absicht (siehe [Sicherheit](#sicherheit)).
 - **Aegis-Hürde** (optional): nach der Passphrase zusätzlich ein TOTP-Code aus Aegis. Ehrlich benannt als *Hürde*, nicht als
   zweiter Faktor — siehe [Sicherheit](#sicherheit).
 - **Auto-Lock**: nach Inaktivität (1–15 min oder aus) und im Hintergrund (sofort / 30 s / 1 min / 5 min).
 - **Verschlüsseltes Backup** (`.vault`) und **Zusammenführen** zwischen Geräten: je Eintrag gewinnt
   die neuere Änderung, Löschungen werden ein Jahr lang mitgeführt. Die Datei darf eine andere
-  Passphrase haben. Sync z.B. über Syncthing. Ein Gerät mit v1.4 oder älter leert den Papierkorb beim Zusammenführen — die Einträge
-  bleiben dort gelöscht, sie tauchen nie wieder auf. Erst alle Geräte aktualisieren.
+  Passphrase haben. Sync z.B. über Syncthing. Papierkorb-Inhalt reist dabei nie mit, nur die Löschung selbst.
+  Ein Gerät mit v1.4 oder älter leert den Papierkorb beim Zusammenführen — die Einträge bleiben dort gelöscht, sie tauchen nie wieder
+  auf. Erst alle Geräte aktualisieren.
 - **Umzug aus Proton Pass direkt aus dem Export** — PGP-verschlüsselt (von Proton empfohlen), ZIP oder JSON: Logins inkl. TOTP,
   Notizen, Kreditkarten, Aliase, WLAN, Identitäten, SSH-Schlüssel; Proton-Tresore werden zu Kategorien, Angepinntes zu Favoriten,
   versteckte Zusatzfelder zu geheimen Zusatzfeldern.
@@ -93,9 +97,12 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   (8–256 MiB, 1–16 Durchgänge, Arbeitsbudget), keine Übergröße, keine Fremdfelder. Alle Inhalte laufen durch
   eine Feld-Whitelist — auch der lokale Tresor beim Entsperren. Höchstens 10.000 aktive Einträge; Löschmarken
   zählen nicht mit und werden auf 2.000 begrenzt, damit eine fremde Datei den Tresor nicht zufüllen kann.
-  Der Papierkorb ist zusätzlich auf 200 Einträge begrenzt (darüber weichen die ältesten Löschungen), und eine fremde Datei kann darin
-  nur Einträge unterbringen, deren Löschung nach der Uhr des eigenen Geräts jünger als 30 Tage ist — alles Ältere kommt schon beim
-  Einlesen inhaltsleer an.
+  Der Papierkorb ist zusätzlich auf 200 Einträge begrenzt (darüber weichen die ältesten eigenen Löschungen).
+  **Eine fremde Datei kann darin gar nichts unterbringen**: Papierkorb-Inhalt ist gerätelokal, eingelesene Löschungen kommen
+  ausschließlich als inhaltsleere Löschmarke an, und Marken zu unbekannten Einträgen füllen nur den Platz, den die eigenen übrig lassen.
+  Ohne diese Regeln konnte eine untergeschobene Datei von 79 KB den gesamten eigenen Papierkorb verdrängen und — über die Löschmarken —
+  endgültig gelöschte Einträge beim nächsten Einspielen eines älteren eigenen Backups wieder lebendig machen (Audit run-5, 15.09.2026;
+  die zweite Hälfte betraf auch v1.4 und früher).
 - **Keine INTERNET-Permission**: Die Android-App fordert genau zwei normale Berechtigungen an, beide für den Fingerabdrucksensor (seit v1.2):
   `USE_BIOMETRIC` und `USE_FINGERPRINT` (letztere nur bis Android 8.1, `maxSdkVersion=27`, mitgebracht von der AndroidX-Biometrie-Bibliothek).
   Kein Internet, keine Dateien, keine Kontakte. Dass sie nicht nach Hause funken *kann*, erzwingt das Betriebssystem — im Manifest der
