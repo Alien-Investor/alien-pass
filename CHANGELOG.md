@@ -1,5 +1,15 @@
 # Changelog — Alien Pass
 
+## v1.5.1 — 2026-09-16
+- **Auge im Passwortfeld:** Statt des Kästchens „Passwort anzeigen“ sitzt jetzt rechts in jedem Passwortfeld ein Auge — beim Einrichten,
+  Entsperren, im Eintrag (Passwort, Kartendaten, PIN), bei Fingerabdruck und Passphrase-Wechsel und neu auch bei den Passphrasen für den
+  Backup- und Proton-Import. Das Auge zeigt nur sein eigenes Feld; Tastatur und Cursor bleiben beim Antippen im Feld.
+  **Zusatzfelder** haben je Wert ein eigenes Auge statt eines gemeinsamen Schalters; eine neue Zeile ist immer verdeckt.
+  Beim Sperren und im Hintergrund gehen wie bisher alle Felder wieder zu.
+- **Kästchen im Neon-Look:** Die übrigen Kästchen (Generator-Optionen, Favorit, „kein längeres Passwort“) waren weiß mit blauem Haken
+  im Android-Standard. Jetzt: leer dunkel mit Cyan-Rand, angehakt Cyan mit dunklem Haken — in beiden Darstellungen.
+- Nur Oberfläche: Tresor-Format, Verschlüsselung, Import und Berechtigungen sind unverändert.
+
 ## v1.5 — 2026-09-15
 - **Sicherheits-Audit run-5 (15.09.2026) vor der Auslieferung:** Drei Funde mittleren Schweregrads, alle behoben. (1) Eine untergeschobene
   `.vault` von 79 KB konnte den **kompletten eigenen Papierkorb** verdrängen — die Einträge einer fremden Datei bekommen beim Einlesen

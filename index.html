@@ -62,6 +62,27 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 label{display:block;font-size:.72rem;letter-spacing:1px;color:var(--text-mid);margin:10px 0 4px;text-transform:uppercase;}
 label.chk{display:flex;gap:6px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-size:.8rem;}
 label.chk input{width:auto;}
+input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:none;width:18px;height:18px;padding:0;margin:0;border:1px solid var(--neon-mid);border-radius:3px;background:rgba(0,0,0,.4) center/14px 14px no-repeat;cursor:pointer;transition:background-color .15s,box-shadow .15s;}
+label.chk input[type=checkbox]{width:18px;}
+input[type=checkbox]:checked{background-color:var(--neon);border-color:var(--neon);box-shadow:0 0 8px var(--neon-mid);
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+input[type=checkbox]:focus{box-shadow:none;}
+input[type=checkbox]:focus-visible{outline:none;box-shadow:0 0 0 2px var(--neon-mid);}
+input[type=checkbox]:checked:focus{box-shadow:0 0 8px var(--neon-mid);}
+input[type=checkbox]:disabled{opacity:.4;cursor:default;}
+/* Auge im Passwortfeld (statt „anzeigen“-Kästchen): Knopf data-showpass, Zustand aria-pressed, Symbol als Maske in Theme-Farbe */
+.pw-wrap{position:relative;flex:1;min-width:0;}
+.pw-wrap input{padding-right:40px;}
+.pw-eye{position:absolute;top:0;right:0;bottom:0;width:38px;padding:0;margin:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pw-eye::before{content:'';width:19px;height:19px;background:var(--text-mid);
+ -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;
+ mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;}
+.pw-eye[aria-pressed="true"]::before{background:var(--neon);
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.9 4.2A11 11 0 0 1 12 4c7 0 11 8 11 8a18 18 0 0 1-2.3 3.3'/%3E%3Cpath d='M6.6 6.6A18 18 0 0 0 1 12s4 8 11 8a11 11 0 0 0 5.4-1.4'/%3E%3Cpath d='M9.9 9.9a3 3 0 0 0 4.2 4.2'/%3E%3Cpath d='M2 2l20 20'/%3E%3C/svg%3E");
+ mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.9 4.2A11 11 0 0 1 12 4c7 0 11 8 11 8a18 18 0 0 1-2.3 3.3'/%3E%3Cpath d='M6.6 6.6A18 18 0 0 0 1 12s4 8 11 8a11 11 0 0 0 5.4-1.4'/%3E%3Cpath d='M9.9 9.9a3 3 0 0 0 4.2 4.2'/%3E%3Cpath d='M2 2l20 20'/%3E%3C/svg%3E");}
+.pw-eye:hover::before{background:var(--neon);}
+.pw-eye:focus-visible{outline:none;}
+.pw-eye:focus-visible::before{background:var(--neon);filter:drop-shadow(0 0 4px var(--neon-mid));}
 input,select,textarea{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:3px;color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:.9rem;padding:9px 10px;}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--neon-mid);box-shadow:0 0 8px rgba(0,255,204,.25);}
 textarea{min-height:80px;resize:vertical;}
@@ -215,7 +236,6 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
       <div id="setup-meter" class="meter"></div>
       <label data-i18n="setup.repeat">Passphrase wiederholen</label>
       <input id="setup-pass2" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false" data-enter="doSetup">
-      <label class="chk" style="margin-top:8px"><input type="checkbox" id="setup-show" data-showpass="setup-pass1,setup-pass2"> <span data-i18n="setup.showpass">Passphrase anzeigen (zum Kontrollieren)</span></label>
       <button class="btn ghost sm" style="margin-top:10px" data-action="suggestPass" data-i18n="setup.suggest">Passphrase vorschlagen (6 Würfelwörter)</button>
       <label style="margin-top:14px" data-i18n="setup.kdf">Schlüsselableitung (Argon2id)</label>
       <div class="combo">
@@ -240,7 +260,6 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
       <h2 data-i18n="lock.title">Tresor entsperren</h2>
       <label data-i18n="lbl.passphrase">Passphrase</label>
       <input id="lock-pass" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" data-enter="doUnlock">
-      <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="lock-pass"> <span data-i18n="lock.showpass">Passphrase anzeigen</span></label>
       <div id="lock-err" class="warn hidden" style="margin-top:12px"></div>
       <button id="unlock-btn" class="btn" style="margin-top:16px;width:100%" data-action="doUnlock" data-i18n="lock.unlock">Entsperren</button>
       <button id="bio-btn" class="btn ghost hidden" style="margin-top:10px;width:100%" data-action="doBio"><svg class="ic" viewBox="0 0 24 24"><path d="M7 8.5a6 6 0 0 1 10 0"/><path d="M5.5 12a7.5 7.5 0 0 1 13 0"/><path d="M8.5 12a4 4 0 0 1 7 0v2a5 5 0 0 1-2 4"/><path d="M12 11.5v3a6 6 0 0 0 3 5"/><path d="M9 16.5a8 8 0 0 0 1.5 3"/></svg> <span data-i18n="lock.bio">Mit Fingerabdruck entsperren</span></button>
@@ -327,7 +346,7 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
           <input id="f-email" type="text" maxlength="200" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false">
           <label data-i18n="f.pass">Passwort</label>
           <div style="display:flex;gap:8px">
-            <input id="f-pass" type="password" maxlength="1000" autocomplete="off" autocapitalize="none" spellcheck="false" style="flex:1">
+            <input id="f-pass" type="password" maxlength="1000" autocomplete="off" autocapitalize="none" spellcheck="false">
             <button class="btn sm ghost" data-action="genIntoForm" title="Generieren" data-i18n="f.gen">Generieren</button>
           </div>
           <div id="fg-panel" class="fg-panel hidden">
@@ -367,7 +386,6 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
               <button class="btn sm ghost" data-action="fgClose" data-i18n="gen.done">Fertig</button>
             </div>
           </div>
-          <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-pass"> <span data-i18n="f.showpass">Passwort anzeigen</span></label>
           <div id="f-meter" class="meter"></div>
           <label class="chk" style="margin-top:6px"><input type="checkbox" id="f-nowarn"> <span data-i18n="f.nowarn">Dienst erlaubt kein längeres Passwort (keine „kurz“-Warnung)</span></label>
           <label data-i18n="f.url">URL / App</label>
@@ -385,7 +403,6 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
             <div><label data-i18n="f.cvv">Prüfnummer (CVV)</label><input id="f-cvv" type="password" maxlength="8" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
             <div><label data-i18n="f.pin">PIN (optional)</label><input id="f-pin" type="password" maxlength="12" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
           </div>
-          <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-number,f-cvv,f-pin"> <span data-i18n="f.showcard">Kartendaten anzeigen</span></label>
         </div>
         <div id="grp-bank" class="hidden">
           <label data-i18n="f.bholder">Kontoinhaber</label>
@@ -397,12 +414,10 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
             <div><label data-i18n="f.bank">Bank</label><input id="f-bank" type="text" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
             <div><label data-i18n="f.bpin">PIN (optional)</label><input id="f-bpin" type="password" maxlength="12" inputmode="numeric" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
           </div>
-          <label class="chk" style="margin-top:6px"><input type="checkbox" data-showpass="f-bpin"> <span data-i18n="f.showbank">PIN anzeigen</span></label>
         </div>
         <label data-i18n="f.extra">Zusatzfelder (geheim, z.B. App-PIN)</label>
         <div id="f-extra"></div>
         <div><button id="f-xadd" class="btn sm ghost" data-action="addExtraRow" data-i18n="f.extraAdd">+ Zusatzfeld</button></div>
-        <label class="chk hidden" id="f-xshow-wrap" style="margin-top:6px"><input type="checkbox" id="f-xshow" data-showpass=""> <span data-i18n="f.extraShow">Zusatzfelder anzeigen</span></label>
         <label data-i18n="f.notes">Notizen</label>
         <textarea id="f-notes" maxlength="10000" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
         <label class="chk" style="margin-top:10px"><input type="checkbox" id="f-fav"> <span data-i18n="f.fav">Favorit (oben in der Liste)</span></label>
@@ -583,7 +598,6 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         <div id="bio-off">
           <p class="muted" data-i18n-html="set.bioOffIntro">Entsperrt den Tresor mit dem Fingerabdruck des Geräts statt mit der Passphrase. <strong>Ehrlich gesagt:</strong> Ein Fingerabdruck ist bequem, aber erzwingbar — an einer Grenze oder von jemandem, der deine Hand führt. Android bindet den Schlüssel an jede starke Biometrie des Geräts: Wo eine starke Gesichtserkennung eingerichtet ist (manche Stock-Pixel; auf GrapheneOS nicht), öffnet auch sie den Tresor, nach einem Bestätigungs-Tipp. Die Passphrase bleibt der eigentliche Schutz: Sie wird nach jedem Neustart des Handys verlangt, nach einem Passphrase-Wechsel und sobald ein neuer Fingerabdruck im System eingerichtet wird. Technisch schließt ein vom Android-Keystore verwahrter Zufallsschlüssel den Datenschlüssel auf; nichts davon gelangt in Backups.</p>
           <label data-i18n="set.bioPass">Passphrase zur Bestätigung</label><input id="bio-pass" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" data-enter="bioEnable">
-          <label class="chk" style="margin-top:8px"><input type="checkbox" data-showpass="bio-pass"> <span data-i18n="lock.showpass">Passphrase anzeigen</span></label>
           <div id="bio-err" class="warn hidden" style="margin-top:10px"></div>
           <button id="bio-btn-on" class="btn" style="margin-top:12px" data-action="bioEnable" data-i18n="set.bioEnable">Fingerabdruck aktivieren</button>
         </div>
@@ -598,7 +612,6 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
         <label data-i18n="set.cpNew">Neue Passphrase</label><input id="cp1" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false" data-input="meterCp">
         <div id="cp-meter" class="meter"></div>
         <label data-i18n="set.cpRepeat">Wiederholen</label><input id="cp2" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false">
-        <label class="chk" style="margin-top:8px"><input type="checkbox" data-showpass="cp-cur,cp1,cp2"> <span data-i18n="set.cpShow">Passphrasen anzeigen</span></label>
         <div id="cp-err" class="warn hidden" style="margin-top:10px"></div>
         <button id="cp-btn" class="btn" style="margin-top:12px" data-action="changePass" data-i18n="set.cpBtn">Ändern</button>
         <p class="muted" style="margin-top:10px" data-i18n="set.cpNote">Beim Wechsel wird auch der interne Datenschlüssel erneuert. Bereits exportierte .vault-Backups behalten ihre alte Passphrase.</p>

@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.5';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.5.1';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -20,7 +20,7 @@ const I18N = {
   "lbl.passphrase":"Passphrase",
   "setup.ph1":"min. 12 characters, better a word sequence",
   "setup.repeat":"Repeat passphrase",
-  "setup.showpass":"Show passphrase (to double-check)",
+  
   "setup.suggest":"Suggest passphrase (6 dice words)",
   "setup.kdf":"Key derivation (Argon2id)",
   "setup.kdfLight":"Light — 32 MiB (older devices)",
@@ -28,7 +28,7 @@ const I18N = {
   "setup.kdfStrong":"Strong — 128 MiB",
   "setup.create":"Create vault",
   "lock.title":"Unlock vault",
-  "lock.showpass":"Show passphrase",
+  
   "lock.unlock":"Unlock",
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
   "help.hTrash":"Trash",
@@ -40,14 +40,14 @@ const I18N = {
   "list.search":"Search (title, user, URL)…",
   "add.titleNew":"New entry",
   "f.title":"Title *","f.titlePh":"e.g. Proton Mail","f.user":"Username / e-mail","f.email":"E-mail (optional, in addition to the username)","f.pass":"Password","f.gen":"Generate",
-  "f.showpass":"Show password","f.url":"URL / app","f.totp":"TOTP secret (optional)","f.totpPh":"Base32 secret or otpauth:// link",
+  "f.url":"URL / app","f.totp":"TOTP secret (optional)","f.totpPh":"Base32 secret or otpauth:// link",
   "f.notes":"Notes","f.fav":"Favourite (top of the list)","add.save":"Save","btn.cancel":"Cancel",
   "type.login":"Login","type.note":"Note","type.card":"Card","type.bank":"Account",
   "f.cat":"Category (folder)","f.catPh":"e.g. Private, Work, Finance — empty = none",
   "f.nowarn":"Service does not allow a longer password (no “short” warning)",
-  "f.holder":"Cardholder","f.number":"Card number","f.expiry":"Valid until","f.cvv":"Security code (CVV)","f.pin":"PIN (optional)","f.showcard":"Show card data",
-  "f.bholder":"Account holder","f.iban":"IBAN / account number","f.bic":"BIC / SWIFT","f.bank":"Bank","f.bpin":"PIN (optional)","f.showbank":"Show PIN",
-  "f.extra":"Extra fields (secret, e.g. app PIN)","f.extraAdd":"+ Extra field","f.extraShow":"Show extra fields",
+  "f.holder":"Cardholder","f.number":"Card number","f.expiry":"Valid until","f.cvv":"Security code (CVV)","f.pin":"PIN (optional)",
+  "f.bholder":"Account holder","f.iban":"IBAN / account number","f.bic":"BIC / SWIFT","f.bank":"Bank","f.bpin":"PIN (optional)",
+  "f.extra":"Extra fields (secret, e.g. app PIN)","f.extraAdd":"+ Extra field",
   "totp.title":"Second factor","totp.intro":"Enter the current 6-digit code from your <strong>Aegis 2FA manager</strong>.","totp.confirm":"Confirm",
   "pt.title":"Migrate from Proton Pass (PGP / ZIP / JSON)",
   "pt.intro":"Reads the Proton export directly — preferably the <strong>PGP-encrypted</strong> variant (Proton's recommendation): the file can travel to the phone safely and is only decrypted here with its passphrase. Logins, notes, credit cards, aliases, Wi-Fi and identities come over; Proton vaults become categories. The trash is left out.",
@@ -88,7 +88,7 @@ const I18N = {
   "set.bioDisable":"Disable fingerprint",
   "help.h5c":"Fingerprint unlock",
   "help.p5c":"Optionally the device fingerprint unlocks the vault (Settings → Fingerprint, Android app only). <strong>How it works:</strong> the data key is additionally wrapped under a random key; the Android keystore holds that key and releases it only after a strong fingerprint, freshly each time. The vault file itself stays unchanged and backups carry none of it. <strong>What it costs:</strong> a fingerprint is not a secret. It can be forced — by someone guiding your hand, or at a border; the passphrase in your head cannot. That is why the app demands the passphrase after every restart of the phone (at the next start the fingerprint slot is discarded and, after the passphrase, re-created with fresh randomness), after a passphrase change and as soon as a new fingerprint is enrolled in the system. The restart rule is a rule in the code, not a cryptographic guarantee. <strong>Which biometrics count:</strong> Android binds the key to every biometric of the 'strong' class on the device. Where a strong face unlock is enrolled (some stock Pixels; GrapheneOS has none), it opens the vault too, after a confirmation tap. <strong>The deliberate bolt:</strong> 'Lock now' in Settings means the next start requires the passphrase — no fingerprint button, no prompt; afterwards the fingerprint works again without re-enabling. Use it before a border, before handing the phone over, whenever a finger could be forced. When in doubt: restart the phone, then only the passphrase counts.",
-  "set.cpTitle":"Change passphrase","set.cpCur":"Current passphrase","set.cpNew":"New passphrase","set.cpRepeat":"Repeat","set.cpShow":"Show passphrases","set.cpBtn":"Change",
+  "set.cpTitle":"Change passphrase","set.cpCur":"Current passphrase","set.cpNew":"New passphrase","set.cpRepeat":"Repeat","set.cpBtn":"Change",
   "set.cpNote":"Changing the passphrase also rotates the internal data key. Backups exported earlier keep their old passphrase.",
   "set.themeTitle":"Appearance","set.themeDark":"Black (Neon)","set.themeSoft":"Soft (Navy)",
   "set.dangerTitle":"Danger zone","set.wipe":"Delete vault on this device",
@@ -135,7 +135,7 @@ const T = {
   "err.titleReq":{de:"Bitte einen Titel angeben.",en:"Please enter a title."},
   "err.extraHalf":{de:"Zusatzfeld {n}: Bezeichnung und Wert gehören zusammen — bitte beides ausfüllen oder die Zeile entfernen.",en:"Extra field {n}: label and value belong together — fill in both or remove the row."},
   "err.extraMax":{de:"Höchstens {n} Zusatzfelder je Eintrag.",en:"At most {n} extra fields per entry."},
-  "f.extraName":{de:"Bezeichnung, z.B. App-PIN",en:"Label, e.g. app PIN"},"f.extraVal":{de:"Wert (geheim)",en:"Value (secret)"},"f.extraDel":{de:"Zusatzfeld entfernen",en:"Remove extra field"},
+  "f.extraName":{de:"Bezeichnung, z.B. App-PIN",en:"Label, e.g. app PIN"},"f.extraVal":{de:"Wert (geheim)",en:"Value (secret)"},"f.extraDel":{de:"Zusatzfeld entfernen",en:"Remove extra field"},"pw.toggle":{de:"Anzeigen / verbergen",en:"Show / hide"},
   "err.totpBad":{de:"TOTP-Schlüssel ungültig (Base32 oder otpauth://-Link erwartet).",en:"Invalid TOTP secret (expected Base32 or otpauth:// link)."},
   "err.cpShort":{de:"Neue Passphrase: mindestens 12 Zeichen.",en:"New passphrase: at least 12 characters."},
   "err.cpMismatch":{de:"Die neuen Passphrasen stimmen nicht überein.",en:"New passphrases do not match."},
@@ -280,6 +280,7 @@ function applyI18n(){
   });
   document.documentElement.setAttribute('lang',LANG);
   const lb=document.getElementById('lang-btn'); if(lb) lb.textContent=(LANG==='de'?'DE':'EN');
+  document.querySelectorAll('.pw-eye').forEach(b=>{ b.title=tr('pw.toggle'); });
   if(typeof App!=='undefined'&&App.syncCombos) App.syncCombos();   // Optionen tragen data-i18n → Knopfbeschriftung nachziehen
 }
 function setLang(l){ LANG=l; try{localStorage.setItem(LANG_KEY,l);}catch(_){ } applyI18n(); if(typeof App!=='undefined'&&App.relabel) App.relabel(); }
@@ -978,9 +979,15 @@ const App = (function(){
   function saveLockState(){ try{ if(failCount>=3&&lockedUntil>Date.now()) localStorage.setItem(LOCK_KEY, JSON.stringify({f:failCount,u:lockedUntil})); else localStorage.removeItem(LOCK_KEY); }catch(_){} }
   function loadLockState(){ try{ const o=JSON.parse(localStorage.getItem(LOCK_KEY)||'null'); if(o&&Number.isInteger(o.f)&&Number.isFinite(o.u)&&o.u>Date.now()&&o.u<Date.now()+60000){ failCount=o.f; lockedUntil=o.u; } }catch(_){} }
   // Sperr-/Setup-/Import-Eingaben leeren und maskieren — beim Verstecken der App und nach jedem Fehlversuch
-  function clearGateInputs(){ ['lock-pass','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code','bio-pass','cp-cur','cp1','cp2'].forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); maskInputs('#tab-settings'); err('lock-err'); }   // auch die Passphrase-Felder in den Einstellungen (Audit run-3)
-  // data-showpass-Schalter innerhalb eines Bereichs zurücksetzen (Feld wieder type=password)
-  function maskInputs(scope){ document.querySelectorAll((scope||'')+' input[data-showpass]').forEach(cb=>{ cb.checked=false; cb.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(f) f.type='password'; }); }); }
+  function clearGateInputs(){ ['lock-pass','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code','bio-pass','cp-cur','cp1','cp2'].forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); maskInputs('#tab-settings'); maskInputs('#tab-backup'); err('lock-err'); }   // auch die Passphrase-Felder in den Einstellungen (Audit run-3)
+  // data-showpass-Augen innerhalb eines Bereichs zurücksetzen (Feld wieder type=password)
+  function maskInputs(scope){ document.querySelectorAll((scope||'')+' [data-showpass]').forEach(b=>setEye(b,false)); }
+  // Auge im Passwortfeld (statt „anzeigen“-Kästchen): Knopf mit data-showpass=<Feld-ID>, Zustand in aria-pressed
+  function setEye(b,on){ b.setAttribute('aria-pressed',on?'true':'false'); b.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(f) f.type=on?'text':'password'; }); }
+  function togglePass(_,b){ if(b) setEye(b,b.getAttribute('aria-pressed')!=='true'); }
+  function eyeWrap(inp){ const w=el('div','pw-wrap'), b=el('button','pw-eye'); b.type='button'; b.dataset.showpass=inp.id; b.setAttribute('aria-pressed','false'); b.title=tr('pw.toggle');
+    if(inp.parentNode) inp.parentNode.insertBefore(w,inp); w.append(inp,b); return w; }
+  function enhancePassFields(){ document.querySelectorAll('input[type=password]').forEach(i=>{ if(i.id&&!i.closest('.pw-wrap')) eyeWrap(i); }); }
   // Code mit ±1 Zeitfenster prüfen (Uhrenabweichung)
   async function totpValid(t, code){ const now=Date.now(); for(const d of [-1,0,1]){ if(await totpCode(t, now+d*t.period*1000)===code) return true; } return false; }
   function enterApp(){ screen('app'); tab('list'); renderAll(); resetIdle();
@@ -1195,22 +1202,21 @@ const App = (function(){
       .finally(()=>{ saveEntry._busy=false; $('add-btn').disabled=false; });
   }
   function meterForm(){ renderMeter('f-pass','f-meter'); }
-  // Zusatzfelder im Formular (v1.4): dynamische Zeilen Bezeichnung + geheimer Wert; ein gemeinsamer „anzeigen“-Schalter, dessen
-  // data-showpass-Liste mit den Zeilen mitwächst (maskInputs/Delegation bleiben unverändert). Typwechsel lässt sie stehen (typunabhängig).
+  // Zusatzfelder im Formular (v1.4): dynamische Zeilen Bezeichnung + geheimer Wert; jeder Wert hat sein eigenes Auge (startet maskiert,
+  // maskInputs/Delegation greifen unverändert). Typwechsel lässt sie stehen (typunabhängig).
   let extraSeq=0;
   function extraRows(){ return Array.from($('f-extra').querySelectorAll('.xrow')); }
-  function syncExtraShow(){ const rows=extraRows(), cb=$('f-xshow'); cb.dataset.showpass=rows.map(r=>r.dataset.v).join(','); $('f-xshow-wrap').classList.toggle('hidden',!rows.length); if(!rows.length) cb.checked=false;   // sonst käme die nächste Zeile unmaskiert (Audit run-4 #2)
-    $('f-xadd').disabled=rows.length>=EXTRA_MAX; const t=cb.checked?'text':'password'; rows.forEach(r=>{ $(r.dataset.v).type=t; }); }
+  function syncExtraRows(){ $('f-xadd').disabled=extraRows().length>=EXTRA_MAX; }
   function pushExtraRow(name, value){ if(extraRows().length>=EXTRA_MAX) return null; const k=++extraSeq, row=el('div','xrow'); row.id='f-x-'+k; row.dataset.n='f-xn-'+k; row.dataset.v='f-xv-'+k;
     const mk=(id,type,cap,ph)=>{ const i=el('input'); i.id=id; i.type=type; i.maxLength=cap; i.placeholder=ph; i.autocomplete='off'; i.setAttribute('autocapitalize','none'); i.spellcheck=false; return i; };
     const ni=mk(row.dataset.n,'text',CAPS.xname,tr('f.extraName')); ni.value=name||''; const vi=mk(row.dataset.v,'password',CAPS.xvalue,tr('f.extraVal')); vi.value=value||'';
-    const del=el('button','btn sm ghost','✕'); del.type='button'; del.dataset.action='removeExtraRow'; del.dataset.arg=String(k); del.title=tr('f.extraDel'); del.setAttribute('aria-label',tr('f.extraDel'));
-    row.append(ni,vi,del); $('f-extra').appendChild(row); syncExtraShow(); return row; }
+    const del=el('button','btn sm ghost xdel','✕'); del.type='button'; del.dataset.action='removeExtraRow'; del.dataset.arg=String(k); del.title=tr('f.extraDel'); del.setAttribute('aria-label',tr('f.extraDel'));
+    row.append(ni,eyeWrap(vi),del); $('f-extra').appendChild(row); syncExtraRows(); return row; }
   function addExtraRow(){ const row=pushExtraRow('',''); if(!row) return toast(tr('err.extraMax',{n:EXTRA_MAX})); $(row.dataset.n).focus(); }
-  function removeExtraRow(k){ const r=$('f-x-'+k); if(!r) return; r.remove(); syncExtraShow(); }
-  function clearExtraRows(){ $('f-extra').replaceChildren(); $('f-xshow').checked=false; syncExtraShow(); }
+  function removeExtraRow(k){ const r=$('f-x-'+k); if(!r) return; r.remove(); syncExtraRows(); }
+  function clearExtraRows(){ $('f-extra').replaceChildren(); syncExtraRows(); }
   function readExtraRows(){ return extraRows().map((r,i)=>({name:$(r.dataset.n).value, value:$(r.dataset.v).value, i})); }
-  function relabelExtraRows(){ extraRows().forEach(r=>{ $(r.dataset.n).placeholder=tr('f.extraName'); $(r.dataset.v).placeholder=tr('f.extraVal'); const b=r.querySelector('button'); b.title=tr('f.extraDel'); b.setAttribute('aria-label',tr('f.extraDel')); }); }
+  function relabelExtraRows(){ extraRows().forEach(r=>{ $(r.dataset.n).placeholder=tr('f.extraName'); $(r.dataset.v).placeholder=tr('f.extraVal'); const b=r.querySelector('.xdel'); b.title=tr('f.extraDel'); b.setAttribute('aria-label',tr('f.extraDel')); }); }
 
   /* ---------- Detail ---------- */
   // Wert eines Detail-/Kopierfelds (login: user/pass/url/notes; card: holder/number/expiry/cvv/pin; bank: holder/iban/bic/bank/pin — der Typ bestimmt das Objekt)
@@ -1341,7 +1347,7 @@ const App = (function(){
   function fgClose(){ $('fg-panel').classList.add('hidden'); $('fg-ent').textContent=''; maskInputs('#grp-login'); }
   function genCopy(){ copyText(genValue,'what.gen'); }
   function genUse(){ if(!genValue) return; if(!editId&&!$('f-title').value) { editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); } if(formType!=='login') setEntryType('login'); $('f-pass').value=genValue; meterForm(); tab('add'); }
-  function genIntoForm(){ $('fg-panel').classList.remove('hidden'); $('f-pass').type='text'; const cb=document.querySelector('input[data-showpass="f-pass"]'); if(cb) cb.checked=true; fgGen(); }   // „Generieren“: Panel auf, EINMAL aufdecken, erzeugen
+  function genIntoForm(){ $('fg-panel').classList.remove('hidden'); const b=document.querySelector('[data-showpass="f-pass"]'); if(b) setEye(b,true); else $('f-pass').type='text'; fgGen(); }   // „Generieren“: Panel auf, EINMAL aufdecken, erzeugen
   function suggestPass(){ const r=genWords(6,'-',false,false); if(!r.pw) return toast(tr('toast.wordsMissing')); $('setup-pass1').value=r.pw; $('setup-pass2').value=r.pw; $('setup-pass1').type=$('setup-pass2').type='text'; $('setup-show').checked=true; meterSetup(); toast(tr('toast.suggest')); }
   function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const st=passStrength(p); const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren(); const s=el('span',null,'▮'.repeat(st+1)+'▯'.repeat(3-st)+' '+tr('pass.s'+st)); s.style.color=col; o.appendChild(s); }
   function meterSetup(){ renderMeter('setup-pass1','setup-meter'); }
@@ -1633,7 +1639,7 @@ const App = (function(){
     setEntryType,changeEntryType,addExtraRow,removeExtraRow,setCatFilter,clearCatFilter,setGenMode,genChanged,genNew,genCopy,genUse,genIntoForm,fgGen,fgClose,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
     importProton,doImportProton,cancelProton,totpStart,totpConfirm,totpCancel,totpDisable,copySecret,copyOtpauth,saveQR,
     setAutolock,setBgLock,setClipClear,theme,changePass,wipeLocal,openHelp,closeHelp,toggleLang,relabel,meterSetup,meterCp,meterForm,kdfChanged,
-    doBio,bioEnable,bioDisable,lockNow};
+    doBio,bioEnable,bioDisable,lockNow,togglePass,enhancePassFields};
 })();
 
 /* ---------- Event-Delegation ----------
@@ -1643,11 +1649,13 @@ document.addEventListener('click',ev=>{
   // Klick außerhalb eines Kombifelds schließt jedes offene Menü (es gibt keinen anderen globalen Schließ-Weg)
   if(!ev.target.closest('.combo')) App.closeMenus();
   const sp=ev.target.closest('[data-showpass]');
-  if(sp){ const t=sp.checked?'text':'password'; sp.dataset.showpass.split(',').forEach(id=>{ const f=document.getElementById(id); if(f) f.type=t; }); return; }
+  if(sp){ App.togglePass(null,sp); return; }
   const elx=ev.target.closest('[data-action]'); if(!elx) return;
   const fn=App[elx.dataset.action];
   if(typeof fn==='function') fn(elx.dataset.arg, elx);
 });
+// Auge: Fokus bleibt im Passwortfeld (Tastatur klappt nicht zu, Cursor bleibt stehen)
+document.addEventListener('mousedown',ev=>{ if(ev.target.closest('.pw-eye')) ev.preventDefault(); });
 document.addEventListener('change',ev=>{
   const elx=ev.target.closest('[data-change]'); if(!elx) return;
   const a=elx.dataset.change; const fn=App[a]; if(typeof fn!=='function') return;
@@ -1669,6 +1677,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const ok=window.crypto&&crypto.subtle&&typeof WebAssembly!=='undefined'&&window.hashwasm&&typeof hashwasm.argon2id==='function';
   if(!ok){ const c=document.querySelector('.container'); c.replaceChildren(); const d=document.createElement('div'); d.className='card warn'; d.textContent=tr('nocrypto'); c.appendChild(d); return; }
   const k=document.getElementById('setup-kdf'); if(k) k.addEventListener('change',App.kdfChanged);
+  App.enhancePassFields();   // vor applyI18n: setzt die Augen-Beschriftung
   applyI18n();
   App.boot();
 });
