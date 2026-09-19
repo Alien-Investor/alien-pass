@@ -162,6 +162,10 @@ import org.json.JSONObject;
 @CapacitorPlugin(name = "Biometric")
 public class BiometricPlugin extends Plugin {
     private static final String ALIAS = "alien-pass-bio";
+    /** Kanarien-Schlüssel (Tresor-Audit run-5 #1, identisch hier): gleiche Flags wie der Slot-Schlüssel, wird NIE benutzt und beim Neustart
+     *  NICHT gelöscht. Er entsteht nur beim bewussten Aktivieren und wird ungültig, sobald ein Fingerabdruck neu registriert wird — so bleibt
+     *  der Nachweis einer neuen Registrierung über den Neustart erhalten, obwohl der Slot selbst dort gelöscht wird. */
+    private static final String CANARY = "alien-pass-bio-canary";
     private static final String FILE = "alien-pass-bio.json";
     private static final int AUTH = BiometricManager.Authenticators.BIOMETRIC_STRONG;
 
@@ -199,7 +203,23 @@ public class BiometricPlugin extends Plugin {
     }
     private void wipe() {
         try { file().delete(); } catch (Exception ignored) {}
-        try { KeyStore ks = KeyStore.getInstance("AndroidKeyStore"); ks.load(null); if (ks.containsAlias(ALIAS)) ks.deleteEntry(ALIAS); } catch (Exception ignored) {}
+        deleteKey(ALIAS);
+    }
+    /** Slot UND Kanarie verwerfen: bewusstes Deaktivieren, ungültige Registrierung. */
+    private void wipeAll() { wipe(); deleteKey(CANARY); }
+    private static void deleteKey(String alias) {
+        try { KeyStore ks = KeyStore.getInstance("AndroidKeyStore"); ks.load(null); if (ks.containsAlias(alias)) ks.deleteEntry(alias); } catch (Exception ignored) {}
+    }
+    /** ok | invalidated (seit dem Anlegen wurde ein Fingerabdruck registriert) | missing | error (Keystore vorübergehend) */
+    private static String canaryState() {
+        try {
+            KeyStore ks = KeyStore.getInstance("AndroidKeyStore"); ks.load(null);
+            SecretKey k = (SecretKey) ks.getKey(CANARY, null);
+            if (k == null) return "missing";
+            Cipher.getInstance("AES/GCM/NoPadding").init(Cipher.ENCRYPT_MODE, k);   // nur init: prüft die Gültigkeit, braucht keinen Fingerabdruck
+            return "ok";
+        } catch (KeyPermanentlyInvalidatedException e) { return "invalidated"; }
+        catch (Exception e) { return "error"; }
     }
 
     private String availability() {
@@ -216,11 +236,12 @@ public class BiometricPlugin extends Plugin {
         }
     }
 
-    private void createKey() throws Exception {
+    private void createKey() throws Exception { createKey(ALIAS); }
+    private void createKey(String alias) throws Exception {
         KeyGenerator kg = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
         boolean strongBox = Build.VERSION.SDK_INT >= 28 && getContext().getPackageManager().hasSystemFeature("android.hardware.strongbox_keystore");
         for (int attempt = 0; attempt < 2; attempt++) {
-            KeyGenParameterSpec.Builder b = new KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+            KeyGenParameterSpec.Builder b = new KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).setKeySize(256)
                 .setRandomizedEncryptionRequired(true).setUserAuthenticationRequired(true);
             if (Build.VERSION.SDK_INT >= 24) b.setInvalidatedByBiometricEnrollment(true);
@@ -249,18 +270,24 @@ public class BiometricPlugin extends Plugin {
      *  ein ungültiger Schlüssel (neuer Fingerabdruck) wird gelöscht; ein vorübergehender Keystore-Fehler löscht NICHT (unavailable). */
     @PluginMethod
     public void status(PluginCall call) {
-        JSObject o = new JSObject(); JSONObject st = readState();
+        JSObject o = new JSObject();
+        // Neue Registrierung schlägt Neustart (Tresor-Audit run-5 #1): Kanarie VOR der Boot-Prüfung und auch ohne Slot-Datei prüfen
+        if ("invalidated".equals(canaryState())) { wipeAll(); o.put("enabled", false); o.put("reason", "invalidated"); call.resolve(o); return; }
+        JSONObject st = readState();
         if (st == null) { o.put("enabled", false); o.put("reason", "none"); call.resolve(o); return; }
         if (!sameBoot(st.optString("boot", null))) { wipe(); o.put("enabled", false); o.put("reason", "reboot"); call.resolve(o); return; }
         try { cipherFor(Cipher.DECRYPT_MODE, Base64.decode(st.getString("iv"), Base64.NO_WRAP)); }
         catch (KeyPermanentlyInvalidatedException e) { wipe(); o.put("enabled", false); o.put("reason", "invalidated"); call.resolve(o); return; }
         catch (IllegalStateException e) { wipe(); o.put("enabled", false); o.put("reason", "none"); call.resolve(o); return; }   // Datei ohne Schlüssel
         catch (Exception e) { o.put("enabled", false); o.put("reason", "unavailable"); call.resolve(o); return; }
+        // Übergang von ≤ v1.6 (Review v1.6.1 H2): Slot-Schlüssel gültig = seit dem Einrichten kein Finger registriert → eine jetzt angelegte
+        // Kanarie ist gleichwertig. Wer die App vor dem nächsten Neustart öffnet, muss nach dem Update nichts neu aktivieren.
+        if ("missing".equals(canaryState())) { try { createKey(CANARY); } catch (Exception ignored) {} }
         o.put("enabled", true); o.put("reason", "ok"); call.resolve(o);
     }
 
     @PluginMethod
-    public void disable(PluginCall call) { wipe(); call.resolve(); }
+    public void disable(PluginCall call) { wipeAll(); call.resolve(); }
 
     /** Frischen Keystore-Schlüssel anlegen, Fingerabdruck abfragen, Zufall verschlüsselt ablegen. Alter Slot wird vorher verworfen. */
     @PluginMethod
@@ -269,9 +296,19 @@ public class BiometricPlugin extends Plugin {
         try { secret = Base64.decode(call.getString("secret", ""), Base64.NO_WRAP); } catch (Exception e) { secret = null; }
         if (secret == null || secret.length != 32) { call.reject("invalid"); return; }
         if (!"ok".equals(availability())) { call.reject("unavailable"); return; }
+        final boolean rearm = Boolean.TRUE.equals(call.getBoolean("rearm", false));
+        if (rearm) {
+            // Automatische Neu-Einrichtung nach Neustart NUR mit gültiger Kanarie: sonst wurde seit dem bewussten Aktivieren ein
+            // Fingerabdruck registriert (oder es gab nie ein bewusstes Aktivieren) → der Nutzer muss es in den Einstellungen selbst tun.
+            String cs = canaryState();
+            // missing = Slot aus der Zeit vor der Kanarie (Update von ≤ v1.6) oder nie bewusst aktiviert: ebenfalls nichts einrichten,
+            // aber eigener Code — kein Alarm „fremder Finger“, nur die Bitte, bewusst neu zu aktivieren (Alien-Pass-Besonderheit)
+            if (!"ok".equals(cs)) { if ("error".equals(cs)) { call.reject("unavailable"); } else { wipeAll(); call.reject("missing".equals(cs) ? "nocanary" : "invalidated"); } return; }
+        }
         wipe();
         final Cipher c;
-        try { createKey(); c = cipherFor(Cipher.ENCRYPT_MODE, null); } catch (Exception e) { wipe(); call.reject("error"); return; }
+        try { if (!rearm) { deleteKey(CANARY); createKey(CANARY); } createKey(); c = cipherFor(Cipher.ENCRYPT_MODE, null); }   // bewusstes Aktivieren: frische Kanarie
+        catch (Exception e) { wipeAll(); call.reject("error"); return; }
         final byte[] sec = secret;
         final String boot = bootTag();
         prompt(call, c, cipher -> {
@@ -289,6 +326,7 @@ public class BiometricPlugin extends Plugin {
     /** Fingerabdruck abfragen, Zufall entschlüsselt zurückgeben (JS packt damit den DEK aus und nullt die Bytes). */
     @PluginMethod
     public void unlock(PluginCall call) {
+        if ("invalidated".equals(canaryState())) { wipeAll(); call.reject("invalidated"); return; }   // Tresor-Audit run-5 #1
         JSONObject st = readState();
         if (st == null) { call.reject("none"); return; }
         if (!sameBoot(st.optString("boot", null))) { wipe(); call.reject("reboot"); return; }
@@ -354,6 +392,7 @@ if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin
   || !readFileSync(CLIP, 'utf8').includes('EXTRA_IS_SENSITIVE')
   || !jb.includes('setUserAuthenticationRequired(true)') || !jb.includes('setInvalidatedByBiometricEnrollment(true)') || !jb.includes('BIOMETRIC_STRONG') || !jb.includes('sameBoot(')
   || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT') || !jb.includes('updateAAD(')
+  || !jb.includes('canaryState()') || !/if \("invalidated"\.equals\(canaryState\(\)\)\) \{ wipeAll\(\); o\.put/.test(jb) || !jb.includes('call.getBoolean("rearm", false)') || !jb.includes('"nocanary"')
   || !/USE_FINGERPRINT"\s+android:maxSdkVersion="27"\s+tools:node="replace"/.test(readFileSync(MANIFEST, 'utf8'))) {   // cap sync bricht die Zeile um
   console.error('FEHLER: Java-Härtung unvollständig — Build abgebrochen!'); process.exit(1);
 }

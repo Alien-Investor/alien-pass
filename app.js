@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.6';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.6.1';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -87,7 +87,7 @@ const I18N = {
   "set.bioOnText":"Active. The fingerprint is enough to unlock — until the next restart, passphrase change or new fingerprint in the system. 'Lock now' is the deliberate bolt: the next start then requires the passphrase, afterwards the fingerprint works again. Applies to this device only.",
   "set.bioDisable":"Disable fingerprint",
   "help.h5c":"Fingerprint unlock",
-  "help.p5c":"Optionally the device fingerprint unlocks the vault (Settings → Fingerprint, Android app only). <strong>How it works:</strong> the data key is additionally wrapped under a random key; the Android keystore holds that key and releases it only after a strong fingerprint, freshly each time. The vault file itself stays unchanged and backups carry none of it. <strong>What it costs:</strong> a fingerprint is not a secret. It can be forced — by someone guiding your hand, or at a border; the passphrase in your head cannot. That is why the app demands the passphrase after every restart of the phone (at the next start the fingerprint slot is discarded and, after the passphrase, re-created with fresh randomness), after a passphrase change and as soon as a new fingerprint is enrolled in the system. The restart rule is a rule in the code, not a cryptographic guarantee. <strong>Which biometrics count:</strong> Android binds the key to every biometric of the 'strong' class on the device. Where a strong face unlock is enrolled (some stock Pixels; GrapheneOS has none), it opens the vault too, after a confirmation tap. <strong>The deliberate bolt:</strong> 'Lock now' in Settings means the next start requires the passphrase — no fingerprint button, no prompt; afterwards the fingerprint works again without re-enabling. Use it before a border, before handing the phone over, whenever a finger could be forced. When in doubt: restart the phone, then only the passphrase counts.",
+  "help.p5c":"Optionally the device fingerprint unlocks the vault (Settings → Fingerprint, Android app only). <strong>How it works:</strong> the data key is additionally wrapped under a random key; the Android keystore holds that key and releases it only after a strong fingerprint, freshly each time. The vault file itself stays unchanged and backups carry none of it. <strong>What it costs:</strong> a fingerprint is not a secret. It can be forced — by someone guiding your hand, or at a border; the passphrase in your head cannot. That is why the app demands the passphrase after every restart of the phone (at the next start the fingerprint slot is discarded and, after the passphrase, re-created with fresh randomness), after a passphrase change and as soon as a new fingerprint is enrolled in the system. If a fingerprint was newly enrolled, the app does not set access up again by itself, not even after a restart, but shows a warning until you read it or deliberately re-enable it (since v1.6.1). The restart rule is a rule in the code, not a cryptographic guarantee. <strong>Which biometrics count:</strong> Android binds the key to every biometric of the 'strong' class on the device. Where a strong face unlock is enrolled (some stock Pixels; GrapheneOS has none), it opens the vault too, after a confirmation tap. <strong>The deliberate bolt:</strong> 'Lock now' in Settings means the next start requires the passphrase — no fingerprint button, no prompt; afterwards the fingerprint works again without re-enabling. Use it before a border, before handing the phone over, whenever a finger could be forced. When in doubt: restart the phone, then only the passphrase counts.",
   "set.cpTitle":"Change passphrase","set.cpCur":"Current passphrase","set.cpNew":"New passphrase","set.cpRepeat":"Repeat","set.cpBtn":"Change",
   "set.cpNote":"Changing the passphrase also rotates the internal data key. Backups exported earlier keep their old passphrase.",
   "set.themeTitle":"Appearance","set.themeDark":"Black (Neon)","set.themeSoft":"Soft (Navy)",
@@ -175,6 +175,10 @@ const T = {
   "bio.lockout":{de:"Zu viele Fehlversuche — der Sensor ist vorübergehend gesperrt. Bitte Passphrase.",en:"Too many attempts — the sensor is temporarily locked. Use the passphrase."},
   "bio.cancelled":{de:"Fingerabdruck abgebrochen — Entsperren bleibt bei der Passphrase",en:"Fingerprint cancelled — unlocking stays with the passphrase"},
   "bio.failed":{de:"Fingerabdruck nicht eingerichtet (Fehler im Keystore)",en:"Fingerprint not set up (keystore error)"},
+  "bio.rearmRefused":{de:"Fingerabdruck NICHT wieder aktiviert: Seit dem Einrichten wurde im System ein Fingerabdruck registriert. Warst du das nicht selbst, prüfe die Fingerabdrücke in den Android-Einstellungen. Neu aktivieren geht in den Einstellungen.",en:"Fingerprint NOT re-enabled: a fingerprint was enrolled in the system since setup. If that was not you, check the fingerprints in Android settings. You can re-enable it in Settings."},
+  "bio.alert":{de:"⚠ Fingerabdruck-Entsperren wurde abgeschaltet: Seit dem Einrichten wurde in Android ein Fingerabdruck neu registriert. Warst du das nicht selbst, prüfe sofort die Fingerabdrücke in den Android-Einstellungen (Sicherheit) und entferne fremde. Danach kannst du den Fingerabdruck in den Einstellungen bewusst neu aktivieren.",en:"⚠ Fingerprint unlock was switched off: a fingerprint was newly enrolled in Android since setup. If that was not you, check the fingerprints in Android settings (Security) right away and remove unknown ones. Afterwards you can deliberately re-enable fingerprint unlock in Settings."},
+  "bio.alertOk":{de:"Gelesen",en:"Got it"},
+  "bio.rearmNeeded":{de:"Fingerabdruck nach dem Update bitte einmal in den Einstellungen neu aktivieren — ab jetzt erkennt die App auch über einen Neustart hinweg, ob ein fremder Finger registriert wurde.",en:"After the update, please re-enable fingerprint unlock once in Settings — from now on the app notices a newly enrolled finger even across a reboot."},
   "bio.on":{de:"Fingerabdruck-Entsperren aktiv",en:"Fingerprint unlock active"},"bio.off":{de:"Fingerabdruck-Entsperren deaktiviert",en:"Fingerprint unlock disabled"},
   "bio.rearmed":{de:"Fingerabdruck wieder aktiv",en:"Fingerprint active again"},
   "bio.naEnrolled":{de:"Im System ist kein Fingerabdruck eingerichtet (Android-Einstellungen → Sicherheit).",en:"No fingerprint enrolled in the system (Android settings → Security)."},
@@ -977,6 +981,7 @@ const App = (function(){
   }
   async function doUnlock(){
     if(doUnlock._busy) return; err('lock-err');
+    loadLockState();                                                                   // Stand eines anderen Tabs übernehmen
     const now=Date.now(); if(now<lockedUntil) return err('lock-err',tr('err.wait',{s:Math.ceil((lockedUntil-now)/1000)}));
     const raw=localStorage.getItem(LS_KEY); if(!raw) return boot();
     let f; try{ f=parseFile(raw); }catch(e){ return err('lock-err',fileErrMsg(e)); }
@@ -1008,6 +1013,7 @@ const App = (function(){
   }
   async function doTotp(){
     if(doTotp._busy||!pendingUnlock) return; err('totp-err');
+    loadLockState();
     const now=Date.now(); if(now<lockedUntil) return err('totp-err',tr('err.wait',{s:Math.ceil((lockedUntil-now)/1000)}));
     const code=$('totp-code').value.trim(); if(!/^\d{6,8}$/.test(code)) return err('totp-err',tr('err.totp6'));
     doTotp._busy=true;
@@ -1021,8 +1027,15 @@ const App = (function(){
   function cancelTotp(){ clearIdle(); pendingUnlock=null; bioRearmDek=null; bioGen++; bioAuto=false; $('totp-code').value=''; err('totp-err'); boot(); }   // bioAuto=false: sonst Prompt-Schleife Fingerabdruck → Hürde → Abbruch → Fingerabdruck
   // Fehlversuchs-Bremse überlebt einen Neustart (außerhalb des verschlüsselten Tresors, enthält nichts Geheimes)
   const LOCK_KEY='ai-pass-lock';
-  function saveLockState(){ try{ if(failCount>=3&&lockedUntil>Date.now()) localStorage.setItem(LOCK_KEY, JSON.stringify({f:failCount,u:lockedUntil})); else localStorage.removeItem(LOCK_KEY); }catch(_){} }
-  function loadLockState(){ try{ const o=JSON.parse(localStorage.getItem(LOCK_KEY)||'null'); if(o&&Number.isInteger(o.f)&&Number.isFinite(o.u)&&o.u>Date.now()&&o.u<Date.now()+60000){ failCount=o.f; lockedUntil=o.u; } }catch(_){} }
+  // Der Zähler wird bei JEDEM Fehlversuch gespeichert und nur durch einen Erfolg gelöscht — kein Ablauf nach Zeit: am entsperrten Handy
+  // kontrolliert ein Angreifer die Uhr. Vorher galt der Eintrag nur während einer laufenden Wartezeit, und jeder App-Neustart danach begann
+  // wieder bei 0 — die Wartezeit wuchs nie über 2 s (Querfund Sachwert-Tresor Audit run-5 #2).
+  function saveLockState(){ try{ if(failCount>0) localStorage.setItem(LOCK_KEY, JSON.stringify({f:failCount,u:lockedUntil})); else localStorage.removeItem(LOCK_KEY); }catch(_){} }
+  // Übernehmen: Zähler als Maximum aus RAM und Speicher (auch nach abgelaufener Wartezeit; zweiter Tab), Wartezeit höchstens 30 s voraus —
+  // ein Eintrag weit in der Zukunft (Uhr zurückgestellt, Müll) wird gekappt statt verworfen. Unplausibles → ignoriert.
+  function loadLockState(){ try{ const o=JSON.parse(localStorage.getItem(LOCK_KEY)||'null'); const n=Date.now();
+    if(o&&Number.isInteger(o.f)&&o.f>0&&o.f<100000){ failCount=Math.max(failCount,o.f);
+      if(Number.isFinite(o.u)&&o.u>n) lockedUntil=Math.max(lockedUntil,Math.min(o.u,n+30000)); } }catch(_){} }
   // Sperr-/Setup-/Import-Eingaben leeren und maskieren — beim Verstecken der App und nach jedem Fehlversuch
   function clearGateInputs(){ ['lock-pass','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code','bio-pass','cp-cur','cp1','cp2'].forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); maskInputs('#tab-settings'); maskInputs('#tab-backup'); err('lock-err'); }   // auch die Passphrase-Felder in den Einstellungen (Audit run-3)
   // data-showpass-Augen innerhalb eines Bereichs zurücksetzen (Feld wieder type=password)
@@ -1036,7 +1049,7 @@ const App = (function(){
   // Code mit ±1 Zeitfenster prüfen (Uhrenabweichung)
   async function totpValid(t, code){ const now=Date.now(); for(const d of [-1,0,1]){ if(await totpCode(t, now+d*t.period*1000)===code) return true; } return false; }
   function enterApp(){ screen('app'); tab('list'); renderAll(); resetIdle();
-    if(bioRearmDek){ const d=bioRearmDek; bioRearmDek=null; bioArm(d, KDF, WRAP.ct, true).then(ok=>{ if(ok) toast(tr('bio.rearmed')); renderSettings(); }); } }   // nach Neustart: Slot mit frischem Zufall neu bewaffnen
+    if(bioRearmDek){ const d=bioRearmDek; bioRearmDek=null; bioArm(d, KDF, WRAP.ct, true).then(ok=>{ if(ok) toast(tr('bio.rearmed')); if(VAULT) renderSettings(); }); } }   // if(VAULT): während der Neu-Einrichtung gesperrt → sonst TypeError   // nach Neustart: Slot mit frischem Zufall neu bewaffnen
   function lock(){
     clearIdle(); stopTotp(); clearClip();
     DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null;
@@ -1046,7 +1059,7 @@ const App = (function(){
   }
   // Nach dem Sperren darf nichts Entschlüsseltes im DOM oder in Formularfeldern bleiben
   function clearRendered(){
-    ['entry-list','health','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-menu','trash-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
+    ['entry-list','health','bio-alert-list','bio-alert','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-menu','trash-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
     ['d-title','d-meta','bk-msg','import-msg','csv-msg','proton-msg','about-line','totp-secret','trash-msg','trash-n'].forEach(id=>{ const n=$(id); if(n) n.textContent=''; });
     ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin','search','import-pass','proton-pass','cp-cur','cp1','cp2','bio-pass','lock-pass','setup-pass1','setup-pass2','totp-code','totp-verify','vault-file','csv-file','proton-file'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
     $('f-fav').checked=false; $('f-nowarn').checked=false; clearExtraRows(); fgClose(); genReset(); setEntryType('login'); err('add-err'); err('cp-err'); err('lock-err'); err('setup-err'); err('totp-err'); err('totp-setup-err'); err('bio-err'); bioMsg('');
@@ -1188,7 +1201,7 @@ const App = (function(){
     if(search) items=items.filter(e=>(e.title+'\n'+e.user+'\n'+(e.email||'')+'\n'+e.url+'\n'+e.cat+'\n'+(e.extra||[]).map(x=>x.name).join('\n')).toLowerCase().includes(search));   // Zusatzfeld-Namen ja, Werte nie
     const h=health(); const hEl=$('health'); const bad=h.r.size+h.w.size+h.v.size;
     hEl.textContent=all.length?(bad?tr('health.bad',{r:h.r.size,w:h.w.size,v:h.v.size}):tr('health.ok')):''; hEl.classList.toggle('bad',bad>0);
-    renderBackupHint();
+    renderBioAlert(); renderBackupHint();
     if(!items.length){ list.appendChild(el('div','empty',all.length?tr('list.noMatch'):tr('list.empty'))); return; }
     for(const e of items){
       const row=el('div','entry'); row.dataset.action='openDetail'; row.dataset.arg=e.id;
@@ -1574,6 +1587,15 @@ const App = (function(){
   function bioHold(){ try{ return localStorage.getItem(BIO_HOLD_KEY)==='1'; }catch(_){ return false; } }
   function setBioHold(on){ try{ if(on) localStorage.setItem(BIO_HOLD_KEY,'1'); else localStorage.removeItem(BIO_HOLD_KEY); }catch(_){} }
   function bioMsg(t){ const n=$('bio-msg'); if(!n) return; n.textContent=t||''; n.classList.toggle('hidden',!t); }
+  // Warnung „neuer Fingerabdruck im System“ (Querfund Tresor-Audit run-5 #1): bleibt stehen, bis der Nutzer sie liest oder bewusst neu
+  // aktiviert — ein Toast ging im Tresor-Gerätetest beim Aufbau der Ansicht unter. Nur ein Marker, nichts Geheimes.
+  const BIO_ALERT_KEY='ai-pass-bio-alert';
+  function bioAlert(){ try{ return localStorage.getItem(BIO_ALERT_KEY)==='1'; }catch(_){ return false; } }
+  function setBioAlert(on){ try{ if(on) localStorage.setItem(BIO_ALERT_KEY,'1'); else localStorage.removeItem(BIO_ALERT_KEY); }catch(_){} if(VAULT){ renderBioAlert(); renderSettings(); } }
+  function bioAlertOk(){ setBioAlert(false); }
+  function renderBioAlert(){ const box=$('bio-alert-list'); if(!box) return; box.replaceChildren(); if(!VAULT||!bioAlert()) return;
+    const w=el('div','warn',tr('bio.alert')); w.style.marginBottom='12px'; const b=el('button','btn sm',tr('bio.alertOk')); b.dataset.action='bioAlertOk'; b.style.marginTop='8px';
+    w.appendChild(el('br')); w.appendChild(b); box.appendChild(w); }
   function renderBioGate(){ const b=$('bio-btn'); if(b){ b.classList.toggle('hidden',!bioArmed||bioHold()); b.disabled=!!doUnlock._busy; } }   // Riegel: Knopf verborgen
   // Slot verwerfen: JS-Blob + Marker immer, Keystore-Teil auf Wunsch (bei ungültigem Schlüssel hat das Plugin ihn schon selbst gelöscht).
   // bioGen++ lässt laufende enroll/unlock-Vorgänge verfallen (Audit run-3)
@@ -1586,8 +1608,11 @@ const App = (function(){
     let st; try{ st=await BIO.status(); }catch(_){ st={enabled:false,reason:'error'}; }
     if(gen!==bioGen||DEK||pendingUnlock) return;
     const reason=st&&st.reason;
-    if(reason==='reboot'||(!blob&&marker&&reason==='none')){                             // Neustart: Slot JETZT verwerfen (Keystore + Blob), nur der Marker bleibt (Audit run-3 #6)
-      if(blob||reason==='reboot') bioDrop(true); setBioMarker(true); bioNeedsRearm=true; bioMsg(tr('bio.afterReboot')); return; }
+    // Neue Registrierung im System schlägt Neustart (Querfund Tresor-Audit run-5 #1): das Plugin prüft den Kanarien-Schlüssel VOR der
+    // Boot-Kennung. Kein automatisches Neu-Bewaffnen — der Nutzer aktiviert bewusst neu (und sieht, dass sich etwas geändert hat).
+    if(reason==='invalidated'){ bioDrop(false); bioMsg(tr('bio.reset')); setBioAlert(true); return; }
+    if(reason==='reboot'||(!blob&&marker&&reason==='none')){                             // Neustart: nativ ist der Slot schon weg; JS-Blob verwerfen, Marker + Kanarie bleiben
+      if(blob||reason==='reboot') bioDrop(false); setBioMarker(true); bioNeedsRearm=true; bioMsg(tr('bio.afterReboot')); return; }   // disable() würde auch die Kanarie löschen (run-5 #1)
     if(!blob){ if(st&&st.enabled){ try{ BIO.disable().catch(()=>{}); }catch(_){} } setBioMarker(false); setBioHold(false); return; }   // Keystore-Rest ohne JS-Blob: aufräumen
     if(st&&st.enabled&&bioHold()){ bioArmed=true; bioNeedsRearm=false; setBioMarker(false); renderBioGate(); bioMsg(tr('bio.held')); return; }   // Riegel: Slot gilt (Einstellungen zeigen „aktiv“), aber kein Knopf, kein Prompt
     if(st&&st.enabled){ bioArmed=true; bioNeedsRearm=false; setBioMarker(false); renderBioGate(); if(auto&&!document.hidden) doBio(); return; }
@@ -1600,10 +1625,16 @@ const App = (function(){
     const gen=bioGen, secret=rand(32);
     try{
       const key=await bioKey(secret); const blob=await wrapDek(dekX, key, kdf, 'bio'); const ser=serializeBioBlob(blob, wrapCt);
-      await BIO.enroll({secret:bufToB64(secret), title:tr('bio.promptTitle'), subtitle:tr(rearm?'bio.promptRearm':'bio.promptEnroll'), negative:tr('btn.cancel')});
-      if(gen!==bioGen||!VAULT){ try{ BIO.disable().catch(()=>{}); }catch(_){} toast(tr('bio.aborted')); return false; }   // zwischendurch gesperrt / Passphrase gewechselt: nichts hinterlassen
-      localStorage.setItem(BIO_KEY, ser); setBioMarker(false); bioArmed=true; bioNeedsRearm=false; return true;
-    }catch(e){ const c=e&&e.message; bioDrop(true); toast(tr(c==='cancel'?'bio.cancelled':c==='lockout'?'bio.lockout':'bio.failed')); return false; }
+      // rearm:true → das Plugin richtet nur mit gültigem Kanarien-Schlüssel neu ein (sonst 'invalidated', Querfund Tresor-Audit run-5 #1)
+      await BIO.enroll({secret:bufToB64(secret), rearm:!!rearm, title:tr('bio.promptTitle'), subtitle:tr(rearm?'bio.promptRearm':'bio.promptEnroll'), negative:tr('btn.cancel')});
+      if(gen!==bioGen||!VAULT){ try{ BIO.disable().catch(()=>{}); }catch(_){} setBioMarker(false); toast(tr('bio.aborted')); return false; }   // zwischendurch gesperrt / Passphrase gewechselt: nichts hinterlassen — auch keinen Marker, sonst meldet die nächste Neu-Einrichtung ohne Kanarie fälschlich einen fremden Finger
+      localStorage.setItem(BIO_KEY, ser); setBioMarker(false); bioArmed=true; bioNeedsRearm=false; if(!rearm) setBioAlert(false); return true;   // bewusst neu aktiviert: Warnung erledigt
+    }catch(e){ const c=e&&e.message;
+      // Keystore vorübergehend nicht bereit (Kanarien-Prüfung 'error' → 'unavailable'): Neu-Einrichtung beim nächsten Entsperren erneut
+      // versuchen — Kanarie und Marker bleiben, sonst ginge der Nachweis einer neuen Registrierung verloren
+      if(rearm&&c==='unavailable'){ bioArmed=false; setBioMarker(true); bioNeedsRearm=true; toast(tr('bio.naNow')); return false; }
+      if(c==='nocanary'){ bioDrop(false); toast(tr('bio.rearmNeeded')); return false; }   // Slot von vor v1.6.1 (ohne Kanarie): bewusst neu aktivieren, kein Fehlalarm
+      bioDrop(true); if(c==='invalidated') setBioAlert(true); toast(tr(c==='invalidated'?'bio.rearmRefused':c==='cancel'?'bio.cancelled':c==='lockout'?'bio.lockout':'bio.failed')); return false; }
     finally{ secret.fill(0); }
   }
   // Sperrbildschirm: Fingerabdruck → Keystore gibt den Zufallsschlüssel heraus → DEK auspacken → gleicher Weg wie die Passphrase
@@ -1626,7 +1657,11 @@ const App = (function(){
     }catch(e){
       const c=e&&e.message; if(gen!==bioGen) return;
       if(c==='cancel') return; if(c==='lockout') return err('lock-err',tr('bio.lockout'));
-      if(c==='reboot'){ bioDrop(true); setBioMarker(true); bioNeedsRearm=true; return bioMsg(tr('bio.afterReboot')); }
+      if(c==='reboot'){ bioDrop(false); setBioMarker(true); bioNeedsRearm=true; return bioMsg(tr('bio.afterReboot')); }   // Slot hat unlock() selbst gelöscht, Kanarie bleiben lassen
+      // 'error' = Timeout/Sensor nicht bereit im Dialog: unlock() lässt den Slot nativ stehen → hier auch nichts löschen. bioDrop(true)
+      // → disable() räumte die Kanarie ab; ein provozierter Timeout plus danach registrierter Finger bliebe sonst unbemerkt (Review v1.6.1 N1)
+      if(c==='error'){ err('lock-err',tr('bio.naNow')); return; }
+      if(c==='invalidated') setBioAlert(true);                            // neuer Finger, während die App gesperrt im Hintergrund lag: bleibende Warnung
       bioDrop(c!=='invalidated'&&c!=='none'); return bioMsg(tr('bio.reset'));   // ungültiger Schlüssel, alter/fremder Blob, Manipulation
     }finally{ doBio._busy=false; if(secret) secret.fill(0); }
     afterGate();
@@ -1651,7 +1686,8 @@ const App = (function(){
   /* ---------- Einstellungen ---------- */
   function renderSettings(){ if(!VAULT) return; const s=VAULT.settings; $('set-autolock').value=String(s.autolock); $('set-bglock').value=String(s.bgLock); $('set-clip').value=String(s.clipClear); syncCombos();
     const on=!!VAULT.totp; $('totp-off').classList.toggle('hidden',on||!!pendingSecret); $('totp-on').classList.toggle('hidden',!on); $('totp-setup').classList.toggle('hidden',!pendingSecret);
-    const bc=$('bio-card'); if(bc){ bc.classList.toggle('hidden',!BIO); $('bio-off').classList.toggle('hidden',bioArmed); $('bio-on').classList.toggle('hidden',!bioArmed); }
+    const bc=$('bio-card'); if(bc){ bc.classList.toggle('hidden',!BIO); $('bio-off').classList.toggle('hidden',bioArmed); $('bio-on').classList.toggle('hidden',!bioArmed);
+      const ba=$('bio-alert'); if(ba){ ba.textContent=bioAlert()?tr('bio.alert'):''; ba.classList.toggle('hidden',!bioAlert()); } }
     const soft=document.documentElement.getAttribute('data-theme')==='soft'; $('th-dark').classList.toggle('on',!soft); $('th-soft').classList.toggle('on',soft);
     $('about-line').textContent=tr('about',{v:APP_VERSION,m:Math.round(KDF.m/1024),t:KDF.t,p:KDF.p}); }
   function setSetting(key, v){ if(!VAULT) return; const n=Number(v); if(!SETTINGS_ALLOWED[key].includes(n)) return; const before=VAULT.settings[key]; VAULT.settings[key]=n; persist().then(()=>{ resetIdle(); }).catch(e=>{ if(e&&e.locked) return; if(VAULT){ VAULT.settings[key]=before; renderSettings(); } }); }
@@ -1682,7 +1718,7 @@ const App = (function(){
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr(hadBio?'toast.passChangedBio':'toast.passChanged')); renderSettings();
     }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; }
   }
-  function wipeLocal(){ if(!confirm(tr('confirm.wipe'))) return; bioDrop(true); localStorage.removeItem(LS_KEY); lock(); }
+  function wipeLocal(){ if(!confirm(tr('confirm.wipe'))) return; bioDrop(true); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){} localStorage.removeItem(LS_KEY); lock(); }
 
   /* ---------- misc ---------- */
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }
@@ -1692,7 +1728,7 @@ const App = (function(){
   function renderAll(){ renderList(); renderSettings(); renderBackupMsg(); }
   function kdfChanged(){ kdfTouched=true; }
 
-  return {boot,doSetup,doUnlock,doTotp,cancelTotp,lock,tab,newEntry,saveEntry,cancelEdit,editCurrent,deleteCurrent,toggleFavCurrent,openDetail,closeDetail,toggleReveal,copyField,renderList,
+  return {bioAlertOk,boot,doSetup,doUnlock,doTotp,cancelTotp,lock,tab,newEntry,saveEntry,cancelEdit,editCurrent,deleteCurrent,toggleFavCurrent,openDetail,closeDetail,toggleReveal,copyField,renderList,
     openTrash,renderTrash,restoreEntry,purgeEntry,emptyTrash,closeMenus,syncCombos,toggleCombo,chooseOpt,openCatMenu,toggleCatMenu,catInput,pickCat,
     setEntryType,changeEntryType,addExtraRow,removeExtraRow,setCatFilter,clearCatFilter,setGenMode,genChanged,genNew,genCopy,genUse,genIntoForm,fgGen,fgClose,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
     importProton,doImportProton,cancelProton,totpStart,totpConfirm,totpCancel,totpDisable,copySecret,copyOtpauth,saveQR,

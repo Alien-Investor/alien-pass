@@ -1,5 +1,22 @@
 # Changelog — Alien Pass
 
+## v1.6.1 — 2026-09-19
+Zwei Sicherheits-Korrekturen, gefunden im internen Audit der Schwester-App Sachwert-Tresor. Deren Fingerabdruck-Code und
+Fehlversuchs-Bremse stammen aus Alien Pass und hatten dieselben Fehler.
+- **Fingerabdruck: ein neu registrierter Finger bleibt nach einem Neustart nicht mehr unbemerkt (mittel).** Bisher meldete die App nach
+  einem Neustart immer „Neustart“ und richtete den Fingerabdruck nach der Passphrase automatisch wieder ein — auch dann, wenn jemand
+  inzwischen einen eigenen Finger in Android registriert hatte. Der hätte danach den Tresor öffnen können. Jetzt merkt sich ein zweiter,
+  nie benutzter Schlüssel im Android-Keystore jede neue Registrierung über den Neustart hinweg. In diesem Fall richtet die App nichts
+  automatisch ein, sondern zeigt eine **bleibende Warnung** in der Liste und in den Einstellungen, bis du sie liest oder den Fingerabdruck
+  bewusst neu aktivierst. Passphrase und Tresor-Format sind nicht betroffen.
+  **Nach dem Update:** Öffnest du die App einmal, bevor du das Handy neu startest, legt sie den neuen Schlüssel selbst an — du merkst nichts.
+  Startest du das Handy vorher neu, richtet sie den Fingerabdruck einmalig nicht automatisch wieder ein und bittet dich, ihn in den
+  Einstellungen bewusst neu zu aktivieren.
+- Ein abgebrochener Fingerabdruck-Dialog (Zeitüberschreitung, Sensor kurz nicht bereit) setzt den Fingerabdruck nicht mehr zurück.
+- **Fehlversuchs-Bremse zählt über App-Neustarts weiter (niedrig).** Bisher begann jeder Neustart der App nach abgelaufener Wartezeit wieder
+  bei null — die Wartezeit wuchs so nie über 2 Sekunden. Das betraf vor allem das Durchprobieren des Aegis-Codes durch jemanden, der die
+  Passphrase kennt. Jetzt zählt die Bremse bis zum nächsten Erfolg weiter, die Wartezeit wächst wie vorgesehen bis 30 Sekunden.
+
 ## v1.6 — 2026-09-19
 - **Ehrlichere Stärke-Anzeige:** Der Balken hat bisher nur Länge und Wortzahl gezählt — `Sommer2024Sommer` hieß „stark“. Jetzt erkennt er
   typische Muster: Wiederholungen, Zeichen- und Tastaturfolgen (`abcd`, `12345`, `qwertz`), Jahreszahlen, häufige Wörter (auch als
