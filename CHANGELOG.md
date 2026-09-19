@@ -1,5 +1,18 @@
 # Changelog — Alien Pass
 
+## v1.6 — 2026-09-19
+- **Ehrlichere Stärke-Anzeige:** Der Balken hat bisher nur Länge und Wortzahl gezählt — `Sommer2024Sommer` hieß „stark“. Jetzt erkennt er
+  typische Muster: Wiederholungen, Zeichen- und Tastaturfolgen (`abcd`, `12345`, `qwertz`), Jahreszahlen, häufige Wörter (auch als
+  `P4ssw0rt`), nur Ziffern und sehr wenige verschiedene Zeichen. Wird ein Muster gefunden, sagt der Balken **„vorhersagbar“** und nennt den
+  Grund. Sonst heißt die Anzeige ausdrücklich **„Schätzung“** — sie erkennt Muster, aber nicht, ob ein Passwort zu dir passt (Name, Geburtstag).
+  Wirklich stark ist ein Passwort aus dem Generator.
+- **Neues Kennzeichen „vorhersagbar“** in der Liste und in der Gesundheitszeile, auch für bestehende Einträge. Das Häkchen „Dienst erlaubt kein
+  längeres Passwort“ schaltet „kurz“ ab, bei einer reinen Ziffern-PIN auch „vorhersagbar“ (`123456` bleibt markiert).
+- **Rückfrage bei der Tresor-Passphrase:** Beim Einrichten und beim Wechseln fragt die App nach, wenn die Passphrase vorhersagbar ist — sie
+  schützt auch jedes Backup, und eine gestohlene Backup-Datei lässt sich offline beliebig oft durchprobieren. Verboten wird nichts.
+- Im Eintragsformular läuft der Balken jetzt beim Tippen mit (bisher nur nach „Generieren“ und beim Bearbeiten).
+- Alles lokal, eigener kleiner Code ohne Wörterbuch-Bibliothek. Tresor-Format, Verschlüsselung, Import und Berechtigungen sind unverändert.
+
 ## v1.5.1 — 2026-09-16
 - **Auge im Passwortfeld:** Statt des Kästchens „Passwort anzeigen“ sitzt jetzt rechts in jedem Passwortfeld ein Auge — beim Einrichten,
   Entsperren, im Eintrag (Passwort, Kartendaten, PIN), bei Fingerabdruck und Passphrase-Wechsel und neu auch bei den Passphrasen für den

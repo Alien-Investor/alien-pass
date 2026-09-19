@@ -21,7 +21,7 @@ const region = src.slice(a, z);
 const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
-    normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,MAX_TOMBSTONES,liveCount,
+    normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,passCheck,MAX_TOMBSTONES,liveCount,
     tombFrom,isWiped,wipeTrash,shapeIncoming,TRASH_DAYS,MAX_TRASH,TOMBSTONE_DAYS,ts,
     parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob};`)();
 
@@ -188,6 +188,20 @@ console.log('\n[7] Generator');
   // Chi-Quadrat: randInt(10) über 100.000 Ziehungen
   const cnt=new Array(10).fill(0); for(let i=0;i<100000;i++) cnt[V.randInt(10)]++; const chi=cnt.reduce((s,c)=>s+Math.pow(c-10000,2)/10000,0); ok(chi<27.9,'randInt gleichverteilt (χ²='+chi.toFixed(1)+' < 27.9 bei 9 df, p=0.001)');
   ok(V.passStrength('kurz')===0&&V.passStrength('zwoelf-zeichen')>=1&&V.passStrength('korrekt-pferd-batterie-heftklammer')===3,'Passphrase-Meter Stufen');
+  // v1.6: Mustererkennung — Länge allein reicht nicht mehr
+  for(const [pw,why] of [['Sommer2024Sommer','common'],['passwort12345!','common'],['ichliebedich12345','common'],['aaaaaaaaaaaaaaaaaaaaaaaa','repeat'],
+      ['qwertz123456','keyboard'],['123456789012','digits'],['P4ssw0rt2024!','common'],['abababababab','variety'],['0987654321abcd','seq']]){
+    const c=V.passCheck(pw); ok(c.weak&&c.level===0&&c.why.includes(why),'vorhersagbar: '+pw+' → '+c.why.join(',')); }
+  { const c=V.passCheck('Hund-Katze-Maus-2024'); ok(c.level===1&&!c.weak&&c.why.includes('year'),'Wörter-Bonus greift nicht bei billigen Wörtern: Stufe '+c.level); }
+  ok(!V.passCheck('kurz123').weak&&V.passCheck('kurz123').level===0,'kurz ohne Muster: nicht „vorhersagbar“ (dafür gibt es „kurz“)');
+  ok(V.passCheck('Xk9#mP2$vL7qR4!nT8wZ').level>=2&&!V.passCheck('Xk9#mP2$vL7qR4!nT8wZ').weak,'Zufallspasswort bleibt stark');
+  ok(V.passCheck('a'.repeat(1000)).weak&&V.passCheck('Xk9#mP2$vL7qR4!n'.repeat(60)).level===3,'lange Eingaben: Analyse auf 64 Zeichen, Rest zählt voll');
+  for(const g of ['t8pBj1+6Tqqq',']An&U_A$1927','8sDfg(N..M@l','MYe-bv7654,U']){ const c=V.passCheck(g); ok(!c.weak&&c.level===1,'12 Zeichen zufällig mit einem einzelnen Muster ('+g+'): nicht vorhersagbar, Stufe 1 statt „zu kurz“ (Review v1.6)'); }
+  { let bad=0; for(let i=0;i<3000;i++){ const g=V.genChars(12,{upper:true,lower:true,digits:true,symbols:true,noamb:false}).pw, c=V.passCheck(g); if(c.weak||c.level<1) bad++; }
+    ok(bad<=2,'Generator 12 Zeichen, 3000×: praktisch nie vorhersagbar ('+bad+'; gemessen 0,0005 %, vorher ~0,1 % — Review v1.6)'); }
+  { let bad=0; for(let i=0;i<300;i++){ const g=V.genChars(16,{upper:true,lower:true,digits:true,symbols:true,noamb:false}).pw, w=V.genWords(6,'-',false,false).pw;
+      if(V.passCheck(g).weak||V.passCheck(g).level<1||V.passCheck(w).weak||V.passCheck(w).level!==3) bad++; }
+    ok(bad===0,'Generator (16 Zeichen / 6 Wörter, je 300×): nie vorhersagbar, Wörter immer sehr stark (ein zufälliges „444“ darf 16 Zeichen auf „okay“ drücken)'); }
 }
 
 console.log('\n[8] CSV-Parser + Import-Mapping');

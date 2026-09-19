@@ -53,7 +53,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
 - **Passwort-Generator**, auch direkt im Eintragsformular (Panel unter dem Passwortfeld): Zeichen-Modus (8–64 Zeichen, Zeichensätze wählbar, ohne verwechselbare Zeichen)
   und **Diceware** (EFF Large Wordlist, 7.776 Wörter, ~12,9 Bit je Wort). Entropie-Anzeige (im Zeichen-Modus ehrlich um die Pflicht „jeder Zeichensatz kommt vor“ bereinigt), kein Modulo-Bias.
 - **TOTP pro Eintrag** (RFC 6238; SHA-1/256/512, 6–8 Stellen, beliebige Periode) mit Restlaufzeit.
-- **Passwort-Gesundheit**: markiert wiederverwendete und kurze (< 12) Passwörter — rein lokal. Das Alter wird bewusst nicht markiert:
+- **Passwort-Gesundheit**: markiert wiederverwendete, kurze (< 12) und vorhersagbare Passwörter (Wiederholungen, Zeichen- und
+  Tastaturfolgen, Jahreszahlen, häufige Wörter auch in Leetspeak, nur Ziffern) — rein lokal, eigene kleine Heuristik, ausdrücklich eine
+  Schätzung. Bei einer vorhersagbaren Tresor-Passphrase fragt die App nach. Das Alter wird bewusst nicht markiert:
   Zwangsrotation ist ein Anti-Muster (NIST SP 800-63B); gewechselt wird, wenn ein Passwort geleakt sein könnte.
   Erlaubt ein Dienst kein längeres Passwort, schaltet ein Häkchen im Eintrag die „kurz“-Markierung ab.
 - **Nutzername und E-Mail getrennt**: optionales E-Mail-Feld beim Login für Dienste, die beides verlangen — im Detail mit eigenem

@@ -31,7 +31,7 @@ description: |
   - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown — also right inside the entry form
     (panel under the password field, same settings as the generator tab)
   - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time
-  - Password health: reused and short passwords flagged — computed locally; no forced rotation by age (NIST SP 800-63B)
+  - Password health: reused, short and predictable passwords flagged (repeats, sequences, keyboard runs, years, common words also in leetspeak) — computed locally, an honest estimate; asks before accepting a predictable vault passphrase; no forced rotation by age (NIST SP 800-63B)
   - Trash (v1.5): deleted entries stay restorable for 30 days, up to 200 at a time; the trash shows only title, type
     and date of deletion, never the content. "Delete permanently" destroys an entry right away. The trash is
     device-local: a deletion travels to your other devices when merging, the content does not.

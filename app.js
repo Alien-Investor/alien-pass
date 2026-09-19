@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.5.1';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.6';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -112,7 +112,7 @@ const I18N = {
   "help.h5b":"Aegis hurdle on unlock",
   "help.p5b":"Optionally the app asks for an Aegis code after the passphrase (Settings → Aegis hurdle). <strong>What it does:</strong> someone who peeked at your passphrase and holds your unlocked phone cannot get in without your Aegis app. <strong>What it does not do:</strong> the TOTP key lives inside the vault itself. Whoever owns the vault file <em>and</em> the passphrase decrypts it outside the app — the format is openly documented. A real second factor needs a party that enforces it (for cloud services, the server). For a local file the passphrase remains the only cryptographic protection; make it long.",
   "help.h6":"Password health",
-  "help.p6":"The list flags <strong>reused</strong> passwords and <strong>short</strong> ones (under 12 characters). Age is deliberately not flagged: a strong random password does not weaken with time, and forced rotation is an anti-pattern (NIST SP 800-63B) — change a password when it may have leaked, not on a schedule. If a service does not allow a longer password, the checkbox “Service does not allow a longer password” in the entry switches off the “short” flag. Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
+  "help.p6":"The list flags <strong>reused</strong> passwords, <strong>short</strong> ones (under 12 characters) and <strong>predictable</strong> ones: repetitions, character and keyboard sequences, years, common words (also as <code>P4ssw0rd</code>), digits only. The same check appears next to the bar while you type. It is an <strong>estimate</strong>, not a cracking test: it spots typical patterns, but not whether a password relates to you (name, birthday, pet). A truly strong password comes from the generator. For the vault passphrase the app asks before accepting a predictable pattern. Age is deliberately not flagged: a strong random password does not weaken with time, and forced rotation is an anti-pattern (NIST SP 800-63B) — change a password when it may have leaked, not on a schedule. If a service does not allow a longer password, the checkbox “Service does not allow a longer password” in the entry switches off the “short” flag — “predictable” only for a digits-only PIN; a sequence like <code>123456</code> stays flagged. Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
   "help.h7":"Backup & sync",
   "help.l7":"<li><strong>Create backup</strong> writes a <code>.vault</code> file (encrypted with your passphrase). It can safely go into Syncthing, onto a stick or into a backup.</li><li><strong>Import</strong> merges: per entry the newer change wins, deletions are carried over (for one year). The file may use a different passphrase — your local one stays.</li><li>With two devices: export on both regularly and import the other's backup. Both sides end up at the same state.</li><li>After a <strong>passphrase change</strong> older backups still open with their old passphrase.</li>",
   "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
@@ -226,8 +226,8 @@ const T = {
   "list.count":{de:"{n} Einträge",en:"{n} entries"},
   "list.countOf":{de:"{n} von {t} Einträgen",en:"{n} of {t} entries"},
   "health.ok":{de:"✓ Passwort-Gesundheit: keine Auffälligkeiten",en:"✓ Password health: nothing to report"},
-  "health.bad":{de:"⚠ {r} wiederverwendet · {w} kurz",en:"⚠ {r} reused · {w} short"},
-  "badge.reused":{de:"doppelt",en:"reused"},"badge.weak":{de:"kurz",en:"short"},
+  "health.bad":{de:"⚠ {r} wiederverwendet · {w} kurz · {v} vorhersagbar",en:"⚠ {r} reused · {w} short · {v} predictable"},
+  "badge.reused":{de:"doppelt",en:"reused"},"badge.weak":{de:"kurz",en:"short"},"badge.predictable":{de:"vorhersagbar",en:"predictable"},
   "d.user":{de:"Nutzername / E-Mail",en:"Username / e-mail"},"d.email":{de:"E-Mail",en:"E-mail"},"d.pass":{de:"Passwort",en:"Password"},"d.url":{de:"URL / App",en:"URL / app"},
   "d.totp":{de:"TOTP-Code",en:"TOTP code"},"d.notes":{de:"Notizen",en:"Notes"},
   "d.show":{de:"Anzeigen",en:"Show"},"d.hide":{de:"Verbergen",en:"Hide"},"d.copy":{de:"Kopieren",en:"Copy"},
@@ -261,6 +261,13 @@ const T = {
   "pass.s1":{de:"okay — länger ist besser",en:"okay — longer is better"},
   "pass.s2":{de:"stark",en:"strong"},
   "pass.s3":{de:"sehr stark",en:"very strong"},
+  "pass.est":{de:"Schätzung: {s}",en:"estimate: {s}"},"pass.has":{de:"enthält {why}",en:"contains {why}"},
+  "pass.weak":{de:"vorhersagbar: {why}",en:"predictable: {why}"},
+  "why.repeat":{de:"Wiederholung",en:"repetition"},"why.seq":{de:"Zeichenfolge",en:"sequence"},"why.keyboard":{de:"Tastaturfolge",en:"keyboard pattern"},
+  "why.year":{de:"Jahreszahl",en:"year"},"why.common":{de:"häufiges Wort",en:"common word"},"why.digits":{de:"nur Ziffern",en:"digits only"},
+  "why.variety":{de:"wenige verschiedene Zeichen",en:"few distinct characters"},
+  "confirm.weakPass":{de:"Diese Passphrase ist vorhersagbar ({why}).\n\nSie schützt auch jedes Backup — eine gestohlene Backup-Datei lässt sich offline beliebig oft durchprobieren. Besser: der Vorschlag-Button (sechs Würfelwörter).\n\nTrotzdem verwenden?",en:"This passphrase is predictable ({why}).\n\nIt also protects every backup — a stolen backup file can be guessed offline as often as an attacker likes. Better: the suggest button (six dice words).\n\nUse it anyway?"},
+  "confirm.weakPassCp":{de:"Diese Passphrase ist vorhersagbar ({why}).\n\nSie schützt auch jedes künftige Backup — eine gestohlene Backup-Datei lässt sich offline beliebig oft durchprobieren. Besser: sechs Würfelwörter aus dem Generator-Tab (Modus „Würfelwörter“).\n\nTrotzdem verwenden?",en:"This passphrase is predictable ({why}).\n\nIt also protects every future backup — a stolen backup file can be guessed offline as often as an attacker likes. Better: six dice words from the generator tab (mode “Dice words”).\n\nUse it anyway?"},
   "nocrypto":{de:"Dieser Browser unterstützt kein WebCrypto/WebAssembly oder läuft nicht im sicheren Kontext. Bitte die App verwenden oder die Seite über https:// bzw. localhost öffnen.",en:"This browser lacks WebCrypto/WebAssembly or is not a secure context. Please use the app or open the page via https:// or localhost."}
 };
 const _qsLang = new URLSearchParams(window.location.search).get('lang');
@@ -574,7 +581,44 @@ function genWords(n, sep, cap, num){
   if(num){ const pos=randInt(n); words[pos]+=String(randInt(10)); bits+=Math.log2(10*n); }
   return {pw:words.join(sep==null?'-':sep), bits:Math.round(bits)};
 }
-function passStrength(p){ const words=p.trim().split(/[\s\-_.,;]+/).filter(w=>w.length>=3).length, len=p.length; if(len<12) return 0; if(len>=24||(len>=18&&words>=4)) return 3; if(len>=16||words>=3) return 2; return 1; }
+/* Stärke-Schätzung (v1.6): Länge allein lügt — „Sommer2024Sommer“ hieß vorher „stark“. Muster werden als Spannen gefunden und auf
+   wenige effektive Zeichen verbilligt (Wiederholung/Folge/Tastatur/Jahr → 1, häufiges Wort → 2), gierig nach Ersparnis, ohne Überlappung.
+   Bewusst klein, ohne Wörterbuch-Bibliothek (zxcvbn ~800 KB): eine Schätzung, kein Knack-Test. weak = Muster gefunden UND effektiv < 12.
+   Analysiert werden die ersten 64 Zeichen (Rest zählt voll) — health() ruft das für jeden Eintrag. */
+const PASS_ROWS=['1234567890','qwertzuiop','qwertyuiop','asdfghjkl','yxcvbnm','zxcvbnm'];
+const PASS_COMMON=['passwort','password','kennwort','geheim','secret','hallo','hello','welcome','willkommen','login','admin','benutzer',
+  'schatz','liebe','ichliebedich','iloveyou','love','baby','mausi','hasi','engel','angel','sonne','sommer','winter','herbst','fruehling','frühling',
+  'summer','monkey','dragon','master','shadow','sunshine','princess','football','fussball','fußball','baseball','soccer','letmein','trustno',
+  'deutschland','germany','berlin','hamburg','muenchen','münchen','bayern','schalke','borussia','bitcoin','satoshi','freiheit','freedom',
+  'google','facebook','amazon','apple','samsung','computer','internet','starwars','pokemon','superman','batman','killer','hunter',
+  'michael','thomas','andreas','stefan','daniel','martin','sabine','nicole','katze','hund','gott','jesus','test'];
+const PASS_LEET={'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s'};
+function passCheck(p){
+  p=String(p||''); const len=p.length, full=p.toLowerCase(), s=full.slice(0,64), n=s.replace(/[013457@$]/g,c=>PASS_LEET[c]), spans=[];
+  const o=full.length===len?p.slice(0,64):s;   // Wiederholung/Folge mit Groß-/Kleinschreibung: „qQq“, „hGFe“ sind im Zufallspasswort kein Muster
+  const add=(a,b,cost,why)=>{ if(b-a>cost) spans.push({a,b,save:b-a-cost,why}); };
+  for(let i=0;i<o.length;){ let j=i+1; while(j<o.length&&o[j]===o[i]) j++; if(j-i>=3) add(i,j,1,'repeat'); i=j; }          // aaaa
+  for(let L=3;L<=o.length>>1;L++) for(let i=0;i+2*L<=o.length;i++){ const b=o.substr(i,L); let k=i+L;              // SommerSommer: erste Kopie bleibt
+    while(o.substr(k,L)===b) k+=L; if(k>i+L){ add(i+L,k,1,'repeat'); i=k-1; } }
+  for(let i=0;i<o.length-1;){ const d=o.charCodeAt(i+1)-o.charCodeAt(i); let j=i+1;                                     // abcd, 4321
+    if((d===1||d===-1)&&/[a-zA-Z0-9]/.test(o[i])){ while(j<o.length&&/[a-zA-Z0-9]/.test(o[j])&&o.charCodeAt(j)-o.charCodeAt(j-1)===d) j++; if(j-i>=4) add(i,j,1,'seq'); }
+    i=Math.max(i+1,j-1); }
+  for(const row of PASS_ROWS) for(const r of [row,row.split('').reverse().join('')])                                 // qwertz, lkjhgfdsa
+    for(let i=0;i<s.length;){ const at=r.indexOf(s[i]); let j=i; if(at>=0) while(j<s.length&&r[at+j-i]===s[j]) j++; if(j-i>=4){ add(i,j,1,'keyboard'); i=j; } else i++; }
+  for(const m of s.matchAll(/(?:19|20)\d\d/g)) add(m.index,m.index+4,1,'year');
+  for(const w of PASS_COMMON) for(let i=n.indexOf(w);i>=0;i=n.indexOf(w,i+1)) add(i,i+w.length,2,'common');           // auch p4ssw0rt
+  spans.sort((x,y)=>y.save-x.save); const used=new Uint8Array(s.length), why=[]; let eff=full.length;
+  for(const sp of spans){ let free=true; for(let i=sp.a;i<sp.b;i++) if(used[i]){ free=false; break; } if(!free) continue;
+    used.fill(1,sp.a,sp.b); eff-=sp.save; if(!why.includes(sp.why)) why.push(sp.why); }
+  if(/^\d+$/.test(p)){ eff=Math.min(eff,Math.floor(len*0.56)); why.push('digits'); }                                  // log2(10)/log2(62)
+  const uniq=new Set(full).size; if(len>=8&&uniq<5){ eff=Math.min(eff,uniq*2); if(!why.includes('variety')) why.push('variety'); }
+  const words=p.trim().split(/[\s\-_.,;]+/).filter(w=>w.length>=3).length;
+  // weak braucht echte Ersparnis (≥ 4): ein einzelnes „qqq“/„1927“/„sdfg“ in einem 12-Zeichen-Zufallspasswort ist kein Muster (Review v1.6)
+  const weak=why.length>0&&eff<12&&len-eff>=4, e=weak?eff:Math.max(eff,12);
+  const level=(len<12||weak)?0:(e>=24||(e>=18&&words>=4))?3:(e>=16||(words>=3&&e>=14))?2:1;   // Wörter-Bonus nur, wenn die Wörter selbst nicht billig waren
+  return {level, weak, why, eff};
+}
+function passStrength(p){ return passCheck(p).level; }
 
 /* ---------- CSV (RFC 4180) + Import-Mapping ---------- */
 function parseCsv(text, delim){
@@ -916,6 +960,7 @@ const App = (function(){
     const p1=$('setup-pass1').value, p2=$('setup-pass2').value;
     if(p1.length<12) return err('setup-err',tr('err.setupShort'));
     if(p1!==p2) return err('setup-err',tr('err.setupMismatch'));
+    { const c=passCheck(p1); if(c.weak&&!confirm(tr('confirm.weakPass',{why:whyText(c.why)}))) return; }   // Rückfrage, kein Verbot (v1.6)
     const btn=$('setup-btn'), orig=btn.textContent; doSetup._busy=true; btn.disabled=true; btn.textContent=tr('busy.creating');
     try{
       const m=parseInt($('setup-kdf').value,10);
@@ -1079,11 +1124,19 @@ const App = (function(){
   /* ---------- Einträge: Liste, Gesundheit ---------- */
   function health(){
     // Kein Alters-Flag mehr (v1.3): ein starkes Zufallspasswort wird durch Alter nicht schwächer, Zwangsrotation ist Anti-Muster (NIST 800-63B, BSI 2020)
-    const r=new Set(), w=new Set(), byPass=new Map();
-    for(const e of live()){ if(e.type!=='login'||!e.pass) continue; if(!byPass.has(e.pass)) byPass.set(e.pass,[]); byPass.get(e.pass).push(e.id); if(e.pass.length<12&&!e.nowarn) w.add(e.id); }
+    // „vorhersagbar“ (v1.6) ist unabhängig von „kurz“: nowarn schaltet nur „kurz“ ab; ein kurzes Passwort ohne nowarn trägt nur „kurz“
+    const r=new Set(), w=new Set(), v=new Set(), byPass=new Map();
+    for(const e of live()){ if(e.type!=='login'||!e.pass) continue; if(!byPass.has(e.pass)) byPass.set(e.pass,[]); byPass.get(e.pass).push(e.id);
+      if(e.pass.length<12&&!e.nowarn) w.add(e.id); else if(predictable(e)) v.add(e.id); }
     for(const ids of byPass.values()) if(ids.length>1) ids.forEach(id=>r.add(id));
-    return {r,w};
+    return {r,w,v};
   }
+  // Cache je Eintragsobjekt (health() läuft bei jedem Tastendruck in der Suche); stirbt mit dem Objekt, hält kein zusätzliches Geheimnis
+  const _weakCache=new WeakMap();
+  // nowarn + unter 12 Zeichen: „nur Ziffern“/„Jahreszahl“ sind dann Vorgabe des Dienstes (PIN), abschaltbar wie „kurz“ (Review v1.6)
+  function predictable(e){ const c=_weakCache.get(e); if(c&&c.p===e.pass&&c.n===e.nowarn) return c.weak; const r=passCheck(e.pass);
+    const weak=r.weak&&!(e.nowarn&&e.pass.length<12&&r.why.every(k=>k==='digits'||k==='year')); _weakCache.set(e,{p:e.pass,n:e.nowarn,weak}); return weak; }
+  const whyText=why=>why.map(k=>tr('why.'+k)).join(', ');
   const cats=()=>[...new Set(live().map(e=>e.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
   const maskNumber=n=>{ const d=(n||'').replace(/\s/g,''); return d?'•••• '+d.slice(-4):''; };
   /* ---------- Eigene Auswahl-/Vorschlagsfelder (v1.5) ----------
@@ -1133,8 +1186,8 @@ const App = (function(){
     renderChips(all); renderTrashBtn();
     let items=catFilter===null?all:all.filter(e=>e.cat===catFilter);
     if(search) items=items.filter(e=>(e.title+'\n'+e.user+'\n'+(e.email||'')+'\n'+e.url+'\n'+e.cat+'\n'+(e.extra||[]).map(x=>x.name).join('\n')).toLowerCase().includes(search));   // Zusatzfeld-Namen ja, Werte nie
-    const h=health(); const hEl=$('health'); const bad=h.r.size+h.w.size;
-    hEl.textContent=all.length?(bad?tr('health.bad',{r:h.r.size,w:h.w.size}):tr('health.ok')):''; hEl.classList.toggle('bad',bad>0);
+    const h=health(); const hEl=$('health'); const bad=h.r.size+h.w.size+h.v.size;
+    hEl.textContent=all.length?(bad?tr('health.bad',{r:h.r.size,w:h.w.size,v:h.v.size}):tr('health.ok')):''; hEl.classList.toggle('bad',bad>0);
     renderBackupHint();
     if(!items.length){ list.appendChild(el('div','empty',all.length?tr('list.noMatch'):tr('list.empty'))); return; }
     for(const e of items){
@@ -1150,6 +1203,7 @@ const App = (function(){
       if(e.totp) badges.appendChild(el('span','pill totp','TOTP'));
       if(h.r.has(e.id)) badges.appendChild(el('span','pill bad',tr('badge.reused')));
       if(h.w.has(e.id)) badges.appendChild(el('span','pill bad',tr('badge.weak')));
+      if(h.v.has(e.id)) badges.appendChild(el('span','pill bad',tr('badge.predictable')));
       row.appendChild(badges); list.appendChild(row);
     }
     // Dezente Summe am Listenende: nur lebende Einträge (Papierkorb zählt nicht), bei Filter/Suche „n von t“
@@ -1349,7 +1403,9 @@ const App = (function(){
   function genUse(){ if(!genValue) return; if(!editId&&!$('f-title').value) { editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); } if(formType!=='login') setEntryType('login'); $('f-pass').value=genValue; meterForm(); tab('add'); }
   function genIntoForm(){ $('fg-panel').classList.remove('hidden'); const b=document.querySelector('[data-showpass="f-pass"]'); if(b) setEye(b,true); else $('f-pass').type='text'; fgGen(); }   // „Generieren“: Panel auf, EINMAL aufdecken, erzeugen
   function suggestPass(){ const r=genWords(6,'-',false,false); if(!r.pw) return toast(tr('toast.wordsMissing')); $('setup-pass1').value=r.pw; $('setup-pass2').value=r.pw; $('setup-pass1').type=$('setup-pass2').type='text'; $('setup-show').checked=true; meterSetup(); toast(tr('toast.suggest')); }
-  function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const st=passStrength(p); const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren(); const s=el('span',null,'▮'.repeat(st+1)+'▯'.repeat(3-st)+' '+tr('pass.s'+st)); s.style.color=col; o.appendChild(s); }
+  function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const c=passCheck(p), st=c.level; const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren();
+    const txt=p.length<12?tr('pass.s0'):c.weak?tr('pass.weak',{why:whyText(c.why)}):tr('pass.est',{s:tr('pass.s'+st)})+(c.why.length?' · '+tr('pass.has',{why:whyText(c.why)}):'');
+    const s=el('span',null,'▮'.repeat(st+1)+'▯'.repeat(3-st)+' '+txt); s.style.color=col; o.appendChild(s); }
   function meterSetup(){ renderMeter('setup-pass1','setup-meter'); }
   function meterCp(){ renderMeter('cp1','cp-meter'); }
 
@@ -1612,6 +1668,8 @@ const App = (function(){
     try{
       try{ const kOld=await deriveKek(passBytes(cur), KDF); await unwrapDek(WRAP,kOld,KDF,false); }   // alte Passphrase real prüfen
       catch(_){ return err('cp-err',tr('err.cpWrong')); }
+      { const c=passCheck(p1); if(c.weak&&!confirm(tr('confirm.weakPassCp',{why:whyText(c.why)}))) return; }   // erst nach der alten Passphrase (Review v1.6)
+      if(!VAULT||!DEK) return;                                   // während der Rückfrage gesperrt
       const kdf={m:KDF.m,t:KDF.t,p:KDF.p,salt:rand(16)};
       const kNew=await deriveKek(passBytes(p1), kdf);
       const dekX=await newDek(); const wrap=await wrapDek(dekX,kNew,kdf); const dek=await unwrapDek(wrap,kNew,kdf,false);   // DEK-Rotation
