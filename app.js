@@ -96,7 +96,7 @@ const I18N = {
   "foot.line1":"Alien Investor · Alien Pass · 100 % local · no cloud · no telemetry",
   "foot.line2":"Encryption: Argon2id · AES-256-GCM · WebCrypto · TOTP RFC 6238",
   "foot.donate":"Recharge energy · Donate",
-  "help.closeX":"Close ✕","help.close":"Close","d.edit":"Edit","d.delete":"Delete",
+  "help.closeX":"Close ✕","help.close":"Close","d.pick":"Select an entry on the left","d.edit":"Edit","d.delete":"Delete",
   "help.title":"Manual",
   "help.h1":"What is Alien Pass?",
   "help.p1":"A <strong>local, encrypted password manager</strong>. Runs fully <strong>offline</strong> — no cloud, no server, no telemetry, no account. The Android app does not even have an internet permission. Your passwords never leave the device in plaintext.",
@@ -117,6 +117,8 @@ const I18N = {
   "help.l7":"<li><strong>Create backup</strong> writes a <code>.vault</code> file (encrypted with your passphrase). It can safely go into Syncthing, onto a stick or into a backup.</li><li><strong>Import</strong> merges: per entry the newer change wins, deletions are carried over (for one year). The file may use a different passphrase — your local one stays.</li><li>With two devices: export on both regularly and import the other's backup. Both sides end up at the same state.</li><li>After a <strong>passphrase change</strong> older backups still open with their old passphrase.</li>",
   "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
   "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv. Folders become categories.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
+  "help.hDesk":"Desktop version (Linux)",
+  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
   "help.h9":"Security in detail",
   "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests exactly two normal permissions, both for the fingerprint sensor: USE_BIOMETRIC and USE_FINGERPRINT (the latter only up to Android 8.1, brought in by the AndroidX biometric library). No internet, no storage, no contacts. Besides these the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing. It forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from cloud, adb and device-to-device backups (backup rules).</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, own AES block cipher checked against FIPS-197 vectors and WebCrypto in the test suite, integrity check); its keys are import-only and zeroed afterwards, the vault key never touches it.</li><li><strong>Limits:</strong> no autofill, no breach check. Fingerprint unlock is optional and honestly limited (see above). A passphrase cannot be recovered.</li>"
 };
@@ -250,6 +252,7 @@ const T = {
   "bk.doneNative":{de:"Backup geschrieben nach Dokumente: {n}",en:"Backup written to Documents: {n}"},
   "bk.doneShare":{de:"Backup über den Teilen-Dialog bereitgestellt: {n} — dort ein Ziel wählen (Dateien, Syncthing …).",en:"Backup offered via the share sheet: {n} — pick a destination there (Files, Syncthing …)."},
   "bk.failed":{de:"Backup fehlgeschlagen: {e}",en:"Backup failed: {e}"},
+  "err.storeRead":{de:"Tresor-Datei nicht lesbar — es wurde nichts überschrieben. Rechte und Datenträger prüfen, dann neu starten.",en:"Vault file not readable — nothing was overwritten. Check permissions and disk, then restart."},
   "bk.none":{de:"⚠ Noch kein Backup. Sicherung → Backup erstellen.",en:"⚠ No backup yet. Backup → Create backup."},
   "bk.stale":{de:"⚠ Letztes Backup vor {d} Tagen — seitdem {n} Änderung(en).",en:"⚠ Last backup {d} days ago — {n} change(s) since."},
   "bk.readErr":{de:"Datei konnte nicht gelesen werden.",en:"Could not read the file."},
@@ -897,6 +900,16 @@ const App = (function(){
   let GEN=Object.assign({},GEN_DEFAULT);
   let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
   let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
+  const DESK = window.AlienDesktop || null;   // Desktop-Hülle (desktop/preload.js), sonst null
+  // Tresor-Speicher: Desktop = eigene Datei über die Hülle (synchron, wirft bei Lesefehlern), sonst localStorage.
+  // Ein Lesefehler ist NIE „kein Tresor“ — sonst böte boot() „Tresor anlegen“ an und überschriebe den echten.
+  function vaultGet(){ return DESK ? DESK.store.read() : localStorage.getItem(LS_KEY); }
+  function vaultSet(s){ if(DESK) DESK.store.write(s); else localStorage.setItem(LS_KEY, s); }
+  function vaultDel(){ if(DESK) DESK.store.del(); else localStorage.removeItem(LS_KEY); }
+  // Desktop-Prototyp hielt den Tresor im Browser-Speicher: einmalig in die Datei übernehmen, erst nach Gegenlesen löschen
+  function migrateDesk(){ if(!DESK) return; let ls=null; try{ ls=localStorage.getItem(LS_KEY); }catch(_){} if(!ls) return;
+    const cur=DESK.store.read(); if(cur===null){ DESK.store.write(ls); if(DESK.store.read()!==ls) throw new Error('store'); } else if(cur!==ls) return;
+    localStorage.removeItem(LS_KEY); }
 
   const $ = id => document.getElementById(id);
   const show = id => $(id).classList.remove('hidden');
@@ -931,7 +944,7 @@ const App = (function(){
     if(DEK!==dek||KDF!==kdf||WRAP!==wrap) return persist();    // Passphrase gewechselt → mit dem neuen Schlüssel neu verschlüsseln,
                                                                // sonst überschriebe dieser alte Blob den frischen von changePass
     const s=serializeFile(kdf, wrap, body);
-    try{ localStorage.setItem(LS_KEY, s); }
+    try{ vaultSet(s); }
     catch(e){ toast(tr('err.saveFailed')); throw e; }
     if(VAULT===vault) vault.entries=entries;
   }
@@ -940,7 +953,7 @@ const App = (function(){
   /* ---------- boot / setup / unlock / lock ---------- */
   function boot(){
     loadLockState(); dropQrFile(); syncCombos();   // Knopfbeschriftungen der Auswahlfelder aus den Selects setzen
-    const raw=localStorage.getItem(LS_KEY);
+    let raw; try{ migrateDesk(); raw=vaultGet(); }catch(_){ screen('lock'); err('lock-err',tr('err.storeRead')); return; }
     if(!raw){ screen('setup'); setTimeout(()=>$('setup-pass1').focus(),100); benchKdf(); bioDrop(true); }   // ohne Tresor kein Fingerabdruck-Slot
     else { screen('lock'); setTimeout(()=>$('lock-pass').focus(),100); bioProbe(bioAuto); }   // bioAuto wird erst von afterGate() wieder gesetzt (nach „Jetzt sperren“ kein Auto-Prompt bis zur nächsten Entsperrung, Audit run-3)
     const soft=document.documentElement.getAttribute('data-theme')==='soft';
@@ -983,7 +996,7 @@ const App = (function(){
     if(doUnlock._busy) return; err('lock-err');
     loadLockState();                                                                   // Stand eines anderen Tabs übernehmen
     const now=Date.now(); if(now<lockedUntil) return err('lock-err',tr('err.wait',{s:Math.ceil((lockedUntil-now)/1000)}));
-    const raw=localStorage.getItem(LS_KEY); if(!raw) return boot();
+    let raw; try{ raw=vaultGet(); }catch(_){ return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
     let f; try{ f=parseFile(raw); }catch(e){ return err('lock-err',fileErrMsg(e)); }
     const btn=$('unlock-btn'), orig=btn.textContent; doUnlock._busy=true; btn.disabled=true; btn.textContent=tr('busy.decrypting'); renderBioGate();   // Fingerabdruck-Knopf solange aus
     const gen=bioGen;                                                                  // Generation: gewinnt zwischendurch der Fingerabdruck, verfällt dieses Ergebnis (Audit run-3 #1)
@@ -1116,13 +1129,16 @@ const App = (function(){
       if(p&&p.then) p.then(done).catch(()=>{ fallbackCopy(text)?done():toast(tr('copy.manual')); });
       else fallbackCopy(text)?done():toast(tr('copy.manual')); };
     // Nativ (Android): als „sensibel“ markiert → keine System-Vorschau des Inhalts (API 33+); Fallback Web-API
-    if(SC){ let p=null; try{ p=SC.write({text}); }catch(_){ p=null; } if(p&&p.then){ p.then(done).catch(web); return; } }
+    // Desktop: kein Rückfall auf die Web-API — die schriebe ohne KDE-Hinweis, Klipper hielte das Geheimnis im Verlauf
+    if(SC){ let p=null; try{ p=SC.write({text}); }catch(_){ p=null; } if(p&&p.then){ p.then(done).catch(DESK?()=>toast(tr('copy.manual')):web); return; } }
+    if(DESK) return toast(tr('copy.manual'));
     web();
   }
 
   /* ---------- tabs ---------- */
   const TAB_ACTIVE={trash:'list'};   // Ansichten ohne eigenen Tab-Knopf: welcher Knopf markiert bleibt
   function tab(name){
+    if(DESK&&name!=='list'&&currentId) closeDetail();   // Desktop: Detail steckt in der Listen-Ansicht, nicht offen stehen lassen
     if(name!=='add'&&editId){ editId=null; resetForm(); }   // sonst überschreibt „Neu“ später still den zuletzt bearbeiteten Eintrag
     const mark=TAB_ACTIVE[name]||name;
     document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===mark));
@@ -1204,7 +1220,7 @@ const App = (function(){
     renderBioAlert(); renderBackupHint();
     if(!items.length){ list.appendChild(el('div','empty',all.length?tr('list.noMatch'):tr('list.empty'))); return; }
     for(const e of items){
-      const row=el('div','entry'); row.dataset.action='openDetail'; row.dataset.arg=e.id;
+      const row=el('div',e.id===currentId?'entry sel':'entry'); row.dataset.action='openDetail'; row.dataset.arg=e.id;
       row.appendChild(el('div','av',(e.title.trim()[0]||'?').toUpperCase()));
       const main=el('div','main'); main.appendChild(el('div','t',e.title));
       const sub=e.type==='card'?[e.card&&e.card.holder,e.card&&maskNumber(e.card.number)].filter(Boolean).join(' · '):e.type==='bank'?[e.bank&&e.bank.bank,e.bank&&maskNumber(e.bank.iban)].filter(Boolean).join(' · '):e.type==='note'?'':(e.user||e.email||e.url||'');
@@ -1296,7 +1312,7 @@ const App = (function(){
     box.appendChild(vrow); return box;
   }
   function openDetail(id){
-    const e=byId(id); if(!e) return; currentId=id; stopTotp();
+    const e=byId(id); if(!e) return; currentId=id; stopTotp(); markSel();
     $('d-title').textContent=e.title; const b=$('d-body'); b.replaceChildren();
     if(e.cat) b.appendChild(kv(tr('d.cat'), e.cat, {id:'cat'}));
     if(e.type==='card'&&e.card){ const c=e.card;
@@ -1325,7 +1341,8 @@ const App = (function(){
     $('d-fav-btn').textContent=e.fav?tr('d.unfav'):tr('d.fav');
     show('detail-overlay'); $('detail-overlay').scrollTop=0;
   }
-  function closeDetail(){ stopTotp(); hide('detail-overlay'); const b=$('d-body'); b.replaceChildren(); $('d-title').textContent=''; $('d-meta').textContent=''; currentId=null; }
+  function closeDetail(){ stopTotp(); hide('detail-overlay'); const b=$('d-body'); b.replaceChildren(); $('d-title').textContent=''; $('d-meta').textContent=''; currentId=null; markSel(); }
+  function markSel(){ document.querySelectorAll('#entry-list .entry').forEach(r=>r.classList.toggle('sel',r.dataset.arg===currentId)); }   // Desktop: gewählte Zeile markieren
   function toggleReveal(which){ which=which||'pass'; const e=byId(currentId), v=$('d-'+which), btn=$('d-reveal-'+which); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?fieldValue(e,which):'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
   function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,/^x\d+$/.test(which)?'what.extra':'what.'+which); }
   function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(rollback(snapshot)); }
@@ -1425,7 +1442,9 @@ const App = (function(){
   /* ---------- Backup export / import ---------- */
   const CAP = window.Capacitor || null;
   const isNative = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
-  const SC = (isNative && CAP.Plugins && CAP.Plugins.SecureClip) ? CAP.Plugins.SecureClip : null;   // eigenes Mini-Plugin (patch-hardening.mjs)
+  const SC = (isNative && CAP.Plugins && CAP.Plugins.SecureClip) ? CAP.Plugins.SecureClip   // eigenes Mini-Plugin (patch-hardening.mjs)
+           : (DESK && DESK.clip) || null;   // Desktop: Hauptprozess schreibt mit KDE-Hinweis (kein Klipper-Verlauf) und löscht auch ohne Fokus
+  if(DESK&&typeof DESK.onLock==='function') DESK.onLock(()=>{ if(DEK||pendingUnlock) lock(); });   // Ruhezustand/Bildschirmsperre
   const BIO = (isNative && CAP.Plugins && CAP.Plugins.Biometric) ? CAP.Plugins.Biometric : null;   // Fingerabdruck-Plugin (patch-hardening.mjs), Web: kein Slot
   async function nativeSaveAndShare(name, content, dir, shareText){
     const FS=CAP.Plugins&&CAP.Plugins.Filesystem; if(!FS) throw new Error('Filesystem-Plugin fehlt');
@@ -1441,12 +1460,15 @@ const App = (function(){
       // Erst persistieren, dann lesen: sonst exportiert die Datei den Stand VOR dem Aufräumen beim Entsperren
       // und trägt Papierkorb-Inhalte, die die App längst als geräumt anzeigt (Audit run-5 #3).
       try{ await persist(); }catch(e){ if(e&&e.locked) return; }
-      const raw=localStorage.getItem(LS_KEY); const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
+      let raw; try{ raw=vaultGet(); }catch(_){ $('bk-msg').textContent=tr('err.storeRead'); return; }
+      const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
       // Erst die Datei schreiben — der Backup-Stempel darf nur nach Erfolg gesetzt werden
       try{ if(isNative){
              try{ await nativeSaveAndShare(name, raw, 'DOCUMENTS', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneNative',{n:name}); }
              catch(e1){ await nativeSaveAndShare(name, raw, 'CACHE', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneShare',{n:name}); }   // ältere Androids ohne Documents-Zugriff: nur via Teilen
-           } else { downloadFile(name, raw, 'application/octet-stream'); $('bk-msg').textContent=tr('bk.done',{n:name}); } }
+           } else if(DESK){ const n=await DESK.saveBackup(name, raw);   // Speichern-Dialog; abgebrochen → kein Backup-Stempel
+             if(!n){ $('bk-msg').textContent=''; return; } $('bk-msg').textContent=tr('bk.done',{n}); }
+           else { downloadFile(name, raw, 'application/octet-stream'); $('bk-msg').textContent=tr('bk.done',{n:name}); } }
       catch(e){ $('bk-msg').textContent=tr('bk.failed',{e:String(e&&e.message||e)}); return; }
       if(!VAULT) return;
       const before={lastBackup:VAULT.meta.lastBackup,lastBackupCount:VAULT.meta.lastBackupCount};
@@ -1550,6 +1572,7 @@ const App = (function(){
   function clearQrCanvas(){ const q=$('totp-qr'); if(q&&q.width){ q.getContext('2d').clearRect(0,0,q.width,q.height); q.width=q.height=0; } }
   function blobToBase64(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=rej; r.readAsDataURL(blob); }); }
   function saveQR(){
+    if(DESK) return;   // Desktop: die PNG wäre eine bleibende Klartext-Datei mit dem TOTP-Geheimnis — QR vom Bildschirm scannen
     const c=$('totp-qr'); if(!pendingSecret||!c||c.style.display==='none'||!c.width) return toast(tr('toast.noQr'));
     c.toBlob(async blob=>{ const fname='alien-pass-aegis-qr.png';
       if(isNative){ try{ const b64=await blobToBase64(blob); const FS=CAP.Plugins&&CAP.Plugins.Filesystem; const w=await FS.writeFile({path:fname,data:b64,directory:'CACHE',recursive:true});   // app-intern, nur transient via Teilen
@@ -1640,7 +1663,7 @@ const App = (function(){
   // Sperrbildschirm: Fingerabdruck → Keystore gibt den Zufallsschlüssel heraus → DEK auspacken → gleicher Weg wie die Passphrase
   async function doBio(){
     if(doBio._busy||doUnlock._busy||!BIO||!bioArmed||bioHold()||DEK||pendingUnlock) return; err('lock-err');   // Riegel: Passphrase-Pflicht
-    const raw=localStorage.getItem(LS_KEY); if(!raw) return boot();
+    let raw; try{ raw=vaultGet(); }catch(_){ return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
     let f; try{ f=parseFile(raw); }catch(e){ return err('lock-err',fileErrMsg(e)); }
     const blob=bioBlob(); if(!blob){ bioDrop(true); return; }
     if(blob.w!==bufToB64(f.wrap.ct)){ bioArmed=false; renderBioGate(); return bioMsg(tr('bio.wrapMismatch')); }   // fremder/veränderter Passphrase-Slot: nie übernehmen, Blob behalten (Backup-Restore heilt)
@@ -1681,6 +1704,15 @@ const App = (function(){
     }finally{ bioEnable._busy=false; btn.disabled=false; btn.textContent=orig; $('bio-pass').value=''; maskInputs('#bio-card'); renderSettings(); }
   }
   function bioDisable(){ if(!VAULT||!bioArmed||!confirm(tr('confirm.bioDisable'))) return; bioDrop(true); toast(tr('bio.off')); renderSettings(); }
+  // Desktop-Tastatur (KeePassXC-Gewohnheit): Strg+L sperren, Strg+F Suche, Strg+N neuer Eintrag. Nur in der Hülle, nur entsperrt.
+  function deskKey(ev){
+    if(!DESK||!ev.ctrlKey||ev.altKey||ev.shiftKey||ev.metaKey) return false; const k=(ev.key||'').toLowerCase();
+    if(k==='l'&&(DEK||pendingUnlock)){ lockNow(); return true; }
+    if(!DEK) return false;
+    if(k==='f'){ closeHelp(); tab('list'); const q=$('search'); q.focus(); q.select(); return true; }
+    if(k==='n'){ closeHelp(); newEntry(); return true; }
+    return false;
+  }
   function lockNow(){ if(BIO&&(bioArmed||bioBlob())) setBioHold(true); bioAuto=false; lock(); }   // bewusst gesperrt: Riegel, nächster Start nur mit Passphrase
 
   /* ---------- Einstellungen ---------- */
@@ -1718,7 +1750,7 @@ const App = (function(){
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr(hadBio?'toast.passChangedBio':'toast.passChanged')); renderSettings();
     }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; }
   }
-  function wipeLocal(){ if(!confirm(tr('confirm.wipe'))) return; bioDrop(true); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){} localStorage.removeItem(LS_KEY); lock(); }
+  function wipeLocal(){ if(!confirm(tr('confirm.wipe'))) return; bioDrop(true); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){} try{ vaultDel(); }catch(_){ toast(tr('err.saveFailed')); return; } lock(); }
 
   /* ---------- misc ---------- */
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }
@@ -1733,7 +1765,7 @@ const App = (function(){
     setEntryType,changeEntryType,addExtraRow,removeExtraRow,setCatFilter,clearCatFilter,setGenMode,genChanged,genNew,genCopy,genUse,genIntoForm,fgGen,fgClose,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
     importProton,doImportProton,cancelProton,totpStart,totpConfirm,totpCancel,totpDisable,copySecret,copyOtpauth,saveQR,
     setAutolock,setBgLock,setClipClear,theme,changePass,wipeLocal,openHelp,closeHelp,toggleLang,relabel,meterSetup,meterCp,meterForm,kdfChanged,
-    doBio,bioEnable,bioDisable,lockNow,togglePass,enhancePassFields};
+    doBio,bioEnable,bioDisable,lockNow,deskKey,togglePass,enhancePassFields};
 })();
 
 /* ---------- Event-Delegation ----------
@@ -1761,6 +1793,7 @@ document.addEventListener('input',ev=>{
   const fn=App[elx.dataset.input]; if(typeof fn==='function') fn(elx.value, elx);
 });
 document.addEventListener('keydown',ev=>{
+  if(App.deskKey(ev)){ ev.preventDefault(); return; }
   if(ev.key==='Escape'){ App.closeMenus(); App.closeDetail(); App.closeHelp(); return; }
   if(ev.key!=='Enter') return;
   const elx=ev.target.closest('[data-enter]'); if(!elx) return;
@@ -1771,6 +1804,10 @@ window.addEventListener('DOMContentLoaded',()=>{
   const ok=window.crypto&&crypto.subtle&&typeof WebAssembly!=='undefined'&&window.hashwasm&&typeof hashwasm.argon2id==='function';
   if(!ok){ const c=document.querySelector('.container'); c.replaceChildren(); const d=document.createElement('div'); d.className='card warn'; d.textContent=tr('nocrypto'); c.appendChild(d); return; }
   const k=document.getElementById('setup-kdf'); if(k) k.addEventListener('change',App.kdfChanged);
+  if(window.AlienDesktop){ const q=document.querySelector('[data-action="saveQR"]'); if(q) q.style.display='none';   // Desktop: kein QR als Datei (siehe saveQR)
+    // Zweispaltig im breiten Fenster (CSS html.desk): das Detail wird rechte Spalte der Liste statt Vollbild-Overlay
+    document.documentElement.classList.add('desk'); const o=document.getElementById('detail-overlay'), de=document.getElementById('detail-empty');
+    if(o&&de) de.parentNode.insertBefore(o,de); }
   App.enhancePassFields();   // vor applyI18n: setzt die Augen-Beschriftung
   applyI18n();
   App.boot();

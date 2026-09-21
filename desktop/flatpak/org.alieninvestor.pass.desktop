@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Alien Pass
+Comment=Offline-Passwort-Manager ohne Cloud und ohne Netz
+Comment[en]=Offline password manager without cloud or network
+Exec=alien-pass
+Icon=org.alieninvestor.pass
+Terminal=false
+Categories=Utility;Security;
+Keywords=password;passwort;tresor;vault;
+StartupWMClass=Alien Pass

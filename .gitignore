@@ -48,3 +48,6 @@ trailer/shots/
 trailer/frames/
 trailer/cards/
 trailer/thumbs/
+
+# Desktop-Build (regenerierbar: Electron entpackt, app.asar, Flatpak-Bauordner)
+desktop/build/

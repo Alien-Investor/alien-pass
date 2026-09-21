@@ -38,3 +38,7 @@ test-fixtures/** !filter !diff
 # build-apk.sh, patch-signing.mjs, make-release.sh, BUILD.md, CLAUDE.md bleiben verschlüsselt.
 /patch-hardening.mjs !filter !diff
 /build-www.sh !filter !diff
+
+# Desktop-Hülle (Electron im Flatpak): Hauptprozess, Brücke, Build-Skripte, Flatpak-Manifest und Prüfprogramm sind die nativen
+# Teile der Desktop-Fassung — einsehbar wie patch-hardening.mjs, also KLARTEXT. Enthalten keine Geheimnisse und keine Pfade außer ~/.cache.
+desktop/** !filter !diff
