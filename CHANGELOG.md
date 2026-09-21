@@ -1,5 +1,11 @@
 # Changelog — Alien Pass
 
+## v1.6.2 — 2026-09-21
+Reine Darstellungskorrektur. Am Tresor-Format, an der Verschlüsselung und an deinen Daten ändert sich nichts.
+- **Passwortfeld bleibt dunkel, wenn ein anderer Passwortmanager es ausfüllt.** Füllte ein Passwortmanager (z.B. Proton Pass) die
+  Passphrase per Autofill ein, legte das System ein helles Feld darüber. Das Feld behält jetzt Hintergrund und Schriftfarbe der
+  gewählten Darstellung.
+
 ## v1.6.1 — 2026-09-19
 Zwei Sicherheits-Korrekturen, gefunden im internen Audit der Schwester-App Sachwert-Tresor. Deren Fingerabdruck-Code und
 Fehlversuchs-Bremse stammen aus Alien Pass und hatten dieselben Fehler.
