@@ -4,6 +4,7 @@
 // Im Flatpak nimmt zusätzlich das System das Netz weg (keine --share=network); diese Datei ist die zweite Schicht.
 const {app,BrowserWindow,protocol,session,ipcMain,clipboard,ClipboardItem,Menu,powerMonitor,dialog}=require('electron');
 const path=require('path'); const fs=require('fs'); const crypto=require('crypto');
+const {writeFull,writeAtomic}=require('./atomic.js');
 
 const ORIGIN='app://alienpass';
 const ENTRY=ORIGIN+'/index.html';
@@ -26,6 +27,8 @@ protocol.registerSchemesAsPrivileged([{scheme:'app',privileges:{standard:true,se
 for(const s of ['disable-background-networking','disable-component-update','disable-domain-reliability','no-pings','disable-breakpad'])
   app.commandLine.appendSwitch(s);
 app.commandLine.appendSwitch('host-resolver-rules','MAP * ~NOTFOUND');
+// WebRTC geht an webRequest, Namensauflösung und CSP vorbei (Audit run-6 #7): kein UDP ohne Proxy, und der Proxy ist tot (s.u.)
+app.commandLine.appendSwitch('force-webrtc-ip-handling-policy','disable_non_proxied_udp');
 app.enableSandbox();
 
 // Nur eine Instanz: zwei Fenster auf demselben Tresor hießen verlorene Änderungen
@@ -68,29 +71,24 @@ else {
   });
   ipcMain.handle('clip:clear',async e=>{ if(!fromApp(e)) throw new Error('denied'); await clearOwned(); return true; });
 
-  // Atomar schreiben: Temp-Datei daneben, fsync, umbenennen, Ordner fsyncen — nie eine halbe Datei.
-  // Bewusst KEINE Vorgänger-Kopie: nach einem Passphrase-Wechsel läge dort der Tresor unter der alten Passphrase.
-  function writeAtomic(file,data){
-    const dir=path.dirname(file); const tmp=path.join(dir,'.'+path.basename(file)+'.tmp-'+process.pid);
-    try{
-      const fd=fs.openSync(tmp,'w',0o600); try{ fs.writeSync(fd,data); fs.fsyncSync(fd); }finally{ fs.closeSync(fd); }
-      fs.renameSync(tmp,file);
-    }catch(err){ try{ fs.unlinkSync(tmp); }catch(_){} throw err; }
-    try{ const d=fs.openSync(dir,'r'); try{ fs.fsyncSync(d); }finally{ fs.closeSync(d); } }catch(_){}
-  }
+  // Vollständig + atomar schreiben: desktop/atomic.js (eigenes Modul, damit es einzeln unter ulimit geprüft werden kann)
+  // Temp-Reste nach einem Absturz entfernen — sie können nach einem Passphrase-Wechsel einen Alt-Stand halten
+  function dropTmp(){ try{ for(const n of fs.readdirSync(DATA_DIR)) if(n.startsWith('.vault.aipv.tmp-')) fs.unlinkSync(path.join(DATA_DIR,n)); }catch(_){} }
   // Synchron (sendSync), damit persist() in app.js keinen zusätzlichen await bekommt — die Persist-Invarianten bleiben gültig.
   // Lesefehler ≠ „kein Tresor“: sonst böte die App „Tresor anlegen“ an und überschriebe den echten.
   ipcMain.on('store:read',e=>{
     if(!fromApp(e)){ e.returnValue={ok:false}; return; }
-    try{ if(fs.statSync(VAULT_FILE).size>FILE_MAX){ e.returnValue={ok:false}; return; } e.returnValue={ok:true,data:fs.readFileSync(VAULT_FILE,'utf8')}; }
+    // leere Datei ist kaputt, nicht „kein Tresor“
+    try{ const sz=fs.statSync(VAULT_FILE).size; if(sz===0||sz>FILE_MAX){ e.returnValue={ok:false}; return; } e.returnValue={ok:true,data:fs.readFileSync(VAULT_FILE,'utf8')}; }
     catch(err){ e.returnValue=err&&err.code==='ENOENT'?{ok:true,data:null}:{ok:false}; }
   });
   ipcMain.on('store:write',(e,s)=>{
     if(!fromApp(e)||typeof s!=='string'||!s||s.length>FILE_MAX){ e.returnValue={ok:false}; return; }
-    try{ fs.mkdirSync(DATA_DIR,{recursive:true,mode:0o700}); writeAtomic(VAULT_FILE,s); e.returnValue={ok:true}; }catch(_){ e.returnValue={ok:false}; }
+    try{ fs.mkdirSync(DATA_DIR,{recursive:true,mode:0o700}); try{ fs.chmodSync(DATA_DIR,0o700); }catch(_){} writeAtomic(VAULT_FILE,s); e.returnValue={ok:true}; }catch(_){ e.returnValue={ok:false}; }
   });
   ipcMain.on('store:del',e=>{
     if(!fromApp(e)){ e.returnValue={ok:false}; return; }
+    dropTmp();
     try{ fs.unlinkSync(VAULT_FILE); e.returnValue={ok:true}; }catch(err){ e.returnValue={ok:!!(err&&err.code==='ENOENT')}; }
   });
 
@@ -100,7 +98,14 @@ else {
     if(typeof name!=='string'||!/^[\w.-]{1,80}\.vault$/.test(name)||typeof content!=='string'||!content||content.length>FILE_MAX) throw new Error('bad');
     const r=await dialog.showSaveDialog(win,{defaultPath:name,filters:[{name:'Alien Pass Backup',extensions:['vault']}]});
     if(r.canceled||!r.filePath) return null;
-    try{ writeAtomic(r.filePath,content); }catch(_){ fs.writeFileSync(r.filePath,content,{mode:0o600}); }   // Portal ohne Temp-Datei daneben: direkt
+    // Rückfall nur für ein NEUES Ziel (Portal ohne Temp-Datei daneben): ein bestehendes Backup nie direkt überschreiben (Audit run-6 #3)
+    try{ writeAtomic(r.filePath,content); }
+    catch(err){
+      if(fs.existsSync(r.filePath)) throw err;
+      const fd=fs.openSync(r.filePath,'wx',0o600);
+      try{ writeFull(fd,content); }catch(e2){ fs.closeSync(fd); try{ fs.unlinkSync(r.filePath); }catch(_){} throw e2; }
+      fs.closeSync(fd);
+    }
     return path.basename(r.filePath);
   });
 
@@ -110,10 +115,14 @@ else {
     wc.on('will-redirect',ev=>ev.preventDefault());
     wc.on('will-attach-webview',ev=>ev.preventDefault());
     wc.setWindowOpenHandler(()=>({action:'deny'}));
+    wc.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
   });
 
-  app.whenReady().then(()=>{
+  app.whenReady().then(async()=>{
     const ses=session.defaultSession;
+    dropTmp();
+    // Toter Proxy: die App braucht kein Netz (app:// läuft nicht über Proxys). Damit läuft auch WebRTC über TCP/TURN ins Leere.
+    await ses.setProxy({proxyRules:'http://127.0.0.1:9'});
     protocol.handle('app',serve);
     ses.setPermissionRequestHandler((_wc,_perm,cb)=>cb(false));
     ses.setPermissionCheckHandler(()=>false);
@@ -129,9 +138,14 @@ else {
         devTools:false,spellcheck:false,webviewTag:false,navigateOnDragDrop:false,safeDialogs:true,
         backgroundThrottling:false}});   // Sperr- und Lösch-Timer müssen auch minimiert feuern
     win.once('ready-to-show',()=>win.show());
+    // backgroundThrottling:false schaltet die Page Visibility API ab → Fensterzustand selbst melden (Audit run-6 #1)
+    const bg=h=>()=>{ if(win) win.webContents.send('bg',h); };
+    win.on('minimize',bg(true)); win.on('hide',bg(true)); win.on('restore',bg(false)); win.on('show',bg(false));
     win.on('closed',()=>{ win=null; });
     win.loadURL(ENTRY);
 
+    // Im Flatpak wirkungslos: 'lock-screen' gibt es unter Linux nicht, 'suspend' braucht logind am System-Bus (fehlt im Käfig).
+    // Bleibt für den Fall außerhalb des Käfigs; die Bildschirmsperre kommt über das Portal (siehe screenMonitor).
     const lockApp=()=>{ if(win) win.webContents.send('lock'); };
     powerMonitor.on('suspend',lockApp);
     powerMonitor.on('lock-screen',lockApp);

@@ -3,7 +3,7 @@
 // die Hülle verweigert --remote-debugging-*, und die Fuses sperren --inspect). Aufruf über verify-desktop.mjs.
 // Gibt je Prüfung eine Zeile "R <json>" aus, nie Tresor- oder Zwischenablage-Inhalte.
 const {app,BrowserWindow,Menu,session,clipboard,ClipboardItem}=require('electron');
-const path=require('path'); const fs=require('fs');
+const path=require('path'); const fs=require('fs'); const net=require('net'); const dgram=require('dgram');
 require('./main.js');
 
 const STEP=process.env.AP_STEP, PP=process.env.AP_PP||'';
@@ -22,7 +22,7 @@ async function fresh(){
   R('lädt nur app://alienpass/index.html', win.webContents.getURL()==='app://alienpass/index.html', win.webContents.getURL());
   R('kein Node im Renderer', await js(`typeof require==='undefined'&&typeof process==='undefined'&&typeof module==='undefined'`));
   const keys=await js(`Object.keys(window.AlienDesktop).sort().join(',')`);
-  R('Brücke hat genau clip, onLock, saveBackup, store', keys==='clip,onLock,saveBackup,store', keys);
+  R('Brücke hat genau clip, onBackground, onLock, saveBackup, store', keys==='clip,onBackground,onLock,saveBackup,store', keys);
   R('fetch nach außen scheitert', await js(`fetch('https://example.org/').then(()=>false,()=>true)`));
   R('window.open verweigert', await js(`window.open('https://example.org/')===null`));
   await js(`location.href='https://example.org/'`).catch(()=>{}); await sleep(600);
@@ -34,6 +34,15 @@ async function fresh(){
     { const c=await st(u); R('Protokoll verweigert '+u, c===404||c==='FEHLER', c); }   // FEHLER = schon vom Netzfilter verworfen
   R('Hauptprozess erreicht kein Netz (webRequest)', await st('https://example.org/')==='FEHLER');
   R('kein Anwendungsmenü', Menu.getApplicationMenu()===null);
+
+  // WebRTC (Audit run-6 #7): weder UDP-STUN noch TURN über TCP darf den Prozess verlassen — hier an eigene Empfänger auf 127.0.0.1
+  { const u=dgram.createSocket('udp4'); let udp=0; u.on('message',()=>udp++); await new Promise(r=>u.bind(0,'127.0.0.1',r));
+    let tcp=0; const t=net.createServer(c=>{ tcp++; c.destroy(); }); await new Promise(r=>t.listen(0,'127.0.0.1',r));
+    const up=u.address().port, tp=t.address().port;
+    const cand=await js(`(async()=>{ let n=0; try{ const pc=new RTCPeerConnection({iceServers:[{urls:'stun:127.0.0.1:${up}'},{urls:'turn:127.0.0.1:${tp}?transport=tcp',username:'u',credential:'p'}]});
+      pc.onicecandidate=e=>{ if(e.candidate) n++; }; pc.createDataChannel('x'); await pc.setLocalDescription(await pc.createOffer()); await new Promise(r=>setTimeout(r,4000)); pc.close(); }catch(e){ return 'ERR '+e.message; } return n; })()`);
+    R('WebRTC: kein UDP nach außen', udp===0, {udp,cand}); R('WebRTC: kein TCP/TURN nach außen', tcp===0, {tcp,cand});
+    u.close(); t.close(); }
   const wp=win.webContents.getLastWebPreferences();
   R('Sandbox, Kontext-Isolation, kein Node', wp.sandbox===true&&wp.contextIsolation===true&&wp.nodeIntegration===false, {sandbox:wp.sandbox,contextIsolation:wp.contextIsolation,nodeIntegration:wp.nodeIntegration});
   win.webContents.openDevTools(); await sleep(400);   // am Verhalten prüfen, nicht an den gemeldeten Einstellungen
@@ -86,6 +95,22 @@ async function restart(){
   R('entsperrt mit der Passphrase', await until(visible('screen-app')));
   R('Eintrag aus der Datei da', await until(`[...document.querySelectorAll('#entry-list .entry .t')].some(n=>n.textContent==='Harness Eintrag')`,10000));
 }
+// Sperre beim Minimieren (Audit run-6 #1): backgroundThrottling:false schaltet visibilitychange ab, die Hülle meldet selbst
+async function background(){
+  R('Hintergrund: Sperrbildschirm', await until(visible('screen-lock'),15000));
+  await fill('lock-pass',PP); await click('#unlock-btn'); R('Hintergrund: entsperrt', await until(visible('screen-app')));
+  await js(`App.setAutolock('0')`); await js(`App.setBgLock('0')`); await sleep(600);
+  win.minimize(); const locked=await until(visible('screen-lock'),5000);
+  R('Minimieren sperrt bei „sofort“ (Inaktivität aus)', locked);
+  win.restore(); await sleep(400);
+  await fill('lock-pass',PP); await click('#unlock-btn'); await until(visible('screen-app'));
+  await js(`App.setBgLock('30')`); await sleep(600);
+  win.minimize(); await sleep(1200); win.restore(); await sleep(600);
+  R('kurz minimiert bei 30 s: bleibt entsperrt', await js(visible('screen-app')));
+  await fill('lock-pass','x'); win.hide(); await sleep(600); win.show(); await sleep(400);   // zweites Signal-Paar: verstecken/zeigen
+  R('Verstecken leert getippte Eingaben', await js(`document.getElementById('lock-pass').value===''`));
+  await js(`App.setAutolock('2')`); await sleep(600);
+}
 async function unreadable(){
   R('Lesefehler: keine Einrichtung', await until(visible('screen-lock'),15000)&&!(await js(visible('screen-setup'))));
   R('Lesefehler: Meldung', /nicht lesbar|not readable/.test(await js(`document.getElementById('lock-err').textContent`)));
@@ -98,6 +123,7 @@ app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
     try{
       await until(`document.readyState==='complete'&&typeof App!=='undefined'`,15000); await js('void (window.confirm=()=>true)');   // Rückfragen bestätigen (kein Dialog im Test)
       if(STEP==='fresh') await fresh(); else if(STEP==='restart') await restart(); else if(STEP==='unreadable') await unreadable();
+      else if(STEP==='background') await background();
       else if(STEP==='hold'){ R('läuft',true); await sleep(Number(process.env.AP_HOLD||8000)); }
     }catch(e){ R('Ausnahme im Prüfprogramm',false,String(e&&e.stack||e)); }
     app.exit(0);

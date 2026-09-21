@@ -118,7 +118,7 @@ const I18N = {
   "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
   "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv. Folders become categories.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
   "help.hDesk":"Desktop version (Linux)",
-  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
+  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when minimised (setting “Lock in background”). On <strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
   "help.h9":"Security in detail",
   "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests exactly two normal permissions, both for the fingerprint sensor: USE_BIOMETRIC and USE_FINGERPRINT (the latter only up to Android 8.1, brought in by the AndroidX biometric library). No internet, no storage, no contacts. Besides these the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing. It forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from cloud, adb and device-to-device backups (backup rules).</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, own AES block cipher checked against FIPS-197 vectors and WebCrypto in the test suite, integrity check); its keys are import-only and zeroed afterwards, the vault key never touches it.</li><li><strong>Limits:</strong> no autofill, no breach check. Fingerprint unlock is optional and honestly limited (see above). A passphrase cannot be recovered.</li>"
 };
@@ -1091,8 +1091,16 @@ const App = (function(){
   function resetIdle(){ clearIdle(); if(!DEK&&!pendingUnlock) return; const mins=settings().autolock; if(!mins) return; idleTimer=setTimeout(()=>{ clearIdle(); lock(); toast(tr('toast.autolocked')); }, mins*60000); }
   function activity(){ if(!DEK&&!pendingUnlock) return; const n=Date.now(); if(n-lastActivity<5000) return; lastActivity=n; resetIdle(); }
   ['click','keydown','touchstart','scroll','mousemove'].forEach(ev=>document.addEventListener(ev, activity, {passive:true}));
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){ hiddenAt=Date.now(); clearGateInputs(); if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(); } return; }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen   // gesperrt: keine getippte Passphrase stehen lassen
+  // Hintergrund/Vordergrund: im Browser/Android über visibilitychange, am Desktop meldet die Hülle Minimieren/Verstecken selbst
+  // (backgroundThrottling:false schaltet dort die Page Visibility API ab — Audit run-6 #1). Riegel bgAway gegen doppelte Signale;
+  // eigener Name, weil der Vordergrund-Zweig selbst const away deklariert.
+  let bgAway=false;
+  function onHidden(){
+    if(bgAway) return; bgAway=true;
+    hiddenAt=Date.now(); clearGateInputs(); if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(); }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen
+  }
+  function onShown(){
+    if(!bgAway) return; bgAway=false;
     const away=hiddenAt?Date.now()-hiddenAt:0; hiddenAt=0;
     if(clipOwnedAt&&(clipDue||(settings().clipClear>0&&Date.now()-clipOwnedAt>=settings().clipClear*1000))) clearClip();
     dropQrFile();
@@ -1101,7 +1109,9 @@ const App = (function(){
     const s=settings();
     if((s.bgLock>0&&away>s.bgLock*1000)||(s.autolock>0&&away>s.autolock*60000)){ lock(); toast(tr('toast.autolocked')); }
     else resetIdle();
-  });
+  }
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) onHidden(); else onShown(); });
+  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h) onHidden(); else onShown(); });
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
   function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
@@ -1444,7 +1454,7 @@ const App = (function(){
   const isNative = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
   const SC = (isNative && CAP.Plugins && CAP.Plugins.SecureClip) ? CAP.Plugins.SecureClip   // eigenes Mini-Plugin (patch-hardening.mjs)
            : (DESK && DESK.clip) || null;   // Desktop: Hauptprozess schreibt mit KDE-Hinweis (kein Klipper-Verlauf) und löscht auch ohne Fokus
-  if(DESK&&typeof DESK.onLock==='function') DESK.onLock(()=>{ if(DEK||pendingUnlock) lock(); });   // Ruhezustand/Bildschirmsperre
+  if(DESK&&typeof DESK.onLock==='function') DESK.onLock(()=>{ if(DEK||pendingUnlock) lock(); });   // Hülle meldet Bildschirmsperre (Portal) bzw. Ruhezustand (nur außerhalb des Flatpaks)
   const BIO = (isNative && CAP.Plugins && CAP.Plugins.Biometric) ? CAP.Plugins.Biometric : null;   // Fingerabdruck-Plugin (patch-hardening.mjs), Web: kein Slot
   async function nativeSaveAndShare(name, content, dir, shareText){
     const FS=CAP.Plugins&&CAP.Plugins.Filesystem; if(!FS) throw new Error('Filesystem-Plugin fehlt');
@@ -1459,7 +1469,7 @@ const App = (function(){
     try{
       // Erst persistieren, dann lesen: sonst exportiert die Datei den Stand VOR dem Aufräumen beim Entsperren
       // und trägt Papierkorb-Inhalte, die die App längst als geräumt anzeigt (Audit run-5 #3).
-      try{ await persist(); }catch(e){ if(e&&e.locked) return; }
+      try{ await persist(); }catch(e){ if(e&&e.locked) return; if(DESK){ $('bk-msg').textContent=tr('bk.failed',{e:String(e&&e.message||e)}); return; } }   // Desktop: Schreibfehler → nicht den ungeräumten Altstand exportieren
       let raw; try{ raw=vaultGet(); }catch(_){ $('bk-msg').textContent=tr('err.storeRead'); return; }
       const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
       // Erst die Datei schreiben — der Backup-Stempel darf nur nach Erfolg gesetzt werden
@@ -1750,7 +1760,9 @@ const App = (function(){
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr(hadBio?'toast.passChangedBio':'toast.passChanged')); renderSettings();
     }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; }
   }
-  function wipeLocal(){ if(!confirm(tr('confirm.wipe'))) return; bioDrop(true); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){} try{ vaultDel(); }catch(_){ toast(tr('err.saveFailed')); return; } lock(); }
+  function wipeLocal(){ if(!confirm(tr('confirm.wipe'))) return; bioDrop(true); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){}
+    if(DESK){ try{ localStorage.removeItem(LS_KEY); }catch(_){} }   // sonst holt migrateDesk() eine Prototyp-Kopie zurück (Audit run-6 #4)
+    try{ vaultDel(); }catch(_){ toast(tr('err.saveFailed')); return; } lock(); }
 
   /* ---------- misc ---------- */
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }

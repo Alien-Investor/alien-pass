@@ -20,13 +20,15 @@ echo "Electron $EL_VER: Hash OK."
 
 [ -d node_modules/@electron/asar ] && [ -d node_modules/@electron/fuses ] || { echo "FEHLER: erst 'npm ci' in desktop/"; exit 1; }
 
-(cd .. && ./build-www.sh >/dev/null) && echo "www/ gebaut."
+# Eigener Befehl, nicht links von && — sonst greift set -e nicht und ein Vendor-Fehler würde still übergangen (Audit run-6 #6)
+(cd .. && ./build-www.sh) || { echo "FEHLER: build-www.sh fehlgeschlagen — Build abgebrochen!" >&2; exit 1; }
+echo "www/ gebaut."
 VNAME=$(grep '^VERSION_NAME=' ../VERSION | cut -d= -f2 | tr -d '[:space:]')
 
 rm -rf build && mkdir -p build/app build/electron
 unzip -q "$ZIP" -d build/electron
 rm -f build/electron/chrome-sandbox build/electron/resources/default_app.asar   # Sandbox kommt im Flatpak über zypak
-cp main.js preload.js build/app/
+cp main.js preload.js atomic.js build/app/
 cp -r ../www build/app/www
 printf '{"name":"alien-pass","productName":"Alien Pass","version":"%s","main":"main.js","private":true}\n' "$VNAME" > build/app/package.json
 node pack.mjs build/app build/electron
@@ -37,5 +39,8 @@ flatpak run org.flatpak.Builder --user --install --force-clean --state-dir=build
 # Endkontrolle an der installierten App: kein Netz, kein Dateisystem, nur Anzeige + GPU
 PERM=$(flatpak info --user --show-permissions "$APP_ID")
 echo "$PERM"
-if echo "$PERM" | grep -qiE '^shared=.*network|^filesystems='; then echo "FEHLER: Flatpak hat Netz- oder Dateisystem-Zugriff — abgebrochen!"; exit 1; fi
+# Genauer Soll-Vergleich statt Sperrliste: jedes zusätzliche Recht (Bus-Policy, org.freedesktop.Flatpak, session-bus, devices=all …)
+# bräche das Versprechen „kein Netz, keine Dateien“ genauso (Audit run-6 #5)
+WANT=$(printf '[Context]\nshared=ipc;\nsockets=wayland;fallback-x11;\ndevices=dri;')
+if [ "$(echo "$PERM" | sed '/^$/d')" != "$WANT" ]; then echo "FEHLER: Flatpak-Rechte weichen vom Soll ab — abgebrochen!" >&2; exit 1; fi
 echo "Endkontrolle OK: kein Netz, kein Dateisystem. Start: flatpak run $APP_ID"
