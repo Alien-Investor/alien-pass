@@ -41,8 +41,11 @@ description: |
     hidden custom fields become secret extra fields, a second e-mail address goes into the e-mail field
   - CSV import from KeePassXC, Bitwarden and Proton Pass (folders/groups become categories)
   - Optional Aegis hurdle: an extra TOTP code on unlock (honestly documented as a hurdle, not a second factor)
-  - Optional fingerprint unlock (Android keystore, passphrase required after every restart, passphrase change or new fingerprint;
+  - Optional fingerprint unlock (Android keystore; passphrase required after a passphrase change or a new fingerprint, and after every
+    restart unless you tick "also after a restart" when enabling (v1.8, off by default, the choice is authenticated inside the slot);
     honestly documented: any strong biometric of the device counts, with a confirmation tap)
+  - Linux desktop edition (Flatpak without network permission, since v1.7) with optional quick unlock by PIN after a lock (v1.8,
+    in memory only, at most 24 hours, honestly documented) — see the Codeberg release
   - No INTERNET permission; only USE_BIOMETRIC and USE_FINGERPRINT (up to Android 8.1) for the fingerprint sensor
     (plus the AndroidX-generated signature permission that grants nothing),
     FLAG_SECURE (no screenshots / recents preview), allowBackup=false + data extraction rules (no cloud, adb or D2D backup)
