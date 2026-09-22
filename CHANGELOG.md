@@ -1,6 +1,6 @@
 # Changelog — Alien Pass
 
-## v1.8 — 2026-09-XX
+## v1.8 — 2026-09-23
 Alltagstauglichkeit: Fingerabdruck über den Neustart hinaus (Android) und eine PIN nach der Sperre (Desktop). Am Tresor-Format, an der
 Verschlüsselung und an deinen Daten ändert sich nichts.
 - **Android: Schalter „Auch nach einem Neustart des Handys mit Fingerabdruck entsperren“** (ab Werk aus). Bisher verlangte die App nach jedem
@@ -26,7 +26,7 @@ Verschlüsselung und an deinen Daten ändert sich nichts.
   Passphrase nicht mehr passte. Jetzt meldet die App „Datei geändert“. Auf Android braucht das Zugriff auf die App-Daten, am Desktop auf
   deinen Benutzer — ein Backup von davor stellt alles wieder her.
 - Desktop: bei einem Tippfehler beim Einrichten der PIN oder beim Passphrase-Wechsel bleibt die alte Passphrase nicht mehr sichtbar im Feld
-  stehen; ein Fehlversuch-Hinweis überlebt das Minimieren nicht; markierter Text in verdeckten Feldern geht nicht mehr an die Hülle.
+  stehen; ein Fehlversuch-Hinweis überlebt das Minimieren nicht.
 - Android: eine von Hand veränderte Fingerabdruck-Slot-Datei meldet sich als Manipulation mit bleibender Warnung statt als „Sensor
   vorübergehend nicht verfügbar“.
 - Desktop: zwei veraltete Kommentare zur Bildschirmsperre im Quelltext berichtigt (im Flatpak erfährt die App davon nichts).

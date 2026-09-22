@@ -235,8 +235,8 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
     (verlangt die Passphrase) verpackt die App eine Kopie des Datenschlüssels unter einem aus der PIN abgeleiteten Schlüssel (Argon2id mit den
     Parametern des Tresors, eigenes Salz) und hält sie **nur im Arbeitsspeicher**; die Sperre räumt die Sitzung wie bisher ab, diese Kopie
     bleibt. Nichts davon wird gespeichert, die Tresordatei bleibt unverändert, Backups tragen nichts davon mit. **Was es kostet:** Sechs Ziffern
-    sind ein winziger Suchraum; mit den Argon2-Parametern des Tresors dauert das Durchprobieren Stunden bis Tage, mit spezialisierter Hardware
-    weniger — als Schutz für die Tresordatei reicht das nie. Die PIN schützt allein diese Kopie. „Gesperrt“ heißt mit PIN nicht mehr „Schlüssel
+    sind ein winziger Suchraum; mit den Argon2-Parametern des Tresors ist er auf einer gewöhnlichen CPU in wenigen Stunden durchprobiert, auf einer
+    einzelnen Grafikkarte in etwa zehn Minuten — als Schutz für die Tresordatei reicht das nie, jede weitere Ziffer verzehnfacht nur den Aufwand. Die PIN schützt allein diese Kopie. „Gesperrt“ heißt mit PIN nicht mehr „Schlüssel
     aus dem Speicher gelöscht“: Wer den Arbeitsspeicher des laufenden Programms auslesen kann, hat den verpackten Schlüssel und kann PINs
     offline raten — die drei Fehlversuche sind eine Regel im Code, keine kryptografische Grenze. Verworfen wird die PIN nach drei
     Fehlversuchen, nach einem Passphrase-Wechsel, beim Löschen des Tresors, bei einer veränderten oder getauschten Tresordatei (die Kopie ist

@@ -119,13 +119,12 @@ async function restart(){
   // Markierte Passphrase auf dem Sperrbildschirm (Audit run-7 #2): wird gemeldet und beim Entsperren aus der Auswahl gelöscht.
   // Die Auswahl setzt hier das Prüfprogramm selbst (wie X11 beim Markieren) — geprüft wird, dass die App sie als eigene meldet.
   await fill('lock-pass',PP);
-  // Maskiertes Feld: die App meldet NICHTS (Audit run-8 #3) — eine vom Prüfprogramm gesetzte Auswahl bleibt darum stehen
-  await js(`(()=>{ const n=document.getElementById('lock-pass'); n.focus(); n.select(); document.dispatchEvent(new KeyboardEvent('keyup',{key:'a',ctrlKey:true})); })()`);
-  await sleep(300); await clipboard.selection.writeText(PP+'-maskiert'); await js(`AlienDesktop.clip.clear()`); await sleep(200);
-  R('Sperrbildschirm: maskiertes Feld wird nicht gemeldet (fremde Auswahl bleibt)', (await clipboard.selection.readText())===PP+'-maskiert');
-  await js(`App.togglePass(null,document.querySelector('[data-showpass="lock-pass"]'))`);   // Auge offen: type=text, wird wie jedes Feld gemeldet
-  await js(`(()=>{ const n=document.getElementById('lock-pass'); n.focus(); n.select(); document.dispatchEvent(new KeyboardEvent('keyup',{key:'a',ctrlKey:true})); })()`);
-  await sleep(300); await clipboard.selection.writeText(PP);
+  // Chromium legt auch die Markierung des MASKIERTEN Feldes im Klartext in PRIMARY (echte Eingabe: Strg+A über sendInputEvent, Messung 23.09.2026)
+  await clipboard.selection.writeText('vorher-'+process.pid);
+  await js(`document.getElementById('lock-pass').focus(); true`); await sleep(200);
+  win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['control']}); win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['control']});
+  await sleep(500);
+  R('Sperrbildschirm: Strg+A im maskierten Feld legt die Passphrase in PRIMARY (Chromium) — darum muss die App sie melden', (await clipboard.selection.readText())===PP);
   await click('#unlock-btn');
   R('entsperrt mit der Passphrase', await until(visible('screen-app')));
   R('Eintrag aus der Datei da', await until(`[...document.querySelectorAll('#entry-list .entry .t')].some(n=>n.textContent==='Harness Eintrag')`,10000));
