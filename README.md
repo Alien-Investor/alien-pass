@@ -182,7 +182,14 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   verlangt die Passphrase. Ein Fingerabdruck ist kein Geheimnis und lässt sich erzwingen; darum verlangt die App die Passphrase **nach jedem
   Neustart** (beim nächsten Start wird der Slot verworfen und nach der Passphrase mit frischem Zufall neu angelegt), nach einem
   Passphrase-Wechsel und bei neuem Fingerabdruck im System. Der Neustart-Zwang ist eine Regel im Code, keine kryptografische Garantie —
-  im Zweifel Handy neu starten. **Welche Biometrie zählt:** Android kennt keine „nur Fingerabdruck“-Bindung; der Schlüssel gilt für jede
+  im Zweifel Handy neu starten. **Schalter „auch nach Neustart“ (seit v1.8, ab Werk aus):** Beim Aktivieren lässt sich ankreuzen, dass der
+  Fingerabdruck über einen Neustart hinaus gilt. Der Neustart-Zwang schützt nur in einem Fall: Jemand kennt oder erzwingt die Geräte-PIN
+  **und** kann den Finger erzwingen — dann hilft ein Neustart, weil die App danach die Passphrase will. GrapheneOS startet ab Werk neu, sobald
+  das Handy 18 Stunden am Stück gesperrt bleibt (einstellbar von 10 Minuten bis 72 Stunden); wer den Zähler kurz stellt, tippt die Passphrase
+  entsprechend oft. Mit dem Haken bleibt nach einem Neustart allein die Geräte-PIN-Pflicht des Systems; Passphrase-Wechsel, neuer
+  Fingerabdruck und „Jetzt sperren“ verlangen die Passphrase weiterhin. Die Wahl steckt im Slot selbst und ist zusammen mit der
+  Boot-Kennung des Geräts (seit v1.8 der Android-Boot-Zähler) im verschlüsselten Slot mitauthentisiert — nachträglich lässt sie sich nicht
+  umschreiben, ändern geht nur durch Deaktivieren und erneutes Aktivieren. **Welche Biometrie zählt:** Android kennt keine „nur Fingerabdruck“-Bindung; der Schlüssel gilt für jede
   Biometrie der Klasse „stark“ auf dem Gerät. Wo eine starke Gesichtserkennung eingerichtet ist (manche Stock-Pixel; GrapheneOS hat keine),
   öffnet auch sie den Tresor, nach einem Bestätigungs-Tipp. Die App setzt einen Fingerabdrucksensor voraus. **„Jetzt sperren“ ist der bewusste
   Riegel:** Der nächste Start verlangt dann die Passphrase (kein Knopf, kein Prompt), danach gilt der Fingerabdruck wieder — für Grenze,
@@ -223,7 +230,22 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
     Bei **Bildschirmsperre und Ruhezustand sperrt die App nicht von selbst** (im Flatpak erfährt sie davon nichts): Systemsperre nutzen (vor allem beim Ruhezustand), dazu eine
     kurze Inaktivitäts-Sperre, Strg+L sperrt sofort. Kein Fingerabdruck. Aus „vier kleinen nativen Stücken“ werden am Desktop drei
     kleine Dateien (`desktop/main.js`, `desktop/preload.js`, `desktop/atomic.js`) plus Electron.
-  - Zwei **interne** Audits der Desktop-Hülle (22.09.2026), alle Funde behoben — kein unabhängiges Audit.
+  - **Schnell-Entsperren mit PIN, ehrlich eingeordnet** (optional, seit v1.8, nur Desktop): Nach einer Sperre durch Inaktivität oder
+    Hintergrund genügt eine PIN mit 6 bis 12 Ziffern statt der Passphrase — bis die App beendet wird, höchstens 24 Stunden. Beim Einrichten
+    (verlangt die Passphrase) verpackt die App eine Kopie des Datenschlüssels unter einem aus der PIN abgeleiteten Schlüssel (Argon2id mit den
+    Parametern des Tresors, eigenes Salz) und hält sie **nur im Arbeitsspeicher**; die Sperre räumt die Sitzung wie bisher ab, diese Kopie
+    bleibt. Nichts davon wird gespeichert, die Tresordatei bleibt unverändert, Backups tragen nichts davon mit. **Was es kostet:** Sechs Ziffern
+    sind ein winziger Suchraum; mit den Argon2-Parametern des Tresors dauert das Durchprobieren Stunden bis Tage, mit spezialisierter Hardware
+    weniger — als Schutz für die Tresordatei reicht das nie. Die PIN schützt allein diese Kopie. „Gesperrt“ heißt mit PIN nicht mehr „Schlüssel
+    aus dem Speicher gelöscht“: Wer den Arbeitsspeicher des laufenden Programms auslesen kann, hat den verpackten Schlüssel und kann PINs
+    offline raten — die drei Fehlversuche sind eine Regel im Code, keine kryptografische Grenze. Verworfen wird die PIN nach drei
+    Fehlversuchen, nach einem Passphrase-Wechsel, beim Löschen des Tresors, bei einer veränderten oder getauschten Tresordatei (die Kopie ist
+    an Kopfdaten und Passphrase-Slot der Datei gebunden), nach 24 Stunden und beim Beenden. „Jetzt sperren“ (Strg+L) ist der Riegel: danach
+    einmal die Passphrase, dann gilt die PIN wieder. Wer den Rechner mit anderen teilt oder unverschlüsselten Swap hat, lässt die PIN aus.
+  - **„Hintergrund“ heißt am Desktop minimiert oder versteckt.** Ein Wechsel zu einem anderen Fenster (Alt+Tab) sperrt nicht, leert aber
+    getippte Passphrasen und PINs.
+  - Drei **interne** Audits am Desktop-Zweig (22./23.09.2026: zweimal die Hülle, einmal das PIN-Entsperren samt Zusammenspiel der drei
+    Pforten), alle Funde behoben — kein unabhängiges Audit.
 - **Grenzen, ehrlich benannt**: Im Hintergrund leert die Android-App die Zwischenablage nur, solange Android sie nicht eingefroren
   hat (meist nach dem zweiten App-Wechsel); danach erst beim Zurückkehren. Ab Android 13 leert das System nach etwa 1 h selbst, davor nicht.
   Im Browser gibt es keine Maskierung der Clipboard-Vorschau. Passwort und 2FA im selben Tresor schwächen die Faktor-Trennung —

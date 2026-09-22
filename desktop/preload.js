@@ -16,5 +16,5 @@ contextBridge.exposeInMainWorld('AlienDesktop',{
   },
   saveBackup:(name,content)=>ipcRenderer.invoke('backup:save',String(name),String(content)),   // → Dateiname oder null (abgebrochen)
   onLock:cb=>{ if(typeof cb==='function') ipcRenderer.on('lock',()=>cb()); },
-  onBackground:cb=>{ if(typeof cb==='function') ipcRenderer.on('bg',(_e,h)=>cb(!!h)); }   // Fenster minimiert/versteckt (true) bzw. zurück (false)
+  onBackground:cb=>{ if(typeof cb==='function') ipcRenderer.on('bg',(_e,h)=>cb(h==='blur'?'blur':!!h)); }   // Fenster minimiert/versteckt (true), zurück (false), Fensterwechsel ('blur': nur Gate-Hygiene, keine Sperre)
 });

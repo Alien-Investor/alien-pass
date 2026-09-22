@@ -55,7 +55,9 @@ else {
       return u.protocol==='app:'&&u.host==='alienpass'&&u.pathname==='/index.html'; }
     catch(_){ return false; }
   }
-  const sha=t=>crypto.createHash('sha256').update(String(t)).digest('hex');
+  // Besitz-Hashes mit prozess-zufälligem Salz: der Hash darf nie ein Klartext-Orakel für kurze Texte (PIN) sein (Audit run-8 #3)
+  const SALT=crypto.randomBytes(16);
+  const sha=t=>crypto.createHash('sha256').update(SALT).update(String(t)).digest('hex');
   let owned=null;      // Hash des zuletzt von uns kopierten Texts — nie der Text selbst
   let ownedSel=null;   // Hash des zuletzt in der App markierten Texts (X11-Auswahl, Mittelklick) — Klipper speichert sie nicht, aber jedes Programm liest sie
   async function clearOwned(){
@@ -149,6 +151,7 @@ else {
     // backgroundThrottling:false schaltet die Page Visibility API ab → Fensterzustand selbst melden (Audit run-6 #1)
     const bg=h=>()=>{ if(win) win.webContents.send('bg',h); };
     win.on('minimize',bg(true)); win.on('hide',bg(true)); win.on('restore',bg(false)); win.on('show',bg(false));
+    win.on('blur',bg('blur'));   // Fensterwechsel: keine Sperre (feuert auch bei Systemdialogen), die App leert nur getippte Gate-Eingaben (Audit run-8 #9)
     win.on('closed',()=>{ win=null; });
     win.loadURL(ENTRY);
 

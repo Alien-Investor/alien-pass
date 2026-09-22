@@ -119,6 +119,11 @@ async function restart(){
   // Markierte Passphrase auf dem Sperrbildschirm (Audit run-7 #2): wird gemeldet und beim Entsperren aus der Auswahl gelöscht.
   // Die Auswahl setzt hier das Prüfprogramm selbst (wie X11 beim Markieren) — geprüft wird, dass die App sie als eigene meldet.
   await fill('lock-pass',PP);
+  // Maskiertes Feld: die App meldet NICHTS (Audit run-8 #3) — eine vom Prüfprogramm gesetzte Auswahl bleibt darum stehen
+  await js(`(()=>{ const n=document.getElementById('lock-pass'); n.focus(); n.select(); document.dispatchEvent(new KeyboardEvent('keyup',{key:'a',ctrlKey:true})); })()`);
+  await sleep(300); await clipboard.selection.writeText(PP+'-maskiert'); await js(`AlienDesktop.clip.clear()`); await sleep(200);
+  R('Sperrbildschirm: maskiertes Feld wird nicht gemeldet (fremde Auswahl bleibt)', (await clipboard.selection.readText())===PP+'-maskiert');
+  await js(`App.togglePass(null,document.querySelector('[data-showpass="lock-pass"]'))`);   // Auge offen: type=text, wird wie jedes Feld gemeldet
   await js(`(()=>{ const n=document.getElementById('lock-pass'); n.focus(); n.select(); document.dispatchEvent(new KeyboardEvent('keyup',{key:'a',ctrlKey:true})); })()`);
   await sleep(300); await clipboard.selection.writeText(PP);
   await click('#unlock-btn');
@@ -142,6 +147,11 @@ async function background(){
   R('kurz minimiert bei 30 s: bleibt entsperrt', await js(visible('screen-app')));
   await fill('lock-pass','x'); win.hide(); await sleep(600); win.show(); await sleep(400);   // zweites Signal-Paar: verstecken/zeigen
   R('Verstecken leert getippte Eingaben', await js(`document.getElementById('lock-pass').value===''`));
+  // Fensterwechsel (Audit run-8 #9): die Hülle meldet 'blur', die App leert nur Gate-Eingaben und sperrt nicht
+  R('Hülle verdrahtet blur', require('fs').readFileSync(require('path').join(__dirname,'main.js'),'utf8').includes("win.on('blur',bg('blur'))"));
+  await js(`App.tab('settings')`); await fill('cp-cur','halb-getippt'); win.webContents.send('bg','blur'); await sleep(400);
+  R('Fensterwechsel leert getippte Passphrase, sperrt nicht', await js(`document.getElementById('cp-cur').value===''`)&&await js(visible('screen-app')));
+  await js(`App.tab('list')`);
   // Minimiert, während Argon2 noch läuft (Audit run-7, Härtung): bei „sofort“ darf der Tresor danach nicht offen stehen
   await fill('lock-pass',PP); await click('#unlock-btn'); await until(visible('screen-app'));
   await js(`App.setBgLock('0')`); await sleep(600); await js(`App.lockNow()`); await until(visible('screen-lock'),5000);

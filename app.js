@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.7';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.8';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -81,7 +81,7 @@ const I18N = {
   "set.lockNow":"Lock now",
   "lock.bio":"Unlock with fingerprint",
   "set.bioTitle":"Fingerprint unlock (Android)",
-  "set.bioOffIntro":"Unlocks the vault with the device fingerprint instead of the passphrase. <strong>Honestly:</strong> a fingerprint is convenient, but it can be forced — at a border, or by someone holding your hand. Android binds the key to every strong biometric of the device: where a strong face unlock is enrolled (some stock Pixels; not on GrapheneOS), that opens the vault too, after a confirmation tap. The passphrase stays the real protection: it is required after every restart of the phone, after a passphrase change and as soon as a new fingerprint is enrolled in the system. Technically a random key wrapped by the Android keystore unlocks the data key; nothing of it enters backups.",
+  "set.bioOffIntro":"Unlocks the vault with the device fingerprint instead of the passphrase. <strong>Honestly:</strong> a fingerprint is convenient, but it can be forced — at a border, or by someone holding your hand. Android binds the key to every strong biometric of the device: where a strong face unlock is enrolled (some stock Pixels; not on GrapheneOS), that opens the vault too, after a confirmation tap. The passphrase stays the real protection: it is required after every restart of the phone (as long as the box below is unticked), after a passphrase change and as soon as a new fingerprint is enrolled in the system. Technically a random key wrapped by the Android keystore unlocks the data key; nothing of it enters backups.",
   "set.bioPass":"Passphrase to confirm",
   "set.bioEnable":"Enable fingerprint",
   "set.bioKeep":"Also unlock with the fingerprint after a restart of the phone (off by default)",
@@ -93,12 +93,12 @@ const I18N = {
   "lock.pinUnlock":"Unlock with PIN",
   "lock.orPass":"… or unlock with the passphrase:",
   "set.pinTitle":"Quick unlock with a PIN (until you quit)",
-  "set.pinOffIntro":"After a lock (inactivity, background, Ctrl+L) a PIN is enough instead of the passphrase — until the app is quit. <strong>Honestly:</strong> the PIN never protects the vault file; six digits are guessed offline in seconds. It only protects a copy of the data key that stays in memory when locking, wrapped under the PIN; none of it is ever stored. With a PIN, “locked” therefore no longer means “key wiped from memory”: whoever can read the memory of the running program holds the wrapped key and can guess the PIN offline — the three attempts are a rule in the code, not a cryptographic limit. Three wrong attempts discard the PIN, so do a passphrase change and quitting the app. “Lock now” (Ctrl+L) is the bolt: the passphrase once, afterwards the PIN applies again. If you share the computer with others or have unencrypted swap, leave the PIN off.",
+  "set.pinOffIntro":"After a lock through inactivity or the background a PIN is enough instead of the passphrase — until the app is quit, at most 24 hours. <strong>Honestly:</strong> the PIN never protects the vault file: six digits are a tiny search space; with the vault's Argon2 parameters trying them all takes hours to days, less with specialised hardware — never enough to protect the file. It only protects a copy of the data key that stays in memory when locking, wrapped under the PIN; none of it is ever stored. With a PIN, “locked” therefore no longer means “key wiped from memory”: whoever can read the memory of the running program holds the wrapped key and can guess the PIN offline — the three attempts are a rule in the code, not a cryptographic limit. Three wrong attempts discard the PIN, so do a passphrase change, the end of the 24 hours and quitting the app. “Lock now” (Ctrl+L) is the bolt: the passphrase once, afterwards the PIN applies again. If you share the computer with others or have unencrypted swap, leave the PIN off.",
   "set.pinNew":"PIN (6–12 digits)",
   "set.pinRep":"Repeat PIN",
   "set.pinPass":"Passphrase to confirm",
   "set.pinEnable":"Set up PIN",
-  "set.pinOnText":"Active. After a lock the PIN is enough — until the app is quit. “Lock now” (Ctrl+L) asks for the passphrase once, afterwards the PIN applies again. Three wrong attempts, a passphrase change or quitting the app discard it. Nothing of it is stored; the vault file stays unchanged.",
+  "set.pinOnText":"Active. After a lock the PIN is enough — until the app is quit, at most 24 hours. “Lock now” (Ctrl+L) asks for the passphrase once, afterwards the PIN applies again. Three wrong attempts, a passphrase change, the end of the 24 hours or quitting the app discard it. Nothing of it is stored; the vault file stays unchanged.",
   "set.pinDisable":"Discard PIN",
   "help.h5c":"Fingerprint unlock",
   "help.p5c":"Optionally the device fingerprint unlocks the vault (Settings → Fingerprint, Android app only). <strong>How it works:</strong> the data key is additionally wrapped under a random key; the Android keystore holds that key and releases it only after a strong fingerprint, freshly each time. The vault file itself stays unchanged and backups carry none of it. <strong>What it costs:</strong> a fingerprint is not a secret. It can be forced — by someone guiding your hand, or at a border; the passphrase in your head cannot. That is why the app demands the passphrase after every restart of the phone (at the next start the fingerprint slot is discarded and, after the passphrase, re-created with fresh randomness), after a passphrase change and as soon as a new fingerprint is enrolled in the system. If a fingerprint was newly enrolled, the app does not set access up again by itself, not even after a restart, but shows a warning until you read it or deliberately re-enable it (since v1.6.1). The restart rule is a rule in the code, not a cryptographic guarantee. <strong>The 'across a restart' switch (off by default):</strong> when enabling, you can tick that the fingerprint keeps working across a restart. The restart rule protects in one case only: someone knows or forces your device PIN and can force your finger — a restart then helps, because the app asks for the passphrase afterwards. GrapheneOS reboots by default once the phone stays locked for 18 hours in a row (adjustable from 10 minutes to 72 hours); whoever sets that counter short or often leaves the phone lying around types the passphrase accordingly often. With the box ticked, only the system's device-PIN requirement remains after a restart; the app then asks for the passphrase only after a passphrase change, on a new fingerprint and after 'Lock now'. Changing this is only possible by disabling and enabling again. <strong>Which biometrics count:</strong> Android binds the key to every biometric of the 'strong' class on the device. Where a strong face unlock is enrolled (some stock Pixels; GrapheneOS has none), it opens the vault too, after a confirmation tap. <strong>The deliberate bolt:</strong> 'Lock now' in Settings means the next start requires the passphrase — no fingerprint button, no prompt; afterwards the fingerprint works again without re-enabling. Use it before a border, before handing the phone over, whenever a finger could be forced. When in doubt: restart the phone, then only the passphrase counts (if the box is unticked).",
@@ -126,7 +126,7 @@ const I18N = {
   "help.h5b":"Aegis hurdle on unlock",
   "help.p5b":"Optionally the app asks for an Aegis code after the passphrase (Settings → Aegis hurdle). <strong>What it does:</strong> someone who peeked at your passphrase and holds your unlocked phone cannot get in without your Aegis app. <strong>What it does not do:</strong> the TOTP key lives inside the vault itself. Whoever owns the vault file <em>and</em> the passphrase decrypts it outside the app — the format is openly documented. A real second factor needs a party that enforces it (for cloud services, the server). For a local file the passphrase remains the only cryptographic protection; make it long.",
   "help.hPin":"Quick unlock with a PIN (desktop)",
-  "help.pPin":"Optionally a PIN replaces the passphrase after a lock (Settings → Quick unlock with a PIN). <strong>How it works:</strong> when you set it up, the app wraps a copy of the data key under a key derived from your PIN (Argon2id, same parameters as the vault) and keeps that copy <em>in memory only</em>. Locking — through inactivity, the background or Ctrl+L — clears the session as before, but that wrapped copy stays; the PIN opens it again. Nothing of it is written to disk, the vault file stays unchanged and backups carry none of it. Quitting the app removes the copy: the next start asks for the passphrase. <strong>What it costs:</strong> six digits are guessed offline in seconds, so the PIN never protects the vault file. It only protects that copy in memory. With a PIN, “locked” therefore no longer means “key wiped from memory”: whoever can read the memory of the running program holds the wrapped key and can try PINs offline — the three attempts are a rule in the code, not a cryptographic limit. <strong>What discards the PIN:</strong> three wrong attempts, a passphrase change, deleting the vault, a vault file that no longer matches, and quitting the app. <strong>The deliberate bolt:</strong> “Lock now” (Ctrl+L) keeps the PIN but demands the passphrase once — afterwards the PIN applies again. If you share the computer with others or have unencrypted swap, leave the PIN off.",
+  "help.pPin":"Optionally a PIN replaces the passphrase after a lock (Settings → Quick unlock with a PIN). <strong>How it works:</strong> when you set it up, the app wraps a copy of the data key under a key derived from your PIN (Argon2id, same parameters as the vault) and keeps that copy <em>in memory only</em>. A lock through inactivity or the background clears the session as before, but that wrapped copy stays; the PIN opens it again. Nothing of it is written to disk, the vault file stays unchanged and backups carry none of it. Quitting the app removes the copy, and after 24 hours at the latest the app discards it itself: the next start asks for the passphrase. <strong>What it costs:</strong> six digits are a tiny search space. With the vault's Argon2 parameters trying them all takes hours to days, less with specialised hardware — never enough to protect the vault file. The PIN only protects that copy in memory. With a PIN, “locked” therefore no longer means “key wiped from memory”: whoever can read the memory of the running program holds the wrapped key and can try PINs offline — the three attempts are a rule in the code, not a cryptographic limit. <strong>What discards the PIN:</strong> three wrong attempts, a passphrase change, deleting the vault, an altered or swapped vault file, the end of the 24 hours, and quitting the app. <strong>The deliberate bolt:</strong> “Lock now” (Ctrl+L) keeps the PIN but demands the passphrase once — afterwards the PIN applies again. If you share the computer with others or have unencrypted swap, leave the PIN off.",
   "help.h6":"Password health",
   "help.p6":"The list flags <strong>reused</strong> passwords, <strong>short</strong> ones (under 12 characters) and <strong>predictable</strong> ones: repetitions, character and keyboard sequences, years, common words (also as <code>P4ssw0rd</code>), digits only. The same check appears next to the bar while you type. It is an <strong>estimate</strong>, not a cracking test: it spots typical patterns, but not whether a password relates to you (name, birthday, pet). A truly strong password comes from the generator. For the vault passphrase the app asks before accepting a predictable pattern. Age is deliberately not flagged: a strong random password does not weaken with time, and forced rotation is an anti-pattern (NIST SP 800-63B) — change a password when it may have leaked, not on a schedule. If a service does not allow a longer password, the checkbox “Service does not allow a longer password” in the entry switches off the “short” flag — “predictable” only for a digits-only PIN; a sequence like <code>123456</code> stays flagged. Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
   "help.h7":"Backup & sync",
@@ -134,7 +134,7 @@ const I18N = {
   "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
   "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv. Folders become categories.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
   "help.hDesk":"Desktop version (Linux)",
-  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there. The same applies to text you select with the mouse in the app (on Linux instantly pasteable with a middle click); Ctrl+C and Ctrl+X in the app copy like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when minimised (setting “Lock in background”). On <strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
+  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there. The same applies to text you select with the mouse in the app (on Linux instantly pasteable with a middle click); Ctrl+C and Ctrl+X in the app copy like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when the window is minimised or hidden (setting “Lock in background” — “background” here means minimised or hidden; switching to another window does not count, but it clears typed passphrases and PINs). On<strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
   "help.h9":"Security in detail",
   "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests exactly two normal permissions, both for the fingerprint sensor: USE_BIOMETRIC and USE_FINGERPRINT (the latter only up to Android 8.1, brought in by the AndroidX biometric library). No internet, no storage, no contacts. Besides these the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing. It forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from cloud, adb and device-to-device backups (backup rules).</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, own AES block cipher checked against FIPS-197 vectors and WebCrypto in the test suite, integrity check); its keys are import-only and zeroed afterwards, the vault key never touches it.</li><li><strong>Limits:</strong> no autofill, no breach check. Fingerprint unlock is optional and honestly limited (see above). A passphrase cannot be recovered.</li>"
 };
@@ -244,9 +244,13 @@ const T = {
   "pin.wrong":{de:"Falsche PIN — noch {n} Versuch(e), danach ist die PIN verworfen.",en:"Wrong PIN — {n} attempt(s) left, then the PIN is discarded."},
   "pin.dropped":{de:"Drei Fehlversuche: Das Schnell-Entsperren per PIN wurde verworfen. Bitte die Passphrase eingeben; danach lässt sich in den Einstellungen eine neue PIN einrichten.",en:"Three wrong attempts: quick unlock with a PIN was discarded. Enter the passphrase; afterwards you can set up a new PIN in Settings."},
   "pin.fileChanged":{de:"Die Tresordatei hat sich geändert — die PIN gilt nicht mehr. Bitte die Passphrase eingeben.",en:"The vault file has changed — the PIN no longer applies. Please enter the passphrase."},
-  "pin.on":{de:"Schnell-Entsperren per PIN aktiv — bis die App beendet wird",en:"Quick unlock with a PIN active — until the app is quit"},
+  "pin.on":{de:"Schnell-Entsperren per PIN aktiv — bis die App beendet wird, höchstens 24 Stunden",en:"Quick unlock with a PIN active — until the app is quit, at most 24 hours"},
   "pin.off":{de:"PIN verworfen — beim nächsten Entsperren gilt die Passphrase",en:"PIN discarded — the next unlock needs the passphrase"},
   "pin.busy":{de:"Bitte erst den laufenden PIN-Vorgang abschließen.",en:"Finish the pending PIN step first."},
+  "pin.expired":{de:"Die PIN ist abgelaufen (24 Stunden) — bitte die Passphrase eingeben; danach lässt sich eine neue PIN einrichten.",en:"The PIN has expired (24 hours) — please enter the passphrase; afterwards you can set up a new PIN."},
+  "pin.failed":{de:"PIN konnte nicht eingerichtet werden.",en:"The PIN could not be set up."},
+  "pin.aborted":{de:"PIN nicht eingerichtet — Vorgang durch Sperre oder Passphrase-Wechsel abgebrochen",en:"PIN not set up — interrupted by lock or passphrase change"},
+  "bio.tampered":{de:"Der Fingerabdruck-Slot wurde verändert — Fingerabdruck verworfen. Bitte die Passphrase eingeben und den Fingerabdruck in den Einstellungen bewusst neu aktivieren.",en:"The fingerprint slot was altered — fingerprint discarded. Enter the passphrase and deliberately re-enable the fingerprint in Settings."},
   "confirm.pinDisable":{de:"Schnell-Entsperren per PIN wirklich verwerfen? Beim nächsten Entsperren wird die Passphrase verlangt.",en:"Really discard quick unlock with a PIN? The next unlock will require the passphrase."},
   "pt.zip64":{de:"ZIP zu groß/ZIP64 — bitte ohne Dateianhänge exportieren.",en:"ZIP too large/ZIP64 — please export without file attachments."},
   "add.titleNew":{de:"Neuer Eintrag",en:"New entry"},
@@ -373,8 +377,17 @@ function unwrapDek(wrap, kek, kdf, extractable, role){ return crypto.subtle.unwr
 function bioKey(raw){ if(!(raw instanceof Uint8Array)||raw.length!==32) throw new Error('biokey'); return crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['wrapKey','unwrapKey']); }
 // `w` = b64 des Passphrase-Wrap-Ciphertexts, für den der Slot erzeugt wurde: doBio übernimmt f.wrap nur, wenn es dazu passt —
 // sonst könnte ein manipulierter wrap in der Datei per Fingerabdruck-Sitzung stillschweigend weitergeschrieben und in jedes Backup kopiert werden (Audit run-3 #3)
-function parseBioBlob(raw){ if(typeof raw!=='string'||raw.length>512) return null; let o; try{ o=JSON.parse(raw); }catch(_){ return null; } if(!o||typeof o!=='object') return null; const iv=b64Bytes(o.iv), ct=b64Bytes(o.ct), w=b64Bytes(o.w); return (iv&&iv.length===12&&ct&&ct.length===48&&w&&w.length===48)?{iv,ct,w:o.w}:null; }
-function serializeBioBlob(blob, wrapCt){ if(!(wrapCt instanceof Uint8Array)||wrapCt.length!==48) throw new Error('bioblob'); return JSON.stringify({iv:bufToB64(blob.iv), ct:bufToB64(blob.ct), w:bufToB64(wrapCt)}); }
+// `wi` (v1.8, Audit run-8 #1) = b64 der Wrap-IV, OPTIONAL: Slots von ≤ v1.7 tragen nur `w` und laufen unverändert weiter; neue Slots binden
+// IV + Ciphertext, damit eine gekippte IV nicht ungeprüft in die Sitzung und mit dem nächsten persist() in Datei und Backups wandert.
+function parseBioBlob(raw){ if(typeof raw!=='string'||raw.length>512) return null; let o; try{ o=JSON.parse(raw); }catch(_){ return null; } if(!o||typeof o!=='object') return null; const iv=b64Bytes(o.iv), ct=b64Bytes(o.ct), w=b64Bytes(o.w); if(!(iv&&iv.length===12&&ct&&ct.length===48&&w&&w.length===48)) return null;
+  if(o.wi===undefined||o.wi===null) return {iv,ct,w:o.w,wi:null}; const wi=b64Bytes(o.wi); return (wi&&wi.length===12)?{iv,ct,w:o.w,wi:o.wi}:null; }
+function serializeBioBlob(blob, wrapCt, wrapIv){ if(!(wrapCt instanceof Uint8Array)||wrapCt.length!==48) throw new Error('bioblob'); if(wrapIv!==undefined&&!(wrapIv instanceof Uint8Array&&wrapIv.length===12)) throw new Error('bioblob');
+  const o={iv:bufToB64(blob.iv), ct:bufToB64(blob.ct), w:bufToB64(wrapCt)}; if(wrapIv) o.wi=bufToB64(wrapIv); return JSON.stringify(o); }
+// Passt der Passphrase-Slot der Datei zum Fingerabdruck-Blob? Ciphertext immer, IV nur wenn der Blob sie kennt (Übergang ≤ v1.7)
+function bioWrapOk(blob, wrap){ return !!blob&&!!wrap&&blob.w===bufToB64(wrap.ct)&&(!blob.wi||blob.wi===bufToB64(wrap.iv)); }
+// Bindung des PIN-Slots (nur RAM) an die Datei: KDF-Header (m/t/p/Salz über die AAD-Zeichenkette) + Wrap-IV + Wrap-Ciphertext — jede Abweichung
+// heißt „Datei geändert“, nie „falsche PIN“ (Audit run-8 #1/#10)
+function wrapTag(kdf, wrap){ return dec.decode(aad(kdf,'wrap'))+'|'+bufToB64(wrap.iv)+'|'+bufToB64(wrap.ct); }
 async function encryptBody(obj, dek, kdf){ const iv=rand(12); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad(kdf,'body')}, dek, enc.encode(JSON.stringify(obj)))); return {iv,ct}; }
 async function decryptBody(body, dek, kdf){ const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:body.iv,additionalData:aad(kdf,'body')}, dek, body.ct); return JSON.parse(dec.decode(pt)); }
 function serializeFile(kdf, wrap, body){
@@ -978,7 +991,7 @@ const App = (function(){
   /* ---------- boot / setup / unlock / lock ---------- */
   function boot(){
     loadLockState(); dropQrFile(); syncCombos();   // Knopfbeschriftungen der Auswahlfelder aus den Selects setzen
-    let raw; try{ migrateDesk(); raw=vaultGet(); }catch(_){ screen('lock'); err('lock-err',tr('err.storeRead')); return; }
+    let raw; try{ migrateDesk(); raw=vaultGet(); }catch(_){ screen('lock'); renderPinGate(); renderBioGate(); err('lock-err',tr('err.storeRead')); return; }   // auch hier Riegel und Slots rendern (Audit run-8 #11)
     if(!raw){ screen('setup'); setTimeout(()=>$('setup-pass1').focus(),100); benchKdf(); bioDrop(true); pinDrop(); }   // ohne Tresor weder Fingerabdruck-Slot noch PIN-Slot
     else { screen('lock'); renderPinGate(); setTimeout(()=>$((PIN&&!pinHold)?'lock-pin':'lock-pass').focus(),100); bioProbe(bioAuto); }   // bioAuto wird erst von afterGate() wieder gesetzt (nach „Jetzt sperren“ kein Auto-Prompt bis zur nächsten Entsperrung, Audit run-3)
     const soft=document.documentElement.getAttribute('data-theme')==='soft';
@@ -1018,11 +1031,11 @@ const App = (function(){
     enterApp(); toast(tr('toast.vaultCreated'));
   }
   async function doUnlock(){
-    if(doUnlock._busy) return; err('lock-err');
+    if(doUnlock._busy||doPin._busy) return; err('lock-err');                         // nicht neben einem PIN-Argon2 (Audit run-8, Härtung); ein hängender Fingerabdruck-Prompt darf die Passphrase NICHT blockieren (run-3, verify-bio [14])
     loadLockState();                                                                   // Stand eines anderen Tabs übernehmen
     const now=Date.now(); if(now<lockedUntil) return err('lock-err',tr('err.wait',{s:Math.ceil((lockedUntil-now)/1000)}));
-    let raw; try{ raw=vaultGet(); }catch(_){ return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
-    let f; try{ f=parseFile(raw); }catch(e){ return err('lock-err',fileErrMsg(e)); }
+    let raw; try{ raw=vaultGet(); }catch(_){ $('lock-pass').value=''; maskInputs('#screen-lock'); return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
+    let f; try{ f=parseFile(raw); }catch(e){ $('lock-pass').value=''; maskInputs('#screen-lock'); return err('lock-err',fileErrMsg(e)); }
     const btn=$('unlock-btn'), orig=btn.textContent; doUnlock._busy=true; btn.disabled=true; btn.textContent=tr('busy.decrypting'); renderBioGate(); renderPinGate();   // Fingerabdruck- und PIN-Knopf solange aus
     const gen=bioGen;                                                                  // Generation: gewinnt zwischendurch der Fingerabdruck, verfällt dieses Ergebnis (Audit run-3 #1)
     try{
@@ -1045,10 +1058,13 @@ const App = (function(){
   }
   // Gemeinsamer Abschluss von Passphrase-, Fingerabdruck- und PIN-Pfad: Eingaben leeren, Aegis-Wartestellung oder App
   function afterGate(){
-    $('lock-pass').value=''; $('lock-pin').value=''; maskInputs('#screen-lock'); bioMsg(''); pinMsg(''); bioAuto=true; setBioHold(false); pinHold=false; renderPinGate();   // Pforte durchlaufen: beide Riegel gelöst
+    $('lock-pass').value=''; $('lock-pin').value=''; maskInputs('#screen-lock'); bioMsg(''); pinMsg(''); bioAuto=true;
     if(pendingUnlock){ if(leaveGate()) return; screen('totp'); $('totp-code').value=''; err('totp-err'); resetIdle(); setTimeout(()=>$('totp-code').focus(),100); return; }   // Idle-Sperre gilt auch in der Wartestellung
-    enterApp();
+    releaseHolds(); enterApp();
   }
+  // Beide Riegel („Jetzt sperren“) erst lösen, wenn die LETZTE Pforte bestanden ist — bei gesetzter Aegis-Hürde also erst nach dem Code,
+  // nicht schon nach der Passphrase (Audit run-8 #12: ein Abbruch der Hürde ließ die Riegel sonst gelöst zurück)
+  function releaseHolds(){ setBioHold(false); pinHold=false; renderPinGate(); }
   async function doTotp(){
     if(doTotp._busy||!pendingUnlock) return; err('totp-err');
     loadLockState();
@@ -1056,11 +1072,12 @@ const App = (function(){
     const code=$('totp-code').value.trim(); if(!/^\d{6,8}$/.test(code)) return err('totp-err',tr('err.totp6'));
     doTotp._busy=true;
     try{
-      const p=pendingUnlock; if(!(await totpValid(p.vault.totp, code))){ failCount++; if(failCount>=3) lockedUntil=Date.now()+Math.min(30,(failCount-2)*2)*1000; saveLockState(); return err('totp-err',tr('err.totpSetupBad')); }
-      if(pendingUnlock!==p) return;                                   // zwischendurch gesperrt
+      const p=pendingUnlock; const good=await totpValid(p.vault.totp, code);
+      if(pendingUnlock!==p) return;                                   // zwischendurch gesperrt: weder zählen noch setzen (Audit run-8, Härtung)
+      if(!good){ failCount++; if(failCount>=3) lockedUntil=Date.now()+Math.min(30,(failCount-2)*2)*1000; saveLockState(); return err('totp-err',tr('err.totpSetupBad')); }
       DEK=p.dek; KDF=p.kdf; WRAP=p.wrap; VAULT=p.vault; pendingUnlock=null; failCount=0; lockedUntil=0; saveLockState();
     }finally{ doTotp._busy=false; $('totp-code').value=''; }
-    enterApp();
+    releaseHolds(); enterApp();
   }
   function cancelTotp(){ clearIdle(); pendingUnlock=null; bioRearmDek=null; bioGen++; bioAuto=false; $('totp-code').value=''; err('totp-err'); boot(); }   // bioAuto=false: sonst Prompt-Schleife Fingerabdruck → Hürde → Abbruch → Fingerabdruck
   // Fehlversuchs-Bremse überlebt einen Neustart (außerhalb des verschlüsselten Tresors, enthält nichts Geheimes)
@@ -1075,7 +1092,7 @@ const App = (function(){
     if(o&&Number.isInteger(o.f)&&o.f>0&&o.f<100000){ failCount=Math.max(failCount,o.f);
       if(Number.isFinite(o.u)&&o.u>n) lockedUntil=Math.max(lockedUntil,Math.min(o.u,n+30000)); } }catch(_){} }
   // Sperr-/Setup-/Import-Eingaben leeren und maskieren — beim Verstecken der App und nach jedem Fehlversuch
-  function clearGateInputs(){ ['lock-pass','lock-pin','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code','bio-pass','cp-cur','cp1','cp2','pin-new','pin-rep','pin-pass'].forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); maskInputs('#tab-settings'); maskInputs('#tab-backup'); err('lock-err'); }   // auch die Passphrase-Felder in den Einstellungen (Audit run-3)
+  function clearGateInputs(){ ['lock-pass','lock-pin','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code','bio-pass','cp-cur','cp1','cp2','pin-new','pin-rep','pin-pass'].forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); maskInputs('#tab-settings'); maskInputs('#tab-backup'); err('lock-err'); pinMsg(''); bioMsg(''); }   // auch die Passphrase-Felder in den Einstellungen (Audit run-3); Fehlversuch-Hinweise ebenso (Audit run-8 #8)
   // data-showpass-Augen innerhalb eines Bereichs zurücksetzen (Feld wieder type=password)
   function maskInputs(scope){ document.querySelectorAll((scope||'')+' [data-showpass]').forEach(b=>setEye(b,false)); }
   // Auge im Passwortfeld (statt „anzeigen“-Kästchen): Knopf mit data-showpass=<Feld-ID>, Zustand in aria-pressed
@@ -1090,7 +1107,7 @@ const App = (function(){
   // Argon2 versteckt, galt onHidden noch für „gesperrt“ — bei „sofort“ jetzt nachholen statt den Tresor offen zu lassen (Audit run-7, Härtung)
   function leaveGate(){ if(DESK&&clipOwnedAt) clearClip(); if(bgAway&&settings().bgLock===0){ lock(); toast(tr('toast.autolocked')); return true; } return false; }
   function enterApp(){ if(leaveGate()) return; screen('app'); tab('list'); renderAll(); resetIdle();
-    if(bioRearmDek){ const d=bioRearmDek; bioRearmDek=null; bioArm(d, KDF, WRAP.ct, true).then(ok=>{ if(ok) toast(tr('bio.rearmed')); if(VAULT) renderSettings(); }); } }   // if(VAULT): während der Neu-Einrichtung gesperrt → sonst TypeError   // nach Neustart: Slot mit frischem Zufall neu bewaffnen
+    if(bioRearmDek){ const d=bioRearmDek; bioRearmDek=null; bioArm(d, KDF, WRAP, true).then(ok=>{ if(ok) toast(tr('bio.rearmed')); if(VAULT) renderSettings(); }); } }   // if(VAULT): während der Neu-Einrichtung gesperrt → sonst TypeError   // nach Neustart: Slot mit frischem Zufall neu bewaffnen
   function lock(){
     clearIdle(); stopTotp(); clearClip();
     DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null;
@@ -1141,7 +1158,9 @@ const App = (function(){
     else resetIdle();
   }
   document.addEventListener('visibilitychange',()=>{ if(document.hidden) onHidden(); else onShown(); });
-  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h) onHidden(); else onShown(); });
+  // 'blur' = Fensterwechsel (Alt-Tab): KEINE Sperre (feuert auch bei Systemdialogen), nur Gate-Hygiene — getippte PIN/Passphrase nie stehen
+  // lassen (Audit run-8 #9). „Hintergrund“ im Sinn der Einstellung bleibt minimiert/versteckt, das Handbuch sagt es so.
+  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur') clearGateInputs(); else if(h) onHidden(); else onShown(); });
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
   function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
@@ -1487,8 +1506,10 @@ const App = (function(){
   // X11-Auswahl: mit der Maus Markiertes landet ohne Strg+C in der Auswahl (Mittelklick fügt ein). Am Desktop der Hülle melden
   // und mit der Kopier-Frist mitlöschen; läuft schon eine Frist, gilt diese (Gerätetest 22.09.2026).
   if(DESK&&DESK.clip&&typeof DESK.clip.selected==='function'){
+    // Maskierte Felder (type=password) melden nichts: Chromium legt ihre Auswahl ohnehin nicht in PRIMARY, und der Klartext ginge sonst nur für
+    // einen Besitz-Hash über die Brücke (Audit run-8 #3). Mit geöffnetem Auge ist das Feld type=text und wird wie jedes andere behandelt.
     const selText=()=>{ const a=document.activeElement;
-      if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') return a.value.substring(a.selectionStart,a.selectionEnd);
+      if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') return a.type==='password'?'':a.value.substring(a.selectionStart,a.selectionEnd);
       const g=window.getSelection(); return g?String(g):''; };
     // Auch auf Sperr-/Einrichtungsbildschirm (DEK null): eine markierte Master-Passphrase läge sonst unbegrenzt in der Auswahl —
     // dort gilt die Standard-Frist, beim Verlassen des Bildschirms wird sofort gelöscht (leaveGate, Audit run-7 #2)
@@ -1686,7 +1707,10 @@ const App = (function(){
   function renderBioAlert(){ const box=$('bio-alert-list'); if(!box) return; box.replaceChildren(); if(!VAULT||!bioAlert()) return;
     const w=el('div','warn',tr('bio.alert')); w.style.marginBottom='12px'; const b=el('button','btn sm',tr('bio.alertOk')); b.dataset.action='bioAlertOk'; b.style.marginTop='8px';
     w.appendChild(el('br')); w.appendChild(b); box.appendChild(w); }
-  function renderBioGate(){ const b=$('bio-btn'); if(b){ b.classList.toggle('hidden',!bioArmed||bioHold()); b.disabled=!!doUnlock._busy; } }   // Riegel: Knopf verborgen
+  // Eine laufende Argon2-Pforte (Passphrase, PIN) lässt die anderen Knöpfe ruhen (Audit run-8, Härtung: kein zweiter Argon2-Lauf nebenher);
+  // der PIN-Knopf ruht zusätzlich während eines Fingerabdruck-Prompts. Ein hängender Prompt friert Passphrase und Fingerabdruck-Knopf NICHT ein (run-3, verify-bio [14]).
+  function gateBusy(){ return !!(doUnlock._busy||doPin._busy||doBio._busy); }
+  function renderBioGate(){ const b=$('bio-btn'); if(b){ b.classList.toggle('hidden',!bioArmed||bioHold()); b.disabled=!!(doUnlock._busy||doPin._busy); } const u=$('unlock-btn'); if(u&&!doUnlock._busy) u.disabled=!!doPin._busy; }   // Riegel: Knopf verborgen; Passphrase ruht nur während eines PIN-Argon2
   // Slot verwerfen: JS-Blob + Marker immer, Keystore-Teil auf Wunsch (bei ungültigem Schlüssel hat das Plugin ihn schon selbst gelöscht).
   // bioGen++ lässt laufende enroll/unlock-Vorgänge verfallen (Audit run-3)
   function bioDrop(native){ try{ localStorage.removeItem(BIO_KEY); }catch(_){} setBioMarker(false); setBioHold(false); bioArmed=false; bioNeedsRearm=false; bioRearmDek=null; bioKeep=false; bioGen++; if(native&&BIO){ try{ BIO.disable().catch(()=>{}); }catch(_){} } renderBioGate(); }
@@ -1714,10 +1738,10 @@ const App = (function(){
   // wrapCt bindet den Slot an den Passphrase-Slot der Datei (Audit run-3 #3)
   // keep (v1.8) = „Fingerabdruck auch nach Neustart“: nur beim bewussten Aktivieren wählbar (ab Werk aus), nie beim Rearm — das Plugin
   // schreibt die Wahl in den Slot und authentisiert sie in der AAD; ändern geht nur über Deaktivieren + neu Aktivieren.
-  async function bioArm(dekX, kdf, wrapCt, rearm, keep){
+  async function bioArm(dekX, kdf, wrap, rearm, keep){
     const gen=bioGen, secret=rand(32), wantKeep=!!keep&&!rearm;
     try{
-      const key=await bioKey(secret); const blob=await wrapDek(dekX, key, kdf, 'bio'); const ser=serializeBioBlob(blob, wrapCt);
+      const key=await bioKey(secret); const blob=await wrapDek(dekX, key, kdf, 'bio'); const ser=serializeBioBlob(blob, wrap.ct, wrap.iv);   // seit v1.8 mit `wi` (Audit run-8 #1)
       // rearm:true → das Plugin richtet nur mit gültigem Kanarien-Schlüssel neu ein (sonst 'invalidated', Querfund Tresor-Audit run-5 #1)
       await BIO.enroll({secret:bufToB64(secret), rearm:!!rearm, keep:wantKeep, title:tr('bio.promptTitle'), subtitle:tr(rearm?'bio.promptRearm':'bio.promptEnroll'), negative:tr('btn.cancel')});
       if(gen!==bioGen||!VAULT){ try{ BIO.disable().catch(()=>{}); }catch(_){} setBioMarker(false); toast(tr('bio.aborted')); return false; }   // zwischendurch gesperrt / Passphrase gewechselt: nichts hinterlassen — auch keinen Marker, sonst meldet die nächste Neu-Einrichtung ohne Kanarie fälschlich einen fremden Finger
@@ -1732,12 +1756,12 @@ const App = (function(){
   }
   // Sperrbildschirm: Fingerabdruck → Keystore gibt den Zufallsschlüssel heraus → DEK auspacken → gleicher Weg wie die Passphrase
   async function doBio(){
-    if(doBio._busy||doUnlock._busy||!BIO||!bioArmed||bioHold()||DEK||pendingUnlock) return; err('lock-err');   // Riegel: Passphrase-Pflicht
+    if(doBio._busy||doUnlock._busy||doPin._busy||!BIO||!bioArmed||bioHold()||DEK||pendingUnlock) return; err('lock-err');   // Riegel: Passphrase-Pflicht
     let raw; try{ raw=vaultGet(); }catch(_){ return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
     let f; try{ f=parseFile(raw); }catch(e){ return err('lock-err',fileErrMsg(e)); }
     const blob=bioBlob(); if(!blob){ bioDrop(true); return; }
-    if(blob.w!==bufToB64(f.wrap.ct)){ bioArmed=false; renderBioGate(); return bioMsg(tr('bio.wrapMismatch')); }   // fremder/veränderter Passphrase-Slot: nie übernehmen, Blob behalten (Backup-Restore heilt)
-    const gen=bioGen; doBio._busy=true; let secret=null;
+    if(!bioWrapOk(blob,f.wrap)){ bioArmed=false; renderBioGate(); return bioMsg(tr('bio.wrapMismatch')); }   // fremder/veränderter Passphrase-Slot (ct ODER iv): nie übernehmen, Blob behalten (Backup-Restore heilt)
+    const gen=bioGen; doBio._busy=true; renderBioGate(); renderPinGate(); let secret=null;
     try{
       const r=await BIO.unlock({title:tr('bio.promptTitle'), subtitle:tr('bio.promptUnlock'), negative:tr('bio.usePass')});
       secret=b64Bytes(r&&r.secret); if(!secret||secret.length!==32) throw new Error('invalid');
@@ -1754,9 +1778,12 @@ const App = (function(){
       // 'error' = Timeout/Sensor nicht bereit im Dialog: unlock() lässt den Slot nativ stehen → hier auch nichts löschen. bioDrop(true)
       // → disable() räumte die Kanarie ab; ein provozierter Timeout plus danach registrierter Finger bliebe sonst unbemerkt (Review v1.6.1 N1)
       if(c==='error'){ err('lock-err',tr('bio.naNow')); return; }
+      // 'tampered' = GCM-Tag der Slot-Datei falsch (boot/keep im Klartext verändert): nie „vorübergehend“ — JS-Blob weg, bleibende Warnung,
+      // Keystore-Teil bleibt (kein automatisches Wipe: das gäbe eine Lösch-Primitive, Review v1.6.1 N1; Audit run-8 #16)
+      if(c==='tampered'){ bioDrop(false); setBioAlert(true); return bioMsg(tr('bio.tampered')); }
       if(c==='invalidated') setBioAlert(true);                            // neuer Finger, während die App gesperrt im Hintergrund lag: bleibende Warnung
       bioDrop(c!=='invalidated'&&c!=='none'); return bioMsg(tr('bio.reset'));   // ungültiger Schlüssel, alter/fremder Blob, Manipulation
-    }finally{ doBio._busy=false; if(secret) secret.fill(0); }
+    }finally{ doBio._busy=false; if(secret) secret.fill(0); renderBioGate(); renderPinGate(); }
     afterGate();
   }
   // Einstellungen: aktivieren (Passphrase bestätigen → extrahierbarer DEK-Handle nur für das Verpacken) / deaktivieren
@@ -1772,7 +1799,7 @@ const App = (function(){
       let dekX; try{ const kek=await deriveKek(passBytes(pass), KDF); dekX=await unwrapDek(WRAP, kek, KDF, true); }catch(_){ return err('bio-err',tr('err.cpWrong')); }
       if(!VAULT||!DEK) return; $('bio-pass').value='';
       const keep=!!($('bio-keep')&&$('bio-keep').checked);   // Wahl gilt nur für DIESE Aktivierung; danach wieder ab Werk aus
-      if(await bioArm(dekX, KDF, WRAP.ct, false, keep)){ toast(tr('bio.on')); const k=$('bio-keep'); if(k) k.checked=false; }
+      if(await bioArm(dekX, KDF, WRAP, false, keep)){ toast(tr('bio.on')); const k=$('bio-keep'); if(k) k.checked=false; }
     }finally{ bioEnable._busy=false; btn.disabled=false; btn.textContent=orig; $('bio-pass').value=''; maskInputs('#bio-card'); renderSettings(); }
   }
   function bioDisable(){ if(!VAULT||!bioArmed||!confirm(tr('confirm.bioDisable'))) return; bioDrop(true); toast(tr('bio.off')); renderSettings(); }
@@ -1784,29 +1811,37 @@ const App = (function(){
      AUSSCHLIESSLICH in dieser Closure: nie in localStorage, nie über die Desktop-Brücke, nie serialisiert, nie im Backup.
      Beenden der App = Kopie weg. Drei Fehlversuche verwerfen sie — eine Regel im Code, keine kryptografische Grenze. */
   const PIN_MIN=6, PIN_MAX=12, PIN_TRIES=3, PIN_RE=/^\d{6,12}$/;
-  let PIN=null, pinHold=false;   // {blob:{iv,ct}, pkdf, w, tries} — NUR RAM. pinHold = Riegel nach „Jetzt sperren“/Strg+L
+  const PIN_MAX_AGE=24*3600*1000;   // feste Grenze ohne Einstellung (Audit run-8): ein Desktop-Fenster bleibt sonst wochenlang offen — so lange läge der verpackte DEK im RAM (Ruhezustand, Swap)
+  let PIN=null, pinHold=false;   // {blob:{iv,ct}, pkdf, w, at, tries} — NUR RAM. pinHold = Riegel nach „Jetzt sperren“/Strg+L
   function pinMsg(t){ const n=$('pin-msg'); if(!n) return; n.textContent=t||''; n.classList.toggle('hidden',!t); }
-  // Gate-Block nur, wenn ein Slot da und der Riegel offen ist; der Knopf ruht, solange die Passphrase gerade geprüft wird
-  function renderPinGate(){ const box=$('pin-box'); if(box) box.classList.toggle('hidden',!(PIN&&!pinHold)); const b=$('pin-btn'); if(b) b.disabled=!!doUnlock._busy; }
-  // Slot verwerfen: im RAM gibt es nichts zu heilen, also immer ganz weg (anders als beim Fingerabdruck-Blob)
-  function pinDrop(){ PIN=null; pinHold=false; renderPinGate(); if(VAULT) renderSettings(); }
+  // Slot-Bytes nullen (best effort — der Blob lebt im Renderer-Heap ohne mlock; nach dem Verwerfen soll er nicht bis zur GC herumliegen)
+  function wipeSlot(s){ try{ s.blob.iv.fill(0); s.blob.ct.fill(0); s.pkdf.salt.fill(0); }catch(_){} }
+  // Abgelaufen (24 h seit dem Einrichten, Wanduhr — am Desktop stellt der Nutzer die Uhr selbst, das ist eine Komfortgrenze, keine Krypto-Grenze)
+  function pinExpired(){ return !!PIN&&Date.now()-PIN.at>PIN_MAX_AGE; }
+  // Gate-Block nur, wenn ein Slot da und der Riegel offen ist; der Knopf ruht, solange eine andere Pforte gerade prüft. Prüft auch den Ablauf.
+  function renderPinGate(){
+    if(pinExpired()){ const s=PIN; PIN=null; pinHold=false; if(!doPin._busy) wipeSlot(s); if(!DEK&&!pendingUnlock) err('lock-err',tr('pin.expired')); if(VAULT) renderSettings(); }
+    const box=$('pin-box'); if(box) box.classList.toggle('hidden',!(PIN&&!pinHold)); const b=$('pin-btn'); if(b) b.disabled=gateBusy(); }
+  // Slot verwerfen: im RAM gibt es nichts zu heilen, also immer ganz weg (anders als beim Fingerabdruck-Blob); Bytes nullen, außer ein doPin hält sie noch
+  function pinDrop(){ const s=PIN; PIN=null; pinHold=false; if(s&&!doPin._busy) wipeSlot(s); renderPinGate(); if(VAULT) renderSettings(); }
   // Sperrbildschirm: PIN → Argon2id → Datenschlüssel auspacken → gleicher Abschluss wie Passphrase/Fingerabdruck (Aegis-Hürde bleibt davor)
   async function doPin(){
-    if(doPin._busy||doUnlock._busy||doBio._busy||!PIN||pinHold||DEK||pendingUnlock) return; err('lock-err'); pinMsg('');
+    if(doPin._busy||doUnlock._busy||doBio._busy||DEK||pendingUnlock) return; renderPinGate(); if(!PIN||pinHold) return; err('lock-err'); pinMsg('');
     const pin=$('lock-pin').value;
     if(!PIN_RE.test(pin)){ $('lock-pin').value=''; maskInputs('#screen-lock'); return pinMsg(tr('pin.format',{a:PIN_MIN,b:PIN_MAX})); }   // kein Fehlversuch: die Eingabe war nie eine PIN
-    let raw; try{ raw=vaultGet(); }catch(_){ return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
-    let f; try{ f=parseFile(raw); }catch(e){ return err('lock-err',fileErrMsg(e)); }
-    // fremder/veränderter Passphrase-Slot (Datei getauscht, Sync): der RAM-Slot passt nicht mehr — verwerfen, nicht raten lassen
-    if(PIN.w!==bufToB64(f.wrap.ct)){ $('lock-pin').value=''; maskInputs('#screen-lock'); pinDrop(); return err('lock-err',tr('pin.fileChanged')); }
+    let raw; try{ raw=vaultGet(); }catch(_){ $('lock-pin').value=''; maskInputs('#screen-lock'); return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
+    let f; try{ f=parseFile(raw); }catch(e){ $('lock-pin').value=''; maskInputs('#screen-lock'); return err('lock-err',fileErrMsg(e)); }
+    // fremder/veränderter Passphrase-Slot oder KDF-Header (Datei getauscht, Sync, manipuliert): der RAM-Slot passt nicht mehr — verwerfen,
+    // nicht raten lassen, und ehrlich „Datei geändert“ melden statt „falsche PIN“ (Audit run-8 #1/#10)
+    if(PIN.w!==wrapTag(f.kdf,f.wrap)){ $('lock-pin').value=''; maskInputs('#screen-lock'); pinDrop(); return err('lock-err',tr('pin.fileChanged')); }
     const slot=PIN, gen=bioGen;                                        // Generation pinnen (Audit run-3 sinngemäß)
-    const btn=$('pin-btn'), orig=btn.textContent; doPin._busy=true; btn.disabled=true; btn.textContent=tr('busy.decrypting');
+    const btn=$('pin-btn'), orig=btn.textContent; doPin._busy=true; btn.disabled=true; btn.textContent=tr('busy.decrypting'); renderBioGate();   // Passphrase-/Fingerabdruck-Knopf solange aus
     try{
       const pkey=await deriveKek(passBytes(pin), slot.pkdf);
       const dek=await unwrapDek(slot.blob, pkey, f.kdf, false, 'pin');
       const obj=await decryptBody(f.body, dek, f.kdf); const v=sanitizeVault(obj);
-      if(gen!==bioGen||DEK||pendingUnlock){ $('lock-pin').value=''; maskInputs('#screen-lock'); return; }   // eine andere Pforte war schneller: nie überschreiben
-      if(PIN===slot) PIN.tries=0;
+      if(gen!==bioGen||DEK||pendingUnlock||PIN!==slot){ $('lock-pin').value=''; maskInputs('#screen-lock'); return; }   // eine andere Pforte war schneller oder der Slot ist verworfen: nie überschreiben
+      PIN.tries=0;
       if(v.totp){ pendingUnlock={dek, kdf:f.kdf, wrap:f.wrap, vault:v}; }   // Aegis-Hürde bleibt auch vor der PIN
       else { DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0; saveLockState(); }
     }catch(e){
@@ -1817,20 +1852,22 @@ const App = (function(){
       // PIN-Fehlversuche zählen NICHT in die Passphrase-Bremse (ai-pass-lock) — sie sagen nichts über die Passphrase aus
       if(PIN.tries>=PIN_TRIES){ pinDrop(); return err('lock-err',tr('pin.dropped')); }
       return pinMsg(tr('pin.wrong',{n:PIN_TRIES-PIN.tries}));
-    }finally{ doPin._busy=false; btn.disabled=false; btn.textContent=orig; renderPinGate(); }
+    }finally{ doPin._busy=false; btn.disabled=false; btn.textContent=orig; if(PIN!==slot) wipeSlot(slot); renderPinGate(); renderBioGate(); }   // verworfener Slot: jetzt hält ihn niemand mehr
     afterGate();
   }
-  // Einstellungen: einrichten (Passphrase bestätigen → EINZIGER extrahierbarer DEK-Handle, nur zum Verpacken, danach fallen gelassen)
+  // Einstellungen: einrichten (Passphrase bestätigen → EINZIGER extrahierbarer DEK-Handle, nur zum Verpacken, danach fallen gelassen).
+  // Alle Prüfungen laufen IM try, damit das finally auf jedem Weg Felder leert und Augen schließt (Audit run-8 #2: sonst blieb die
+  // Master-Passphrase nach einem Tippfehler in der PIN sichtbar stehen)
   async function pinEnable(){
     if(pinEnable._busy||!VAULT||!DEK) return; err('pin-err');
     if(changePass._busy||bioEnable._busy) return err('pin-err',tr('pin.busy'));
-    const p1=$('pin-new').value, p2=$('pin-rep').value, pass=$('pin-pass').value;
-    if(!PIN_RE.test(p1)) return err('pin-err',tr('pin.format',{a:PIN_MIN,b:PIN_MAX}));
-    if(p1!==p2) return err('pin-err',tr('pin.mismatch'));
-    if(!pass) return err('pin-err',tr('err.cpWrong'));
     const btn=$('pin-btn-on'), orig=btn.textContent; pinEnable._busy=true; btn.disabled=true; btn.textContent=tr('busy.checking');   // Guard VOR dem ersten await
-    const gen=bioGen;
+    const gen=bioGen; let done=false;
     try{
+      const p1=$('pin-new').value, p2=$('pin-rep').value, pass=$('pin-pass').value;
+      if(!PIN_RE.test(p1)) return err('pin-err',tr('pin.format',{a:PIN_MIN,b:PIN_MAX}));
+      if(p1!==p2) return err('pin-err',tr('pin.mismatch'));
+      if(!pass) return err('pin-err',tr('err.cpWrong'));
       let dekX; try{ const kek=await deriveKek(passBytes(pass), KDF); dekX=await unwrapDek(WRAP, kek, KDF, true); }
       catch(_){ return err('pin-err',tr('err.cpWrong')); }
       if(gen!==bioGen||!VAULT||!DEK) return;                           // zwischendurch gesperrt: keine Schnell-Pforte für eine tote Sitzung
@@ -1839,9 +1876,11 @@ const App = (function(){
       if(gen!==bioGen||!VAULT||!DEK) return;
       const blob=await wrapDek(dekX, pkey, KDF, 'pin');                 // AAD-Rolle 'pin' an den DATEI-Header gebunden: Passphrase-Wechsel = neues Salz = Blob wertlos
       if(gen!==bioGen||!VAULT||!DEK) return;
-      PIN={blob, pkdf, w:bufToB64(WRAP.ct), tries:0}; pinHold=false;
+      PIN={blob, pkdf, w:wrapTag(KDF,WRAP), at:Date.now(), tries:0}; pinHold=false; done=true;
       toast(tr('pin.on'));
-    }finally{ pinEnable._busy=false; btn.disabled=false; btn.textContent=orig; $('pin-new').value=$('pin-rep').value=$('pin-pass').value=''; maskInputs('#pin-card'); renderPinGate(); if(VAULT) renderSettings(); }
+    }catch(_){ err('pin-err',tr('pin.failed')); }                      // z.B. Argon2 ohne Speicher: nie als unbehandelte Ablehnung enden
+    finally{ pinEnable._busy=false; btn.disabled=false; btn.textContent=orig; $('pin-new').value=$('pin-rep').value=$('pin-pass').value=''; maskInputs('#pin-card'); renderPinGate(); if(VAULT) renderSettings();
+      if(!done&&(gen!==bioGen||!VAULT||!DEK)) toast(tr('pin.aborted')); }   // stiller Abbruch war verwirrend: geleerte Felder, Karte weiter „aus“ (Audit run-8, Härtung)
   }
   function pinDisable(){ if(!VAULT||!PIN||!confirm(tr('confirm.pinDisable'))) return; pinDrop(); toast(tr('pin.off')); }
   // Desktop-Tastatur (KeePassXC-Gewohnheit): Strg+L sperren, Strg+F Suche, Strg+N neuer Eintrag. Nur in der Hülle, nur entsperrt.
@@ -1876,8 +1915,8 @@ const App = (function(){
     if(bioEnable._busy) return err('cp-err',tr('bio.busy'));                 // nicht parallel zum Fingerabdruck-Aktivieren (Audit run-3 #5)
     if(pinEnable._busy) return err('cp-err',tr('pin.busy'));                 // ebenso wenig parallel zum PIN-Einrichten (v1.8)
     const cur=$('cp-cur').value, p1=$('cp1').value, p2=$('cp2').value;
-    if(p1.length<12) return err('cp-err',tr('err.cpShort'));
-    if(p1!==p2) return err('cp-err',tr('err.cpMismatch'));
+    if(p1.length<12){ maskInputs('#tab-settings'); return err('cp-err',tr('err.cpShort')); }        // Tippfehler: Augen zu, die alte Passphrase bleibt nie sichtbar stehen (Audit run-8 #2)
+    if(p1!==p2){ maskInputs('#tab-settings'); return err('cp-err',tr('err.cpMismatch')); }
     const btn=$('cp-btn'), orig=btn.textContent; changePass._busy=true; btn.disabled=true; btn.textContent=tr('busy.changing');
     const old={DEK,KDF,WRAP};
     try{
@@ -1905,7 +1944,7 @@ const App = (function(){
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }
   function closeHelp(){ hide('help-overlay'); }
   function toggleLang(){ setLang(LANG==='de'?'en':'de'); }
-  function relabel(){ if(!VAULT) return; $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); relabelExtraRows(); renderList(); renderTrash(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
+  function relabel(){ if(!VAULT){ if(!pendingUnlock){ err('lock-err'); pinMsg(''); bioMsg(''); } return; } $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); relabelExtraRows(); renderList(); renderTrash(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
   function renderAll(){ renderList(); renderSettings(); renderBackupMsg(); }
   function kdfChanged(){ kdfTouched=true; }
 

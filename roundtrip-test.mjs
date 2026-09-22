@@ -23,7 +23,7 @@ const V = new Function(region + `
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
     normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,passCheck,MAX_TOMBSTONES,liveCount,
     tombFrom,isWiped,wipeTrash,shapeIncoming,TRASH_DAYS,MAX_TRASH,TOMBSTONE_DAYS,ts,
-    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob};`)();
+    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob,bioWrapOk,wrapTag};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
 const throwsWith=async(fn,code,m)=>{ try{ await fn(); ok(false,m+' (kein Fehler)'); }catch(e){ ok(e&&e.message===code,m+' → '+(e&&e.message)); } };
@@ -422,6 +422,21 @@ console.log('\n[17] v1.2: Fingerabdruck-Slot (Rolle bio, Blob-Format, Schluessel
   ok(V.parseBioBlob('{"iv":"AAAA","ct":"AAAA"}')===null&&V.parseBioBlob('nope')===null&&V.parseBioBlob(null)===null&&V.parseBioBlob(JSON.stringify({iv:V.bufToB64(blob.iv),ct:V.bufToB64(blob.ct),w:V.bufToB64(wrap.ct),x:1}))!==null,'parseBioBlob: falsche Laengen/Formate → null, Fremdfelder ignoriert');
   ok(V.parseBioBlob('{'+'"a":1,'.repeat(200)+'}')===null,'parseBioBlob: Uebergroesse → null');
   let bad=false; try{ await V.bioKey(V.rand(16)); bad=true; }catch(e){ ok(e.message==='biokey','bioKey verlangt genau 32 Byte'); } ok(!bad,'bioKey(16 Byte) wirft');
+  // Audit run-8 #1: Bindung an IV + Ciphertext (+ Header für die PIN); alte Blobs ohne wi bleiben gültig
+  const raw2=V.serializeBioBlob(blob, wrap.ct, wrap.iv); const back2=V.parseBioBlob(raw2);
+  ok(back2&&back2.wi===V.bufToB64(wrap.iv)&&back2.w===V.bufToB64(wrap.ct),'Blob v1.8 trägt auch die Wrap-IV (wi)');
+  ok(back&&back.wi===null&&V.bioWrapOk(back,wrap),'Blob ohne wi (≤ v1.7) gilt weiter: bioWrapOk prüft nur den Ciphertext');
+  ok(V.bioWrapOk(back2,wrap),'bioWrapOk: unveränderter Wrap passt');
+  { const iv2=new Uint8Array(wrap.iv); iv2[0]^=1; ok(!V.bioWrapOk(back2,{iv:iv2,ct:wrap.ct}),'bioWrapOk: gekippte IV → Mismatch (vorher unbemerkt)'); ok(V.bioWrapOk(back,{iv:iv2,ct:wrap.ct}),'alter Blob ohne wi kann die IV nicht prüfen (dokumentierter Übergang)'); }
+  { const ct2=new Uint8Array(wrap.ct); ct2[5]^=1; ok(!V.bioWrapOk(back2,{iv:wrap.iv,ct:ct2})&&!V.bioWrapOk(back,{iv:wrap.iv,ct:ct2}),'bioWrapOk: gekippter Ciphertext → Mismatch, alt und neu'); }
+  ok(V.parseBioBlob(JSON.stringify({iv:V.bufToB64(blob.iv),ct:V.bufToB64(blob.ct),w:V.bufToB64(wrap.ct),wi:'AAAA'}))===null,'parseBioBlob: wi mit falscher Länge → null');
+  let badWi=false; try{ V.serializeBioBlob(blob, wrap.ct, V.rand(11)); badWi=true; }catch(e){ ok(e.message==='bioblob','serializeBioBlob verlangt 12-Byte-IV'); } ok(!badWi,'falsche IV-Länge wirft');
+  const tag=V.wrapTag(kdf,wrap);
+  ok(typeof tag==='string'&&tag.includes(V.bufToB64(wrap.iv))&&tag.includes(V.bufToB64(wrap.ct))&&tag.includes(V.bufToB64(kdf.salt))&&tag.includes('|'+kdf.m+'|'+kdf.t+'|'+kdf.p+'|'),'wrapTag bindet Salz, m/t/p, IV und Ciphertext');
+  { const iv2=new Uint8Array(wrap.iv); iv2[11]^=1; ok(V.wrapTag(kdf,{iv:iv2,ct:wrap.ct})!==tag,'wrapTag: IV verändert → anderes Tag'); }
+  ok(V.wrapTag(Object.assign({},kdf,{t:kdf.t+1}),wrap)!==tag,'wrapTag: Header (t) verändert → anderes Tag (Audit run-8 #10)');
+  ok(V.wrapTag(Object.assign({},kdf,{salt:V.rand(16)}),wrap)!==tag,'wrapTag: Salz verändert → anderes Tag');
+  ok(V.wrapTag(kdf,{iv:new Uint8Array(wrap.iv),ct:new Uint8Array(wrap.ct)})===tag,'wrapTag: gleiche Bytes → gleiches Tag (deterministisch)');
   const bk2=await V.bioKey(V.rand(32)); ok(bk2.extractable===false&&bk2.usages.join()==='wrapKey,unwrapKey','bio-Schluessel nicht extrahierbar, nur wrap/unwrap');
   const dekW=await V.unwrapDek(wrap,kek,kdf,false); let noWrap=false; try{ await V.wrapDek(dekW,bk,kdf,'bio'); noWrap=true; }catch(_){ } ok(!noWrap,'nicht extrahierbarer Sitzungs-DEK laesst sich NICHT erneut verpacken (Aktivieren braucht die Passphrase)');
 }

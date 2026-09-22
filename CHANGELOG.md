@@ -1,5 +1,38 @@
 # Changelog — Alien Pass
 
+## v1.8 — 2026-09-XX
+Alltagstauglichkeit: Fingerabdruck über den Neustart hinaus (Android) und eine PIN nach der Sperre (Desktop). Am Tresor-Format, an der
+Verschlüsselung und an deinen Daten ändert sich nichts.
+- **Android: Schalter „Auch nach einem Neustart des Handys mit Fingerabdruck entsperren“** (ab Werk aus). Bisher verlangte die App nach jedem
+  Neustart einmal die Passphrase — GrapheneOS startet ab Werk nach 18 Stunden Sperre von selbst neu, wer den Zähler kürzer stellt, tippte sie
+  entsprechend oft. Der Haken lässt sich nur beim Aktivieren des Fingerabdrucks setzen; die Wahl steckt im Fingerabdruck-Slot selbst, ist dort
+  mitauthentisiert und nur durch Deaktivieren und erneutes Aktivieren änderbar. Unverändert: Passphrase nach einem Passphrase-Wechsel, Warnung
+  bei neuem Fingerabdruck im System, „Jetzt sperren“ als Riegel. Die Einstellungen und das Handbuch erklären, wovor der Neustart-Zwang schützt
+  und was der Haken davon aufgibt.
+  **Nach dem Update** verlangt die App einmal die Passphrase, als wäre das Handy neu gestartet worden, und richtet den Fingerabdruck danach
+  von selbst wieder ein: Die Neustart-Erkennung nutzt jetzt den Boot-Zähler von Android statt der Kernel-Kennung, die nicht auf jedem Gerät
+  lesbar ist. Ein bestehender Slot passt darum einmalig nicht mehr.
+- **Desktop: Schnell-Entsperren mit PIN (bis zum Beenden, höchstens 24 Stunden).** Nach einer Sperre durch Inaktivität oder Hintergrund genügt
+  eine PIN mit 6 bis 12 Ziffern statt der Passphrase. Die PIN schützt nie die Tresordatei, sondern nur eine Kopie des Datenschlüssels, die beim
+  Sperren im Arbeitsspeicher bleibt; nichts davon wird gespeichert. Drei Fehlversuche, ein Passphrase-Wechsel, eine veränderte Tresordatei,
+  der Ablauf der 24 Stunden und das Beenden der App verwerfen die PIN. „Jetzt sperren“ (Strg+L) ist der Riegel: danach einmal die Passphrase,
+  dann gilt die PIN wieder. Ehrliche Grenzen stehen in der Karte, im Handbuch und in der README.
+- **Desktop: Fensterwechsel leert getippte Eingaben.** Wer mit Alt+Tab in ein anderes Fenster wechselt, sperrt die App nicht (das tut nur
+  Minimieren oder Verstecken), aber eine halb getippte Passphrase oder PIN bleibt nicht stehen. Handbuch und README sagen jetzt, was
+  „Hintergrund“ am Desktop bedeutet.
+- **Fingerabdruck und PIN prüfen die Tresordatei vollständiger (intern gefunden, niedrig).** Beide Schnell-Pforten sind an den Passphrase-Slot
+  der Datei gebunden; bisher deckte der Abgleich nur den verschlüsselten Teil, nicht den Zufallswert daneben und nicht die Kopfdaten. Eine an
+  diesen Stellen veränderte Datei konnte die Schnell-Pforte still öffnen und wurde beim nächsten Speichern so zurückgeschrieben, bis die
+  Passphrase nicht mehr passte. Jetzt meldet die App „Datei geändert“. Auf Android braucht das Zugriff auf die App-Daten, am Desktop auf
+  deinen Benutzer — ein Backup von davor stellt alles wieder her.
+- Desktop: bei einem Tippfehler beim Einrichten der PIN oder beim Passphrase-Wechsel bleibt die alte Passphrase nicht mehr sichtbar im Feld
+  stehen; ein Fehlversuch-Hinweis überlebt das Minimieren nicht; markierter Text in verdeckten Feldern geht nicht mehr an die Hülle.
+- Android: eine von Hand veränderte Fingerabdruck-Slot-Datei meldet sich als Manipulation mit bleibender Warnung statt als „Sensor
+  vorübergehend nicht verfügbar“.
+- Desktop: zwei veraltete Kommentare zur Bildschirmsperre im Quelltext berichtigt (im Flatpak erfährt die App davon nichts).
+- Internes Audit run-8 (PIN-Slot im Arbeitsspeicher, Zusammenspiel der drei Pforten, Neustart-Schalter, Wortlaut gegen Code): keine
+  mittleren oder schweren Funde, alle niedrigen und Hinweise behoben.
+
 ## v1.7 — 2026-09-22
 Erste Fassung für den **Linux-Desktop**, als Flatpak — gleichzeitig mit Android 1.7. Am Tresor-Format, an der Verschlüsselung und an
 deinen Daten ändert sich nichts. Ein Backup vom Handy lässt sich am Desktop importieren und umgekehrt.

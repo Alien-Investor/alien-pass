@@ -125,6 +125,7 @@ const BIO_SRC = `package org.alieninvestor.pass;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyPermanentlyInvalidatedException;
 import android.security.keystore.KeyProperties;
@@ -173,18 +174,21 @@ public class BiometricPlugin extends Plugin {
 
     private File file() { return new File(getContext().getFilesDir(), FILE); }
 
-    /** Boot-Kennung: /proc boot_id, ersatzweise die Boot-Zeit in Sekunden (Toleranz beim Vergleich). */
-    private static String bootTag() {
+    /** Boot-Kennung, immer in der GCM-AAD des Slots (Audit run-8 #4): zuerst Settings.Global.BOOT_COUNT (API 24+, keine Berechtigung,
+     *  monoton, unabhängig von /proc und von der Uhr) als "b:<n>", ersatzweise /proc boot_id ("id:"), zuletzt die Boot-Zeit in Sekunden
+     *  ("t:", Toleranz beim Vergleich). Slots von v1.7 tragen "id:"/"t:" und melden nach dem Update einmal reboot → Neu-Bewaffnung nach der Passphrase. */
+    private String bootTag() {
+        try { int n = Settings.Global.getInt(getContext().getContentResolver(), Settings.Global.BOOT_COUNT); if (n > 0) return "b:" + n; } catch (Exception ignored) {}
         try (BufferedReader r = new BufferedReader(new FileReader("/proc/sys/kernel/random/boot_id"))) {
             String s = r.readLine();
             if (s != null && s.trim().length() >= 8) return "id:" + s.trim();
         } catch (Exception ignored) {}
         return "t:" + ((System.currentTimeMillis() - SystemClock.elapsedRealtime()) / 1000L);
     }
-    private static boolean sameBoot(String stored) {
+    private boolean sameBoot(String stored) {
         if (stored == null || stored.length() < 3) return false;
         String now = bootTag();
-        if (stored.startsWith("id:") || now.startsWith("id:")) return stored.equals(now);
+        if (!stored.startsWith("t:") || !now.startsWith("t:")) return stored.equals(now);
         try { return Math.abs(Long.parseLong(stored.substring(2)) - Long.parseLong(now.substring(2))) <= 120; }
         catch (Exception e) { return false; }
     }
@@ -354,9 +358,10 @@ public class BiometricPlugin extends Plugin {
         }, false);
     }
 
-    /** Boot-Kennung als GCM-AAD: nur die exakte id:-Form (die Zeit-Rückfallform darf innerhalb der Toleranz abweichen). */
+    /** Boot-Kennung (+ keep) als GCM-AAD, IMMER — auch die Zeit-Rückfallform: unlock() nimmt den GESPEICHERTEN Wert, die Toleranz gilt nur
+     *  in sameBoot, darum bricht die AAD nie an der Abweichung. Ohne AAD wäre keep im Klartext frei setzbar (Audit run-8 #4). */
     private static void aad(Cipher c, String boot) {
-        if (boot != null && boot.startsWith("id:")) c.updateAAD(boot.getBytes(StandardCharsets.UTF_8));
+        if (boot != null && !boot.isEmpty()) c.updateAAD(boot.getBytes(StandardCharsets.UTF_8));
     }
 
     private interface Work { JSObject run(Cipher c) throws Exception; }
@@ -376,7 +381,8 @@ public class BiometricPlugin extends Plugin {
                             Cipher cc = r.getCryptoObject() != null ? r.getCryptoObject().getCipher() : null;
                             if (cc == null) throw new IllegalStateException("nocrypto");
                             call.resolve(work.run(cc));
-                        } catch (Exception e) { if (wipeOnFail) wipe(); call.reject("error"); }
+                        } catch (javax.crypto.AEADBadTagException e) { call.reject("tampered"); }   // Klartext-Feld (boot/keep) der Slot-Datei verändert: nie „vorübergehend“, kein automatisches Wipe (Audit run-8 #16)
+                        catch (Exception e) { if (wipeOnFail) wipe(); call.reject("error"); }
                     }
                     @Override public void onAuthenticationError(int code, CharSequence msg) {
                         if (wipeOnFail) wipe();
@@ -402,12 +408,16 @@ const jm = readFileSync(MAIN, 'utf8'), jb = readFileSync(BIO, 'utf8');
 if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin.class)') || !jm.includes('registerPlugin(BiometricPlugin.class)')
   || !readFileSync(CLIP, 'utf8').includes('EXTRA_IS_SENSITIVE')
   || !jb.includes('setUserAuthenticationRequired(true)') || !jb.includes('setInvalidatedByBiometricEnrollment(true)') || !jb.includes('BIOMETRIC_STRONG') || !jb.includes('sameBoot(')
-  || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT') || !jb.includes('updateAAD(')
-  || !jb.includes('canaryState()') || !/if \("invalidated"\.equals\(canaryState\(\)\)\) \{ wipeAll\(\); o\.put/.test(jb) || !jb.includes('call.getBoolean("rearm", false)') || !jb.includes('"nocanary"')
+  || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT')
+  // AAD wirklich ANGEWENDET (der private Helfer allein genügt nicht — Audit run-8 #5): beide Aufrufe in enroll() und unlock() zählen
+  || (jb.match(/aad\(cipher, ad\);/g) || []).length !== 2 || !jb.includes('c.updateAAD(boot.getBytes(') || !jb.includes('Settings.Global.BOOT_COUNT')
+  || !jb.includes('canaryState()') || !/if \("invalidated"\.equals\(canaryState\(\)\)\) \{ wipeAll\(\); o\.put/.test(jb) || (jb.match(/"invalidated"\.equals\(canaryState\(\)\)/g) || []).length !== 2
+  || !jb.includes('call.getBoolean("rearm", false)') || !jb.includes('"nocanary"')
   // v1.8 „Fingerabdruck auch nach Neustart“: die Wahl kommt vom JS, steht im Slot und hängt in der AAD; der Neustart-Zweig gilt nur
-  // ohne keep — und zwar in status() UND unlock(), darum beide Vorkommen zählen
-  || !jb.includes('call.getBoolean("keep", false)') || !jb.includes('boot + "|keep"') || !jb.includes('st.put("keep", true)')
-  || (jb.match(/!keep && !sameBoot\(/g) || []).length !== 2
+  // ohne keep — und zwar in status() UND unlock(), darum beide Vorkommen zählen; Default false und der Rearm-Riegel sind gepinnt (run-8 #5)
+  || !jb.includes('call.getBoolean("keep", false)) && !rearm') || !jb.includes('boot + "|keep"') || !jb.includes('st.put("keep", true)')
+  || (jb.match(/optBoolean\("keep", false\)/g) || []).length !== 2
+  || (jb.match(/!keep && !sameBoot\(/g) || []).length !== 2 || !jb.includes('AEADBadTagException e) { call.reject("tampered")')
   || !/USE_FINGERPRINT"\s+android:maxSdkVersion="27"\s+tools:node="replace"/.test(readFileSync(MANIFEST, 'utf8'))) {   // cap sync bricht die Zeile um
   console.error('FEHLER: Java-Härtung unvollständig — Build abgebrochen!'); process.exit(1);
 }
