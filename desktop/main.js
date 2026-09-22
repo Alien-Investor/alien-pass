@@ -56,18 +56,26 @@ else {
     catch(_){ return false; }
   }
   const sha=t=>crypto.createHash('sha256').update(String(t)).digest('hex');
-  let owned=null;   // Hash des zuletzt von uns kopierten Texts — nie der Text selbst
+  let owned=null;      // Hash des zuletzt von uns kopierten Texts — nie der Text selbst
+  let ownedSel=null;   // Hash des zuletzt in der App markierten Texts (X11-Auswahl, Mittelklick) — Klipper speichert sie nicht, aber jedes Programm liest sie
   async function clearOwned(){
-    if(!owned) return;
-    let cur=''; try{ cur=await clipboard.readText(); }catch(_){}
-    if(cur&&sha(cur)===owned) await clipboard.clear();   // nur löschen, was noch von uns stammt; fremde Kopien bleiben
-    owned=null;
+    if(owned){ let cur=''; try{ cur=await clipboard.readText(); }catch(_){}
+      if(cur&&sha(cur)===owned) await clipboard.clear();   // nur löschen, was noch von uns stammt; fremde Kopien bleiben
+      owned=null; }
+    if(ownedSel){ let cur=''; try{ cur=await clipboard.selection.readText(); }catch(_){}
+      if(cur&&sha(cur)===ownedSel){ try{ await clipboard.selection.clear(); }catch(_){} }   // ebenso nur die eigene Markierung
+      ownedSel=null; }
   }
   ipcMain.handle('clip:write',async(e,text)=>{
     if(!fromApp(e)) throw new Error('denied');
     if(typeof text!=='string'||!text||text.length>CLIP_MAX) throw new Error('bad');
     await clipboard.write([new ClipboardItem({'text/plain':new Blob([text],{type:'text/plain'}),[KDE_HINT]:new Blob(['secret'])})]);
     owned=sha(text); return true;
+  });
+  ipcMain.handle('clip:selected',async(e,text)=>{   // App meldet markierten Text; gemerkt wird nur der Hash
+    if(!fromApp(e)) throw new Error('denied');
+    if(typeof text!=='string'||text.length>CLIP_MAX) throw new Error('bad');
+    ownedSel=text?sha(text):null; return true;
   });
   ipcMain.handle('clip:clear',async e=>{ if(!fromApp(e)) throw new Error('denied'); await clearOwned(); return true; });
 
@@ -153,6 +161,6 @@ else {
 
   // Beim Beenden die eigene Kopie aus der Zwischenablage nehmen
   let quitting=false;
-  app.on('before-quit',ev=>{ if(quitting||!owned) return; ev.preventDefault(); quitting=true; clearOwned().catch(()=>{}).finally(()=>app.quit()); });
+  app.on('before-quit',ev=>{ if(quitting||(!owned&&!ownedSel)) return; ev.preventDefault(); quitting=true; clearOwned().catch(()=>{}).finally(()=>app.quit()); });
   app.on('window-all-closed',()=>app.quit());
 }

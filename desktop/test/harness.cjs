@@ -74,6 +74,14 @@ async function fresh(){
   R('fremde Kopie bleibt stehen', (await clipboard.readText())===M2);
   await clipboard.clear();
 
+  // X11-Auswahl (Mittelklick): eigene Markierung wird mitgelöscht, fremde bleibt (Gerätetest 22.09.2026)
+  const M3='ap-harness-'+process.pid+'-sel', M4='ap-harness-'+process.pid+'-fremd';
+  await clipboard.selection.writeText(M3); await js(`AlienDesktop.clip.selected(${JSON.stringify(M3)})`); await js(`AlienDesktop.clip.clear()`);
+  R('eigene Markierung aus der Auswahl gelöscht', (await clipboard.selection.readText())!==M3);
+  await js(`AlienDesktop.clip.selected(${JSON.stringify(M3)})`); await clipboard.selection.writeText(M4); await js(`AlienDesktop.clip.clear()`);
+  R('fremde Markierung bleibt stehen', (await clipboard.selection.readText())===M4);
+  await clipboard.selection.clear();
+
   // Tresor anlegen über die Oberfläche → Datei statt Browser-Speicher
   R('ohne Datei: Einrichtung', await until(visible('screen-setup'),15000));
   await until(`/ms/.test(document.getElementById('setup-bench').textContent)`,30000);   // Argon2-Messung abwarten
@@ -88,6 +96,12 @@ async function fresh(){
   R('keine Temp-Reste', fs.readdirSync(DATA).every(n=>n==='vault.aipv'), fs.readdirSync(DATA));
   R('Datei ist AIPV1 und enthält keinen Klartext', (()=>{ const s=fs.readFileSync(VAULT,'utf8'); let j=null; try{ j=JSON.parse(s); }catch(_){} return !!j&&j.magic==='AIPV1'&&!s.includes('harness-geheim')&&!s.includes('Harness Eintrag'); })());
   R('Tresor nicht im Browser-Speicher', await js(`localStorage.getItem('ai-pass-vault')===null`));
+
+  // Strg+C auf Markiertem läuft über die Brücke: KDE-Hinweis gesetzt (sonst Klipper-Verlauf)
+  await js(`(()=>{ const n=[...document.querySelectorAll('#entry-list .entry .t')].find(x=>x.textContent==='Harness Eintrag'); const r=document.createRange(); r.selectNodeContents(n); const g=getSelection(); g.removeAllRanges(); g.addRange(r); document.execCommand('copy'); g.removeAllRanges(); })()`);
+  await sleep(400);
+  R('Strg+C: Kopie mit KDE-Hinweis', await clipboard.has(KDE_HINT)&&(await clipboard.readText())==='Harness Eintrag');
+  await clipboard.clear();
 }
 async function restart(){
   R('Neustart: Sperrbildschirm statt Einrichtung', await until(visible('screen-lock'),15000)&&!(await js(visible('screen-setup'))));
