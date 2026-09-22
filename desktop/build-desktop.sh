@@ -24,6 +24,10 @@ echo "Electron $EL_VER: Hash OK."
 (cd .. && ./build-www.sh) || { echo "FEHLER: build-www.sh fehlgeschlagen — Build abgebrochen!" >&2; exit 1; }
 echo "www/ gebaut."
 VNAME=$(grep '^VERSION_NAME=' ../VERSION | cut -d= -f2 | tr -d '[:space:]')
+DREV=$(grep '^DESKTOP_REV=' ../VERSION | cut -d= -f2 | tr -d '[:space:]')
+[[ "$DREV" =~ ^[1-9][0-9]*$ ]] || { echo "FEHLER: DESKTOP_REV fehlt oder ungültig in VERSION" >&2; exit 1; }
+# Reiner Engine-Neubau (nur DESKTOP_REV hoch) bekommt ein -rN im Dateinamen; die App-Version bleibt VERSION_NAME
+TAG="$VNAME"; [ "$DREV" = 1 ] || TAG="$VNAME-r$DREV"
 
 rm -rf build && mkdir -p build/app build/electron
 unzip -q "$ZIP" -d build/electron
@@ -45,10 +49,19 @@ flatpak run org.flatpak.Builder --force-clean --state-dir=build/.flatpak-builder
 PRE=$(awk '/^\[/{skip=($0=="[Application]"||$0=="[Build]"||$0 ~ /^\[Extension .*\.Debug\]$/)} !skip' build/fp/metadata | sed '/^$/d')
 WANT_META=$(printf '[Context]\nshared=ipc;\nsockets=fallback-x11;wayland;\ndevices=dri;')
 if [ "$PRE" != "$WANT_META" ]; then echo "$PRE"; echo "FEHLER: Rechte im gebauten Stand weichen vom Soll ab — nicht installiert!" >&2; exit 1; fi
-flatpak run org.flatpak.Builder --user --install --export-only --state-dir=build/.flatpak-builder build/fp flatpak/$APP_ID.yml
+flatpak run org.flatpak.Builder --user --install --export-only --repo=build/repo --state-dir=build/.flatpak-builder build/fp flatpak/$APP_ID.yml
 
 # Endkontrolle an der installierten App: kein Netz, kein Dateisystem, nur Anzeige + GPU
 PERM=$(flatpak info --user --show-permissions "$APP_ID")
 echo "$PERM"
 if [ "$(echo "$PERM" | sed '/^$/d')" != "$WANT" ]; then echo "FEHLER: Flatpak-Rechte weichen vom Soll ab — abgebrochen!" >&2; exit 1; fi
 echo "Endkontrolle OK: kein Netz, kein Dateisystem. Start: flatpak run $APP_ID"
+
+# Release-Datei: Flatpak-Bundle aus demselben Repo wie die geprüfte Installation. --runtime-repo lässt flatpak die Laufzeit
+# (org.freedesktop.Platform) beim Nutzer von Flathub nachladen. Signiert wird SHA256SUMS (vom Nutzer, GPG-Release-Schlüssel).
+mkdir -p build/release
+BUNDLE="alien-pass-$TAG-linux-x86_64.flatpak"
+flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo build/repo "build/release/$BUNDLE" "$APP_ID"
+(cd build/release && sha256sum "$BUNDLE" > SHA256SUMS)
+echo "Bundle: desktop/build/release/$BUNDLE"; cat build/release/SHA256SUMS
+echo "Signieren (Nutzer): gpg --local-user 100F9E25BFAEA807DBC357D750C0D78583BFCB81 --armor --detach-sign desktop/build/release/SHA256SUMS"

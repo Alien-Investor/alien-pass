@@ -1,5 +1,21 @@
 # Changelog — Alien Pass
 
+## v1.7 — 2026-09-22
+Erste Fassung für den **Linux-Desktop**, als Flatpak. Am Tresor-Format, an der Verschlüsselung und an deinen Daten ändert sich nichts.
+Ein Backup vom Handy lässt sich am Desktop importieren und umgekehrt. Die Android-App bekommt die Nummer 1.7 mit ihrem nächsten Update.
+- **Alien Pass Desktop (Linux, Flatpak).** Derselbe Code wie auf dem Handy, dazu eine kleine Hülle aus Electron. Das System nimmt der App
+  das Netz: Das Flatpak hat keine Netzwerk-Berechtigung und keinen Zugriff auf deine Dateien. Backup und Import laufen über den
+  Dateidialog des Systems. Ab etwa 1000 Pixeln Fensterbreite stehen Liste und Eintrag nebeneinander. Tastatur: Strg+F, Strg+N, Strg+L, Esc.
+- **Zwischenablage am Desktop:** Kopiertes ist für KDE als Passwort markiert, Klipper übernimmt es nicht in den Verlauf. Die App löscht
+  es nach der eingestellten Zeit, beim Sperren und beim Beenden. Das gilt auch für Strg+C, Strg+X und für Text, den du nur mit der Maus
+  markierst (Mittelklick unter Linux).
+- **Sperren im Hintergrund, alle Fassungen:** Wurde die App schon während des Entsperrens in den Hintergrund geschickt, blieb der Tresor
+  bei „sofort sperren“ danach offen. Jetzt sperrt er.
+- **Ehrliche Grenzen am Desktop:** kein Schutz vor Bildschirmfotos; die Browser-Engine liefert die App selbst mit (Updates nur mit neuer
+  App-Version); bei Bildschirmsperre und Ruhezustand sperrt die App nicht von selbst, darum die Systemsperre und eine kurze
+  Inaktivitäts-Sperre nutzen; kein Fingerabdruck.
+- Zwei interne Audits der Desktop-Hülle (run-6, run-7), alle Funde behoben.
+
 ## v1.6.2 — 2026-09-21
 Reine Darstellungskorrektur. Am Tresor-Format, an der Verschlüsselung und an deinen Daten ändert sich nichts.
 - **Passwortfeld bleibt dunkel, wenn ein anderer Passwortmanager es ausfüllt.** Füllte ein Passwortmanager (z.B. Proton Pass) die
