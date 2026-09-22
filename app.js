@@ -118,7 +118,7 @@ const I18N = {
   "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
   "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv. Folders become categories.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
   "help.hDesk":"Desktop version (Linux)",
-  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there. The same applies to text you select with the mouse in the app (on Linux instantly pasteable with a middle click); Ctrl+C in the app copies like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when minimised (setting “Lock in background”). On <strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
+  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there. The same applies to text you select with the mouse in the app (on Linux instantly pasteable with a middle click); Ctrl+C and Ctrl+X in the app copy like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when minimised (setting “Lock in background”). On <strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
   "help.h9":"Security in detail",
   "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests exactly two normal permissions, both for the fingerprint sensor: USE_BIOMETRIC and USE_FINGERPRINT (the latter only up to Android 8.1, brought in by the AndroidX biometric library). No internet, no storage, no contacts. Besides these the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing. It forbids screenshots and recents preview (FLAG_SECURE) and excludes itself from cloud, adb and device-to-device backups (backup rules).</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory.</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, own AES block cipher checked against FIPS-197 vectors and WebCrypto in the test suite, integrity check); its keys are import-only and zeroed afterwards, the vault key never touches it.</li><li><strong>Limits:</strong> no autofill, no breach check. Fingerprint unlock is optional and honestly limited (see above). A passphrase cannot be recovered.</li>"
 };
@@ -1021,7 +1021,7 @@ const App = (function(){
   // Gemeinsamer Abschluss von Passphrase- und Fingerabdruck-Pfad: Eingaben leeren, Aegis-Wartestellung oder App
   function afterGate(){
     $('lock-pass').value=''; maskInputs('#screen-lock'); bioMsg(''); bioAuto=true; setBioHold(false);   // Passphrase eingegeben: Riegel gelöst
-    if(pendingUnlock){ screen('totp'); $('totp-code').value=''; err('totp-err'); resetIdle(); setTimeout(()=>$('totp-code').focus(),100); return; }   // Idle-Sperre gilt auch in der Wartestellung
+    if(pendingUnlock){ if(leaveGate()) return; screen('totp'); $('totp-code').value=''; err('totp-err'); resetIdle(); setTimeout(()=>$('totp-code').focus(),100); return; }   // Idle-Sperre gilt auch in der Wartestellung
     enterApp();
   }
   async function doTotp(){
@@ -1061,7 +1061,10 @@ const App = (function(){
   function enhancePassFields(){ document.querySelectorAll('input[type=password]').forEach(i=>{ if(i.id&&!i.closest('.pw-wrap')) eyeWrap(i); }); }
   // Code mit ±1 Zeitfenster prüfen (Uhrenabweichung)
   async function totpValid(t, code){ const now=Date.now(); for(const d of [-1,0,1]){ if(await totpCode(t, now+d*t.period*1000)===code) return true; } return false; }
-  function enterApp(){ screen('app'); tab('list'); renderAll(); resetIdle();
+  // Beim Verlassen eines Gate-Bildschirms: dort Markiertes sofort aus der Auswahl (Audit run-7 #2); wurde das Fenster schon während
+  // Argon2 versteckt, galt onHidden noch für „gesperrt“ — bei „sofort“ jetzt nachholen statt den Tresor offen zu lassen (Audit run-7, Härtung)
+  function leaveGate(){ if(DESK&&clipOwnedAt) clearClip(); if(bgAway&&settings().bgLock===0){ lock(); toast(tr('toast.autolocked')); return true; } return false; }
+  function enterApp(){ if(leaveGate()) return; screen('app'); tab('list'); renderAll(); resetIdle();
     if(bioRearmDek){ const d=bioRearmDek; bioRearmDek=null; bioArm(d, KDF, WRAP.ct, true).then(ok=>{ if(ok) toast(tr('bio.rearmed')); if(VAULT) renderSettings(); }); } }   // if(VAULT): während der Neu-Einrichtung gesperrt → sonst TypeError   // nach Neustart: Slot mit frischem Zufall neu bewaffnen
   function lock(){
     clearIdle(); stopTotp(); clearClip();
@@ -1097,7 +1100,8 @@ const App = (function(){
   let bgAway=false;
   function onHidden(){
     if(bgAway) return; bgAway=true;
-    hiddenAt=Date.now(); clearGateInputs(); if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(); }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen
+    hiddenAt=Date.now(); clearGateInputs(); if(DESK&&!DEK&&clipOwnedAt) clearClip();   // gesperrt: nur Gate-Markierungen können hier eigene sein
+    if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(); }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen
   }
   function onShown(){
     if(!bgAway) return; bgAway=false;
@@ -1460,12 +1464,20 @@ const App = (function(){
     const selText=()=>{ const a=document.activeElement;
       if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') return a.value.substring(a.selectionStart,a.selectionEnd);
       const g=window.getSelection(); return g?String(g):''; };
-    const onSel=()=>{ if(!DEK) return; const t=selText(); if(!t) return;
+    // Auch auf Sperr-/Einrichtungsbildschirm (DEK null): eine markierte Master-Passphrase läge sonst unbegrenzt in der Auswahl —
+    // dort gilt die Standard-Frist, beim Verlassen des Bildschirms wird sofort gelöscht (leaveGate, Audit run-7 #2)
+    const onSel=()=>{ const t=selText(); if(!t) return;
       let p=null; try{ p=DESK.clip.selected(t); }catch(_){ p=null; }
-      if(p&&p.then) p.then(()=>{ if(DEK&&!clipOwnedAt) armClip(); },()=>{}); };
+      if(p&&p.then) p.then(()=>{ if(!clipOwnedAt) armClip(); },()=>{}); };
     document.addEventListener('mouseup',onSel);
     // Strg+C auf Markiertem: nicht Chromium kopieren lassen (ohne KDE-Hinweis, ohne Löschen → Klipper-Verlauf), sondern über die Brücke
     document.addEventListener('copy',ev=>{ const t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel'); });
+    // Strg+X / Shift+Entf ebenso — Chromium schriebe sonst selbst, ohne Hinweis und ohne Löschen (Audit run-7 #1). Danach die Markierung
+    // im Feld entfernen: execCommand('delete') hält Rückgängig intakt, sonst setRangeText + input-Ereignis (Formular-Balken, Zustand)
+    document.addEventListener('cut',ev=>{ const a=document.activeElement, t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel');
+      if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||a.readOnly||a.disabled) return;
+      let done=false; try{ done=document.execCommand('delete'); }catch(_){}
+      if(!done){ a.setRangeText('',a.selectionStart,a.selectionEnd,'end'); a.dispatchEvent(new Event('input',{bubbles:true})); } });
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&(ev.key||'').toLowerCase()==='a')) onSel(); });
   }
   if(DESK&&typeof DESK.onLock==='function') DESK.onLock(()=>{ if(DEK||pendingUnlock) lock(); });   // Hülle meldet Bildschirmsperre (Portal) bzw. Ruhezustand (nur außerhalb des Flatpaks)

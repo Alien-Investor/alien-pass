@@ -33,14 +33,22 @@ cp -r ../www build/app/www
 printf '{"name":"alien-pass","productName":"Alien Pass","version":"%s","main":"main.js","private":true}\n' "$VNAME" > build/app/package.json
 node pack.mjs build/app build/electron
 
+# Genauer Soll-Vergleich statt Sperrliste: jedes zusätzliche Recht (Bus-Policy, org.freedesktop.Flatpak, session-bus, devices=all …)
+# bräche das Versprechen „kein Netz, keine Dateien“ genauso (Audit run-6 #5)
+WANT=$(printf '[Context]\nshared=ipc;\nsockets=wayland;fallback-x11;\ndevices=dri;')
+
 # Der Builder läuft selbst als Flatpak und sieht nur ~/ — deshalb liegt alles unter desktop/build/
-flatpak run org.flatpak.Builder --user --install --force-clean --state-dir=build/.flatpak-builder build/fp flatpak/$APP_ID.yml
+# Erst bauen, dann die Rechte am gebauten Stand prüfen, erst danach installieren — eine App mit falschen Rechten
+# soll gar nicht erst installiert werden (Audit run-7, Härtung)
+flatpak run org.flatpak.Builder --force-clean --state-dir=build/.flatpak-builder build/fp flatpak/$APP_ID.yml
+# metadata: alles außer [Application], [Build] und der Debug-Erweiterung muss exakt dem Soll entsprechen (Reihenfolge der Sockets wie im metadata)
+PRE=$(awk '/^\[/{skip=($0=="[Application]"||$0=="[Build]"||$0 ~ /^\[Extension .*\.Debug\]$/)} !skip' build/fp/metadata | sed '/^$/d')
+WANT_META=$(printf '[Context]\nshared=ipc;\nsockets=fallback-x11;wayland;\ndevices=dri;')
+if [ "$PRE" != "$WANT_META" ]; then echo "$PRE"; echo "FEHLER: Rechte im gebauten Stand weichen vom Soll ab — nicht installiert!" >&2; exit 1; fi
+flatpak run org.flatpak.Builder --user --install --export-only --state-dir=build/.flatpak-builder build/fp flatpak/$APP_ID.yml
 
 # Endkontrolle an der installierten App: kein Netz, kein Dateisystem, nur Anzeige + GPU
 PERM=$(flatpak info --user --show-permissions "$APP_ID")
 echo "$PERM"
-# Genauer Soll-Vergleich statt Sperrliste: jedes zusätzliche Recht (Bus-Policy, org.freedesktop.Flatpak, session-bus, devices=all …)
-# bräche das Versprechen „kein Netz, keine Dateien“ genauso (Audit run-6 #5)
-WANT=$(printf '[Context]\nshared=ipc;\nsockets=wayland;fallback-x11;\ndevices=dri;')
 if [ "$(echo "$PERM" | sed '/^$/d')" != "$WANT" ]; then echo "FEHLER: Flatpak-Rechte weichen vom Soll ab — abgebrochen!" >&2; exit 1; fi
 echo "Endkontrolle OK: kein Netz, kein Dateisystem. Start: flatpak run $APP_ID"

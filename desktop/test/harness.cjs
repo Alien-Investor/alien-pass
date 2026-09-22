@@ -102,12 +102,31 @@ async function fresh(){
   await sleep(400);
   R('Strg+C: Kopie mit KDE-Hinweis', await clipboard.has(KDE_HINT)&&(await clipboard.readText())==='Harness Eintrag');
   await clipboard.clear();
+
+  // Strg+X (Audit run-7 #1): Ausschneiden läuft ebenfalls über die Brücke, der Text verschwindet aus dem Feld
+  const M5='ap-harness-'+process.pid+'-cut';
+  await click('button[data-action="newEntry"]'); await sleep(300);
+  await js(`(()=>{ const n=document.getElementById('f-notes'); n.value='vor '+${JSON.stringify(M5)}; n.focus(); n.setSelectionRange(4,n.value.length); })()`);
+  win.webContents.cut(); await sleep(500);
+  R('Strg+X: Kopie mit KDE-Hinweis', await clipboard.has(KDE_HINT)&&(await clipboard.readText())===M5);
+  R('Strg+X: Text aus dem Feld entfernt', await js(`document.getElementById('f-notes').value==='vor '`));
+  await js(`AlienDesktop.clip.clear()`); await sleep(200);
+  R('Strg+X: Kopie wird wieder gelöscht', (await clipboard.readText())!==M5);
+  await clipboard.clear(); await js(`App.tab('list')`).catch(()=>{});
 }
 async function restart(){
   R('Neustart: Sperrbildschirm statt Einrichtung', await until(visible('screen-lock'),15000)&&!(await js(visible('screen-setup'))));
-  await fill('lock-pass',PP); await click('#unlock-btn');
+  // Markierte Passphrase auf dem Sperrbildschirm (Audit run-7 #2): wird gemeldet und beim Entsperren aus der Auswahl gelöscht.
+  // Die Auswahl setzt hier das Prüfprogramm selbst (wie X11 beim Markieren) — geprüft wird, dass die App sie als eigene meldet.
+  await fill('lock-pass',PP);
+  await js(`(()=>{ const n=document.getElementById('lock-pass'); n.focus(); n.select(); document.dispatchEvent(new KeyboardEvent('keyup',{key:'a',ctrlKey:true})); })()`);
+  await sleep(300); await clipboard.selection.writeText(PP);
+  await click('#unlock-btn');
   R('entsperrt mit der Passphrase', await until(visible('screen-app')));
   R('Eintrag aus der Datei da', await until(`[...document.querySelectorAll('#entry-list .entry .t')].some(n=>n.textContent==='Harness Eintrag')`,10000));
+  await sleep(500);
+  R('Sperrbildschirm: markierte Passphrase nach dem Entsperren aus der Auswahl', (await clipboard.selection.readText())!==PP);
+  await clipboard.selection.clear();
 }
 // Sperre beim Minimieren (Audit run-6 #1): backgroundThrottling:false schaltet visibilitychange ab, die Hülle meldet selbst
 async function background(){
@@ -123,7 +142,13 @@ async function background(){
   R('kurz minimiert bei 30 s: bleibt entsperrt', await js(visible('screen-app')));
   await fill('lock-pass','x'); win.hide(); await sleep(600); win.show(); await sleep(400);   // zweites Signal-Paar: verstecken/zeigen
   R('Verstecken leert getippte Eingaben', await js(`document.getElementById('lock-pass').value===''`));
-  await js(`App.setAutolock('2')`); await sleep(600);
+  // Minimiert, während Argon2 noch läuft (Audit run-7, Härtung): bei „sofort“ darf der Tresor danach nicht offen stehen
+  await fill('lock-pass',PP); await click('#unlock-btn'); await until(visible('screen-app'));
+  await js(`App.setBgLock('0')`); await sleep(600); await js(`App.lockNow()`); await until(visible('screen-lock'),5000);
+  await fill('lock-pass',PP); await click('#unlock-btn'); win.minimize(); await sleep(4000); win.restore(); await sleep(600);
+  R('während des Entsperrens minimiert: bleibt gesperrt', await js(visible('screen-lock'))&&!(await js(visible('screen-app'))));
+  await fill('lock-pass',PP); await click('#unlock-btn'); await until(visible('screen-app'));
+  await js(`App.setBgLock('30')`); await js(`App.setAutolock('2')`); await sleep(600);
 }
 async function unreadable(){
   R('Lesefehler: keine Einrichtung', await until(visible('screen-lock'),15000)&&!(await js(visible('screen-setup'))));
