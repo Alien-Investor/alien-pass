@@ -153,7 +153,8 @@ else {
     win.loadURL(ENTRY);
 
     // Im Flatpak wirkungslos: 'lock-screen' gibt es unter Linux nicht, 'suspend' braucht logind am System-Bus (fehlt im Käfig).
-    // Bleibt für den Fall außerhalb des Käfigs; die Bildschirmsperre kommt über das Portal (siehe screenMonitor).
+    // Bleibt für den Fall außerhalb des Käfigs. Ein Portal-Weg (Inhibit.CreateMonitor) wurde bewusst verworfen (eigener D-Bus-Client nötig);
+    // das Handbuch sagt ehrlich: bei Bildschirmsperre/Ruhezustand sperrt die App nicht, Systemsperre + kurze Inaktivitäts-Sperre nutzen.
     const lockApp=()=>{ if(win) win.webContents.send('lock'); };
     powerMonitor.on('suspend',lockApp);
     powerMonitor.on('lock-screen',lockApp);

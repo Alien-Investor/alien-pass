@@ -157,6 +157,8 @@ import org.json.JSONObject;
  *  unter einem Android-Keystore-Schlüssel, der nur nach einem starken Fingerabdruck nutzbar ist (Freigabe pro Nutzung, ungültig bei
  *  neu eingerichtetem Fingerabdruck, StrongBox falls vorhanden; Bestätigung im Prompt verlangt, Fingerabdrucksensor vorausgesetzt).
  *  Die Boot-Kennung ist als GCM-AAD mitauthentisiert; nach einem Neustart meldet status() "reboot" und löscht Datei + Schlüssel.
+ *  Ausnahme seit v1.8: Wurde der Slot mit keep=true angelegt (Kästchen beim Aktivieren, ab Werk aus), gilt er über den Neustart hinaus;
+ *  dann lautet die AAD boot+"|keep" statt boot — die Wahl ist damit mitauthentisiert und nur durch Neu-Aktivieren änderbar.
  *  Liest keine fremden Daten, braucht nur USE_BIOMETRIC (+ USE_FINGERPRINT bis API 27).
  *  Fehlercodes an JS: cancel | lockout | reboot | invalidated | none | unavailable | error. */
 @CapacitorPlugin(name = "Biometric")
@@ -265,7 +267,8 @@ public class BiometricPlugin extends Plugin {
         String a = availability(); JSObject o = new JSObject(); o.put("ok", "ok".equals(a)); o.put("reason", a); call.resolve(o);
     }
 
-    /** enabled = Slot vorhanden, gleicher Boot, Schlüssel gültig. reason: ok | none | reboot | invalidated | unavailable.
+    /** enabled = Slot vorhanden, gleicher Boot (oder keep gesetzt), Schlüssel gültig. reason: ok | none | reboot | invalidated | unavailable;
+     *  bei enabled zusätzlich keep = gilt der Slot über einen Neustart hinaus (nur zur Anzeige im JS).
      *  Neustart löscht Datei + Schlüssel SOFORT (Audit run-3 #6; das JS merkt sich nur einen Marker und bewaffnet nach der Passphrase neu);
      *  ein ungültiger Schlüssel (neuer Fingerabdruck) wird gelöscht; ein vorübergehender Keystore-Fehler löscht NICHT (unavailable). */
     @PluginMethod
@@ -275,7 +278,8 @@ public class BiometricPlugin extends Plugin {
         if ("invalidated".equals(canaryState())) { wipeAll(); o.put("enabled", false); o.put("reason", "invalidated"); call.resolve(o); return; }
         JSONObject st = readState();
         if (st == null) { o.put("enabled", false); o.put("reason", "none"); call.resolve(o); return; }
-        if (!sameBoot(st.optString("boot", null))) { wipe(); o.put("enabled", false); o.put("reason", "reboot"); call.resolve(o); return; }
+        final boolean keep = st.optBoolean("keep", false);   // v1.8: beim Aktivieren gewählt, in der AAD mitauthentisiert — der Neustart-Zwang entfällt nur dann
+        if (!keep && !sameBoot(st.optString("boot", null))) { wipe(); o.put("enabled", false); o.put("reason", "reboot"); call.resolve(o); return; }
         try { cipherFor(Cipher.DECRYPT_MODE, Base64.decode(st.getString("iv"), Base64.NO_WRAP)); }
         catch (KeyPermanentlyInvalidatedException e) { wipe(); o.put("enabled", false); o.put("reason", "invalidated"); call.resolve(o); return; }
         catch (IllegalStateException e) { wipe(); o.put("enabled", false); o.put("reason", "none"); call.resolve(o); return; }   // Datei ohne Schlüssel
@@ -283,7 +287,7 @@ public class BiometricPlugin extends Plugin {
         // Übergang von ≤ v1.6 (Review v1.6.1 H2): Slot-Schlüssel gültig = seit dem Einrichten kein Finger registriert → eine jetzt angelegte
         // Kanarie ist gleichwertig. Wer die App vor dem nächsten Neustart öffnet, muss nach dem Update nichts neu aktivieren.
         if ("missing".equals(canaryState())) { try { createKey(CANARY); } catch (Exception ignored) {} }
-        o.put("enabled", true); o.put("reason", "ok"); call.resolve(o);
+        o.put("enabled", true); o.put("reason", "ok"); o.put("keep", keep); call.resolve(o);
     }
 
     @PluginMethod
@@ -297,6 +301,9 @@ public class BiometricPlugin extends Plugin {
         if (secret == null || secret.length != 32) { call.reject("invalid"); return; }
         if (!"ok".equals(availability())) { call.reject("unavailable"); return; }
         final boolean rearm = Boolean.TRUE.equals(call.getBoolean("rearm", false));
+        // v1.8: „Fingerabdruck auch nach Neustart“ (Kästchen beim Aktivieren, ab Werk aus). Eine automatische Neu-Einrichtung nach dem
+        // Neustart gibt es nur für Slots OHNE keep — deshalb schließen sich rearm und keep aus.
+        final boolean keep = Boolean.TRUE.equals(call.getBoolean("keep", false)) && !rearm;
         if (rearm) {
             // Automatische Neu-Einrichtung nach Neustart NUR mit gültiger Kanarie: sonst wurde seit dem bewussten Aktivieren ein
             // Fingerabdruck registriert (oder es gab nie ein bewusstes Aktivieren) → der Nutzer muss es in den Einstellungen selbst tun.
@@ -311,13 +318,15 @@ public class BiometricPlugin extends Plugin {
         catch (Exception e) { wipeAll(); call.reject("error"); return; }
         final byte[] sec = secret;
         final String boot = bootTag();
+        final String ad = keep ? boot + "|keep" : boot;                           // ohne keep exakt wie bisher → Slots von ≤ v1.7 laufen unverändert weiter
         prompt(call, c, cipher -> {
-            aad(cipher, boot);                                                    // Boot-Kennung mitauthentisiert (Audit run-3)
+            aad(cipher, ad);                                                      // Boot-Kennung (+ keep-Wahl) mitauthentisiert (Audit run-3, v1.8)
             byte[] ct = cipher.doFinal(sec); Arrays.fill(sec, (byte) 0);
             JSONObject st = new JSONObject();
             st.put("iv", Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP));
             st.put("ct", Base64.encodeToString(ct, Base64.NO_WRAP));
             st.put("boot", boot);
+            if (keep) st.put("keep", true);
             writeState(st);
             return new JSObject();
         }, true);
@@ -329,14 +338,16 @@ public class BiometricPlugin extends Plugin {
         if ("invalidated".equals(canaryState())) { wipeAll(); call.reject("invalidated"); return; }   // Tresor-Audit run-5 #1
         JSONObject st = readState();
         if (st == null) { call.reject("none"); return; }
-        if (!sameBoot(st.optString("boot", null))) { wipe(); call.reject("reboot"); return; }
+        final boolean keep = st.optBoolean("keep", false);   // v1.8: nur ein mit keep angelegter Slot überlebt den Neustart
+        if (!keep && !sameBoot(st.optString("boot", null))) { wipe(); call.reject("reboot"); return; }
         final byte[] ct; final Cipher c;
         try { ct = Base64.decode(st.getString("ct"), Base64.NO_WRAP); c = cipherFor(Cipher.DECRYPT_MODE, Base64.decode(st.getString("iv"), Base64.NO_WRAP)); }
         catch (KeyPermanentlyInvalidatedException e) { wipe(); call.reject("invalidated"); return; }
         catch (Exception e) { wipe(); call.reject("error"); return; }
         final String boot = st.optString("boot", "");
+        final String ad = keep ? boot + "|keep" : boot;
         prompt(call, c, cipher -> {
-            aad(cipher, boot);                                                    // gleiche AAD wie beim Anlegen; Klartext-Feld manipuliert → GCM-Fehler
+            aad(cipher, ad);                                                      // gleiche AAD wie beim Anlegen; Klartext-Feld (boot ODER keep) manipuliert → GCM-Fehler
             byte[] pt = cipher.doFinal(ct);
             String s = Base64.encodeToString(pt, Base64.NO_WRAP); Arrays.fill(pt, (byte) 0);
             JSObject o = new JSObject(); o.put("secret", s); return o;
@@ -393,6 +404,10 @@ if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin
   || !jb.includes('setUserAuthenticationRequired(true)') || !jb.includes('setInvalidatedByBiometricEnrollment(true)') || !jb.includes('BIOMETRIC_STRONG') || !jb.includes('sameBoot(')
   || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT') || !jb.includes('updateAAD(')
   || !jb.includes('canaryState()') || !/if \("invalidated"\.equals\(canaryState\(\)\)\) \{ wipeAll\(\); o\.put/.test(jb) || !jb.includes('call.getBoolean("rearm", false)') || !jb.includes('"nocanary"')
+  // v1.8 „Fingerabdruck auch nach Neustart“: die Wahl kommt vom JS, steht im Slot und hängt in der AAD; der Neustart-Zweig gilt nur
+  // ohne keep — und zwar in status() UND unlock(), darum beide Vorkommen zählen
+  || !jb.includes('call.getBoolean("keep", false)') || !jb.includes('boot + "|keep"') || !jb.includes('st.put("keep", true)')
+  || (jb.match(/!keep && !sameBoot\(/g) || []).length !== 2
   || !/USE_FINGERPRINT"\s+android:maxSdkVersion="27"\s+tools:node="replace"/.test(readFileSync(MANIFEST, 'utf8'))) {   // cap sync bricht die Zeile um
   console.error('FEHLER: Java-Härtung unvollständig — Build abgebrochen!'); process.exit(1);
 }
