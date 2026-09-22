@@ -1,8 +1,9 @@
 # Alien Pass
 
-Lokaler, verschlüsselter **Passwort-Manager** für Android / GrapheneOS.
+Lokaler, verschlüsselter **Passwort-Manager** für Android / GrapheneOS — und seit v1.7 auch für den **Linux-Desktop** (Flatpak).
 Läuft komplett **offline** — keine Cloud, kein Server, kein Konto, keine Telemetrie.
-Die App fordert **keine Internet-Berechtigung** an — nur die zwei normalen Berechtigungen für den Fingerabdrucksensor (siehe Sicherheit).
+Die Android-App fordert **keine Internet-Berechtigung** an — nur die zwei normalen Berechtigungen für den Fingerabdrucksensor (siehe Sicherheit).
+Die Desktop-Fassung läuft als Flatpak **ohne Netzwerk-Berechtigung und ohne Zugriff auf deine Dateien**.
 Deine Passwörter verlassen das Gerät nie im Klartext.
 
 Schwester-App des [Sachwert-Tresors](https://codeberg.org/Alien-Investor/sachwert-tresor) — gleiche Architektur, gleiche Härtung, gleicher Alien-Investor-Stil.
@@ -30,6 +31,58 @@ AppVerifier (mit Doppelpunkten):
 Plain SHA-256 (apksigner):
 73c717d8056c6a02b08babba241817f393e46dea0319d4fa26b8c3d8e1f93c95
 ```
+
+## 🖥️ Installieren (Linux-Desktop, Flatpak)
+
+Derselbe Code wie auf dem Handy, verpackt mit Electron als **Flatpak** (x86_64). Das Tresor-Format ist identisch: Backups vom Handy lassen
+sich am Desktop importieren und umgekehrt. Verteilung als Datei mit GPG-signierter Prüfsumme im [Codeberg-Release](https://codeberg.org/Alien-Investor/alien-pass/releases) —
+nicht auf Flathub, kein automatisches Update.
+
+**Voraussetzung:** Flatpak mit dem Flathub-Remote (für die Laufzeit `org.freedesktop.Platform` 25.08, die flatpak beim Installieren nachlädt):
+```
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+```
+
+**1. Drei Dateien aus dem Release laden:** `alien-pass-X.Y-linux-x86_64.flatpak`, `SHA256SUMS`, `SHA256SUMS.asc`.
+
+**2. Signatur prüfen.** Die Pakete sind mit dem GPG-Release-Schlüssel von Alien Investor signiert
+([`alien-investor-release-key.asc`](alien-investor-release-key.asc) hier im Repo). Den Fingerabdruck zusätzlich über einen zweiten Weg
+vergleichen (Website [alien-investor.org](https://alien-investor.org/alien-pass.html)):
+```
+Fingerabdruck:  100F 9E25 BFAE A807 DBC3  57D7 50C0 D785 83BF CB81
+```
+```
+gpg --import alien-investor-release-key.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS      # „Korrekte Signatur von "Alien Investor (Release-Signatur) …"“
+sha256sum -c SHA256SUMS                     # „…flatpak: OK“
+```
+
+**3. Installieren und starten:**
+```
+flatpak install --user alien-pass-X.Y-linux-x86_64.flatpak
+flatpak run org.alieninvestor.pass
+```
+Danach steht Alien Pass im Anwendungsmenü.
+
+**Update:** Eine neue Bündel-Datei lässt sich (Flatpak 1.14) nicht über die installierte legen. Neue Version laden und prüfen (Schritt 1–2), dann
+```
+flatpak uninstall --user org.alieninvestor.pass     # löscht KEINE Daten (ohne --delete-data)
+flatpak install --user alien-pass-X.Y-linux-x86_64.flatpak
+```
+Der Tresor liegt in `~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv` und bleibt dabei erhalten. Vorher trotzdem ein Backup anlegen.
+
+**Selbst prüfen, dass die App kein Netz hat:**
+```
+flatpak info --user --show-permissions org.alieninvestor.pass
+```
+Erwartet genau:
+```
+[Context]
+shared=ipc;
+sockets=wayland;fallback-x11;
+devices=dri;
+```
+Kein `network`, kein `filesystem`.
 
 ## Erster Start
 
@@ -153,6 +206,24 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   Import und werden danach genullt, der Tresorschlüssel berührt sie nie. Neuere
   OpenPGP-Varianten (AEAD, Argon2-S2K, Public-Key) werden klar abgewiesen statt still zu scheitern. Der QR-Encoder für die
   Aegis-Einrichtung ist ebenfalls eigener Code (`qr.js`).
+- **Desktop-Fassung (Linux), ehrlich eingeordnet:**
+  - **Kein Netz, vom System erzwungen:** Das Flatpak hat keine Netzwerk-Berechtigung, im Käfig gibt es nur `lo`. Zusätzlich blockt die App
+    selbst jede Verbindung (Content-Security-Policy, Anfrage-Filter, WebRTC über einen toten Proxy ins Leere). **Keine Dateien:** Backup und Import laufen
+    über den Dateidialog des Systems (Portal), der nur die gewählte Datei freigibt.
+  - **Härtung der Hülle:** Chromium-Sandbox über Flatpaks eigenen Käfig (`zypak`), Renderer ohne Node, Kontext-Isolation, nur die eigene
+    Seite erreicht die Brücke zum Hauptprozess. Electron-Fuses: kein `ELECTRON_RUN_AS_NODE`, kein `NODE_OPTIONS`, kein `--inspect`, App nur aus
+    dem Archiv. Fernsteuerung (`--remote-debugging-*`) wird verweigert, DevTools lassen sich nicht öffnen, kein Anwendungsmenü.
+  - **Tresor als Datei** (Rechte 600, Ordner 700), atomar geschrieben — ein Absturz oder eine volle Platte hinterlässt nie einen halben Tresor.
+  - **Zwischenablage:** Kopiertes ist für KDE als Passwort markiert, Klipper nimmt es nicht in den Verlauf (unter Plasma geprüft); andere Zwischenablage-Manager
+    können die Markierung ignorieren. Die App löscht nur ihre eigene Kopie — nach der eingestellten Zeit, beim Sperren und beim Beenden.
+    Das gilt auch für Strg+C, Strg+X und für Text, den du nur mit der Maus markierst (unter Linux per Mittelklick einfügbar).
+  - **Grenzen:** Die App liefert ihre Browser-Engine (Electron 44) selbst mit — Sicherheits-Updates dafür kommen nur mit einer neuen
+    App-Version, nicht über das System. **Kein Schutz vor Bildschirmfotos** (Linux kennt kein Gegenstück zu FLAG_SECURE). Unter **X11** kann
+    jedes laufende Programm Tastatur und Zwischenablage mitlesen — das gilt für jeden Passwort-Manager, Wayland trennt Programme besser.
+    Bei **Bildschirmsperre und Ruhezustand sperrt die App nicht von selbst** (im Flatpak erfährt sie davon nichts): Systemsperre nutzen (vor allem beim Ruhezustand), dazu eine
+    kurze Inaktivitäts-Sperre, Strg+L sperrt sofort. Kein Fingerabdruck. Aus „vier kleinen nativen Stücken“ werden am Desktop drei
+    kleine Dateien (`desktop/main.js`, `desktop/preload.js`, `desktop/atomic.js`) plus Electron.
+  - Zwei **interne** Audits der Desktop-Hülle (22.09.2026), alle Funde behoben — kein unabhängiges Audit.
 - **Grenzen, ehrlich benannt**: Im Hintergrund leert die Android-App die Zwischenablage nur, solange Android sie nicht eingefroren
   hat (meist nach dem zweiten App-Wechsel); danach erst beim Zurückkehren. Ab Android 13 leert das System nach etwa 1 h selbst, davor nicht.
   Im Browser gibt es keine Maskierung der Clipboard-Vorschau. Passwort und 2FA im selben Tresor schwächen die Faktor-Trennung —
@@ -161,6 +232,7 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
 ## Open Source & selbst prüfen
 
 Der komplette **Client-Code ist offen** ([MIT](LICENSE)): `index.html` (UI), `app.js` (App + Krypto), `qr.js` (QR-Encoder), `icon.svg`, `vendor/`.
+Die Desktop-Hülle liegt vollständig in `desktop/` (Hauptprozess, Brücke, Build-Skript mit gepinntem Electron-Hash, Flatpak-Manifest).
 
 - **Kein Nach-Hause-Telefonieren:** keine `fetch`/`XMLHttpRequest`/WebSocket-Aufrufe, keine externen Skripte, keine CDNs.
   Einzige externe URL ist der Spenden-Link im Footer.

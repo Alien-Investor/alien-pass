@@ -42,3 +42,6 @@ test-fixtures/** !filter !diff
 # Desktop-Hülle (Electron im Flatpak): Hauptprozess, Brücke, Build-Skripte, Flatpak-Manifest und Prüfprogramm sind die nativen
 # Teile der Desktop-Fassung — einsehbar wie patch-hardening.mjs, also KLARTEXT. Enthalten keine Geheimnisse und keine Pfade außer ~/.cache.
 desktop/** !filter !diff
+
+# Öffentlicher GPG-Release-Schlüssel (Signatur der Desktop-Pakete) — öffentlich, KLARTEXT.
+/alien-investor-release-key.asc !filter !diff
