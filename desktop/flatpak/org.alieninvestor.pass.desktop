@@ -8,4 +8,4 @@ Icon=org.alieninvestor.pass
 Terminal=false
 Categories=Utility;Security;
 Keywords=password;passwort;tresor;vault;
-StartupWMClass=Alien Pass
+StartupWMClass=alien-pass

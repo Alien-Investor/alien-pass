@@ -33,6 +33,7 @@ rm -rf build && mkdir -p build/app build/electron
 unzip -q "$ZIP" -d build/electron
 rm -f build/electron/chrome-sandbox build/electron/resources/default_app.asar   # Sandbox kommt im Flatpak über zypak
 cp main.js preload.js atomic.js build/app/
+cp ../assets/icon-only.png build/app/icon.png   # Fenster-Icon (_NET_WM_ICON) für Taskleiste/Alt+Tab — Electron rendert kein SVG
 cp -r ../www build/app/www
 printf '{"name":"alien-pass","productName":"Alien Pass","version":"%s","main":"main.js","private":true}\n' "$VNAME" > build/app/package.json
 node pack.mjs build/app build/electron

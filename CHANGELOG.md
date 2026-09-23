@@ -1,6 +1,10 @@
 # Changelog — Alien Pass
 
 ## v1.8 — 2026-09-23
+
+**Desktop-Neubau `1.8-r2` (23.09.2026, nur die Linux-Hülle, gleiche App):** Das minimierte Fenster zeigte in der Taskleiste ein Standard-Icon,
+weil die Zuordnung zum Starter am Fensternamen scheiterte; jetzt trägt das Fenster ein eigenes Icon und ist dem Starter zugeordnet (Nutzerfund,
+Korrektur wie im Sachwert-Tresor v3.3). Android-APK und Tresor-Format unverändert.
 Alltagstauglichkeit: Fingerabdruck über den Neustart hinaus (Android) und eine PIN nach der Sperre (Desktop). Am Tresor-Format, an der
 Verschlüsselung und an deinen Daten ändert sich nichts.
 - **Android: Schalter „Auch nach einem Neustart des Handys mit Fingerabdruck entsperren“** (ab Werk aus). Bisher verlangte die App nach jedem

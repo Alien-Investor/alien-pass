@@ -34,6 +34,8 @@ async function fresh(){
     { const c=await st(u); R('Protokoll verweigert '+u, c===404||c==='FEHLER', c); }   // FEHLER = schon vom Netzfilter verworfen
   R('Hauptprozess erreicht kein Netz (webRequest)', await st('https://example.org/')==='FEHLER');
   R('kein Anwendungsmenü', Menu.getApplicationMenu()===null);
+  R('Fenster-Icon gesetzt (Taskleiste, Alt+Tab)', fs.existsSync(path.join(__dirname,'icon.png'))&&fs.readFileSync(path.join(__dirname,'main.js'),'utf8').includes("icon:ICON"));
+  R('.desktop StartupWMClass = package.json name (KDE ordnet das Fenster sonst nicht zu)', (()=>{ try{ const d=fs.readFileSync(path.join(__dirname,'..','..','flatpak','org.alieninvestor.pass.desktop'),'utf8'); return /^StartupWMClass=alien-pass$/m.test(d); }catch(_){ return 'n/a'; } })());
 
   // WebRTC (Audit run-6 #7): weder UDP-STUN noch TURN über TCP darf den Prozess verlassen — hier an eigene Empfänger auf 127.0.0.1
   { const u=dgram.createSocket('udp4'); let udp=0; u.on('message',()=>udp++); await new Promise(r=>u.bind(0,'127.0.0.1',r));

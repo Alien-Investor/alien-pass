@@ -143,7 +143,11 @@ else {
     });
     Menu.setApplicationMenu(null);
 
+    // Fenster-Icon setzen: ohne _NET_WM_ICON zeigt die Taskleiste ein Standard-Icon, sobald die Zuordnung zur .desktop-Datei fehlt
+    // (die läuft über WM_CLASS = package.json "name", darum StartupWMClass=alien-pass in der .desktop-Datei — Nutzerfund 23.09.2026)
+    const ICON=path.join(__dirname,'icon.png');
     win=new BrowserWindow({width:1100,height:800,minWidth:360,minHeight:520,backgroundColor:'#000000',title:'Alien Pass',show:false,
+      ...(fs.existsSync(ICON)?{icon:ICON}:{}),
       webPreferences:{preload:path.join(__dirname,'preload.js'),sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,
         devTools:false,spellcheck:false,webviewTag:false,navigateOnDragDrop:false,safeDialogs:true,
         backgroundThrottling:false}});   // Sperr- und Lösch-Timer müssen auch minimiert feuern
