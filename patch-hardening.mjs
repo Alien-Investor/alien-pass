@@ -161,7 +161,7 @@ import org.json.JSONObject;
  *  Ausnahme seit v1.8: Wurde der Slot mit keep=true angelegt (Kästchen beim Aktivieren, ab Werk aus), gilt er über den Neustart hinaus;
  *  dann lautet die AAD boot+"|keep" statt boot — die Wahl ist damit mitauthentisiert und nur durch Neu-Aktivieren änderbar.
  *  Liest keine fremden Daten, braucht nur USE_BIOMETRIC (+ USE_FINGERPRINT bis API 27).
- *  Fehlercodes an JS: cancel | lockout | reboot | invalidated | none | unavailable | error. */
+ *  Fehlercodes an JS: cancel | lockout | reboot | invalidated | tampered | none | unavailable | error. */
 @CapacitorPlugin(name = "Biometric")
 public class BiometricPlugin extends Plugin {
     private static final String ALIAS = "alien-pass-bio";
@@ -415,9 +415,15 @@ if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin
   || !jb.includes('call.getBoolean("rearm", false)') || !jb.includes('"nocanary"')
   // v1.8 „Fingerabdruck auch nach Neustart“: die Wahl kommt vom JS, steht im Slot und hängt in der AAD; der Neustart-Zweig gilt nur
   // ohne keep — und zwar in status() UND unlock(), darum beide Vorkommen zählen; Default false und der Rearm-Riegel sind gepinnt (run-8 #5)
-  || !jb.includes('call.getBoolean("keep", false)) && !rearm') || !jb.includes('boot + "|keep"') || !jb.includes('st.put("keep", true)')
+  || !jb.includes('call.getBoolean("keep", false)) && !rearm') || (jb.match(/boot \+ "\|keep"/g) || []).length !== 2 || !jb.includes('st.put("keep", true)')
   || (jb.match(/optBoolean\("keep", false\)/g) || []).length !== 2
   || (jb.match(/!keep && !sameBoot\(/g) || []).length !== 2 || !jb.includes('AEADBadTagException e) { call.reject("tampered")')
+  // sameBoot: nur wenn BEIDE Kennungen die Zeit-Form haben, gilt die Toleranz — fiele die Zeile auf die alte id:-Form zurück, liefe b:5 gegen b:6
+  // per parseLong in die ±120-s-Toleranz und die Neustart-Regel wäre still aus (Tresor-Diff-Review v3.2 N1)
+  || !jb.includes('if (!stored.startsWith("t:") || !now.startsWith("t:")) return stored.equals(now);')
+  // Kanarie VOR dem keep-/Boot-Zweig, in status() UND unlock(): bei einem keep-Slot hängt die Warnung „neuer Finger“ allein daran (Tresor-Diff-Review v3.2 H1)
+  || !(() => { const before = (from) => { const c = jb.indexOf('"invalidated".equals(canaryState())', from), k = jb.indexOf('!keep && !sameBoot(', from); return c > 0 && k > 0 && c < k; };
+       return before(jb.indexOf('public void status(')) && before(jb.indexOf('public void unlock(')); })()
   || !/USE_FINGERPRINT"\s+android:maxSdkVersion="27"\s+tools:node="replace"/.test(readFileSync(MANIFEST, 'utf8'))) {   // cap sync bricht die Zeile um
   console.error('FEHLER: Java-Härtung unvollständig — Build abgebrochen!'); process.exit(1);
 }
