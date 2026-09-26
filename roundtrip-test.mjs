@@ -733,7 +733,7 @@ console.log('\n[25] v1.10: CSV-Erkennung Google/Chrome, Apple, Firefox, LastPass
     ok(m.fmt==='apple'&&e.title==='GitHub'&&e.user==='alien'&&e.notes==='memo'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP','Apple erkannt, OTPAuth → TOTP'); }
   // KeePassXC mit OTPAuth-Spalte (Variante) behält TOTP
   { const {m,e}=row('"Group","Title","Username","Password","URL","Notes","OTPAuth","Icon","Last Modified","Created"\n"Root/Mail","Posteo","ich","pw","https://posteo.de","","otpauth://totp/x?secret=JBSWY3DPEHPK3PXP","0","",""\n');
-    ok(m.fmt==='apple'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP','KeePassXC-Kopfzeile mit OTPAuth → TOTP bleibt erhalten (Zweig apple, Inhalt gleich)'); }
+    ok(m.fmt==='keepassxc'&&e.cat==='Mail'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP','KeePassXC-Kopfzeile mit OTPAuth → Zweig keepassxc (vor Apple): Gruppe, Datum UND TOTP bleiben (Diff-Review #3)'); }
   // Firefox: kein Titel → Hostname; Zeitstempel in ms
   { const {m,e}=row('"url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"\n"https://accounts.google.com/signin/v2","ich@gmail.com","pw-ff","","https://accounts.google.com","{guid}","1704067200000","1704067200000","1717171717000"\n');
     ok(m.fmt==='firefox'&&e.title==='accounts.google.com'&&e.user==='ich@gmail.com'&&e.pass==='pw-ff'&&e.url==='https://accounts.google.com/signin/v2','Firefox erkannt, Titel = Hostname');
@@ -766,6 +766,21 @@ console.log('\n[25] v1.10: CSV-Erkennung Google/Chrome, Apple, Firefox, LastPass
     const {e:e3}=row('name,password,favorite\nX,p,yes\n'); ok(e3.fav===true,'generisch: favorite yes → Favorit');
     const {e:e4}=row('url,password\nhttps://nur-url.de/pfad?x=1,p\n'); ok(e4.title==='nur-url.de'&&e4.url==='https://nur-url.de/pfad?x=1','ohne Titel: Hostname als Titel, URL bleibt vollständig'); }
   ok(V.csvHost('HTTP://Www.Example.org:8443/a#b')==='Www.Example.org:8443'&&V.csvHost('foo.de')==='foo.de'&&V.csvHost('')==='','csvHost: Schema/Pfad/Fragment weg, Rest unverändert');
+  // Diff-Review #1: Zugangsdaten in der URL dürfen nicht in den Titel (steht offen in der Liste)
+  ok(V.csvHost('https://admin:S3cret!@router.local/cfg')==='router.local'&&V.csvHost('android://AbCd==@com.example.app/')==='com.example.app'&&V.csvHost('ftp://bob:hunter2@h.de')==='h.de','csvHost: user:pw@ und Android-Signatur@ entfernt');
+  { const {e}=row('"url","username","password","httpRealm"\n"https://admin:S3cret!@router.local/cfg","u","p",""\n'); ok(e.title==='router.local'&&e.url==='https://admin:S3cret!@router.local/cfg','Firefox: Titel ohne Zugangsdaten, URL selbst bleibt (Passwortfeld-Anzeige)');
+    const {e:e2}=row('name,url,username,password,note\n,https://x:y@g.de/p,u,p,\n'); ok(e2.title==='g.de','Google ohne name: Titel ohne Zugangsdaten'); }
+  // Diff-Review #2: LastPass http://sn mit Nutzer/Passwort bleibt Login (sanitizeEntry würfe beide bei Typ note still weg)
+  { const {r,m}=row('url,username,password,totp,extra,name,grouping,fav\nhttp://sn,u,realpw,,W,Konto,,0\nHTTP://SN/,,,,Text,Memo,,0\n');
+    const a=V.csvRowToEntry(m,r[1],N), b=V.csvRowToEntry(m,r[2],N);
+    ok(a.type==='login'&&a.url===''&&a.user==='u'&&a.pass==='realpw'&&a.notes==='W','LastPass sn mit Nutzer+Passwort → Login ohne URL, nichts verworfen');
+    ok(b.type==='note'&&b.url===''&&b.notes==='Text','LastPass HTTP://SN/ (Großschreibung, Schrägstrich) → Notiz'); }
+  // Diff-Review #6: 1Password erstes NICHT-leeres Tag
+  { const {e}=row('Title,Url,Username,Password,OTPAuth,Favorite,Archived,Tags,Notes\nA,,u,p,,,,",,Dev",\n'); ok(e.cat==='Dev','1Password: leere Tags übersprungen'); }
+  // Diff-Review #5: Zeilen-Deckel in parseCsv (Abbruch statt 5 Mio. Zeilen zu parsen)
+  { const big='a,p\n'.repeat(1000); const r=V.parseCsv(big,',',10); ok(r.length===11,'parseCsv maxRows: bricht bei maxRows+1 Zeilen ab');
+    ok(V.parseCsv(big,',').length===1000&&V.parseCsv(big,',',5000).length===1000,'parseCsv ohne/mit großem Deckel unverändert');
+    const t0=Date.now(); const huge=V.parseCsv('a,p\n'.repeat(2000000),',',40000); ok(huge.length===40001&&Date.now()-t0<2000,'8 MB mit 2 Mio. Zeilen: Abbruch nach 40.001 Zeilen in unter 2 s'); }
   ok(V.csvFlag('1')&&V.csvFlag(' TRUE ')&&V.csvFlag('ja')&&!V.csvFlag('0')&&!V.csvFlag('')&&!V.csvFlag('nein'),'csvFlag: 1/true/yes/ja wahr, sonst falsch');
 }
 

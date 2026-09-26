@@ -16,6 +16,10 @@ Android und Linux-Desktop bekommen dieselbe App.
   ganzen Adresse.
 - **Handbuch und README:** Export-Weg für jeden der neun Manager (Menüpfade gegen die Hilfeseiten und Quelltexte der Hersteller geprüft),
   Hinweis auf die Klartext-Datei im Downloads-Ordner.
+- **Nach dem internen Diff-Review vor dem Gerätetest:** Zugangsdaten in einer Adresse (`https://nutzer:passwort@host/`) landen nicht mehr im
+  Titel, wenn der Export keinen Titel liefert (Firefox, Google ohne Namen). Eine LastPass-Zeile mit `http://sn`, die trotzdem Nutzer und
+  Passwort trägt, bleibt ein Login ohne Adresse, statt beide still zu verlieren. Eine KeePassXC-Datei mit Spalte „OTPAuth“ behält Gruppe und
+  Datum. Eine CSV mit mehr als 40.000 Zeilen wird sofort abgewiesen, statt erst minutenlang geparst zu werden.
 
 ## v1.9 — 2026-09-26
 

@@ -373,7 +373,7 @@ const MAGIC='AIPV1', FILE_VER=1;
 const KDF_DEFAULT={m:65536,t:3,p:1};
 const KDF_BOUNDS={mMin:8192,mMax:262144,tMin:1,tMax:16,pMin:1,pMax:4,budget:786432};
 const KDF_CONFIRM_M=131072;
-const MAX_FILE_BYTES=20*1024*1024, MAX_ENTRIES=10000;
+const MAX_FILE_BYTES=20*1024*1024, MAX_ENTRIES=10000, MAX_CSV_ROWS=4*MAX_ENTRIES;   // CSV: Dubletten/unbrauchbare Zeilen dürfen mitzählen, darum das Vierfache
 function kdfOk(k){ const B=KDF_BOUNDS; return !!k && Number.isInteger(k.m)&&Number.isInteger(k.t)&&Number.isInteger(k.p)
   && k.m>=B.mMin&&k.m<=B.mMax && k.t>=B.tMin&&k.t<=B.tMax && k.p>=B.pMin&&k.p<=B.pMax && k.m*k.t<=B.budget; }
 function aad(kdf, role){ return enc.encode(`${MAGIC}|${FILE_VER}|argon2id|${kdf.m}|${kdf.t}|${kdf.p}|${bufToB64(kdf.salt)}|${role}`); }
@@ -695,10 +695,13 @@ function passCheck(p){
 function passStrength(p){ return passCheck(p).level; }
 
 /* ---------- CSV (RFC 4180) + Import-Mapping ---------- */
-function parseCsv(text, delim){
+// maxRows (v1.10, Diff-Review): Zeilen-Deckel — bricht ab, sobald mehr Zeilen da sind, statt 5 Mio. Zeilen aus 20 MB `a,p\n` erst zu
+// parsen (1,4 GB Heap, 36 s blockierend) und dann an MAX_ENTRIES zu scheitern. Rückgabe hat dann maxRows+1 Zeilen (Aufrufer prüft).
+function parseCsv(text, delim, maxRows){
   if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
   delim=delim||','; const rows=[]; let row=[], field='', q=false;
   for(let i=0;i<text.length;i++){ const c=text[i];
+    if(maxRows&&rows.length>maxRows) return rows;
     if(q){ if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else q=false; } else field+=c; }
     else if(c==='"'&&field===''){ q=true; }               // Anführungszeichen nur am Feldanfang öffnen, mitten im Feld literal
     else if(c===delim){ row.push(field); field=''; }
@@ -708,10 +711,11 @@ function parseCsv(text, delim){
   return rows.filter(r=>!(r.length===1&&r[0].trim()===''));
 }
 // Kopfzeile → Spalten-Abbildung. Die Reihenfolge der Erkennung ist Teil der Invariante (v1.10): die spezifischen Kopfzeilen
-// (Bitwarden, NordPass, Proton, LastPass, 1Password, Apple, KeePassXC, Firefox, Google/Chrome) vor dem generischen Zweig,
+// (Bitwarden, NordPass, Proton, LastPass, 1Password, KeePassXC, Apple, Firefox, Google/Chrome) vor dem generischen Zweig,
 // weil sich die Spaltennamen überlappen — Apple und 1Password teilen Title/Username/Password mit KeePassXC (der deshalb `group`
-// verlangt, sonst fiele Dashlane hinein), NordPass und Google teilen name/url/username/password, und NordPass steht vor Proton,
-// weil sein `type` sonst den Proton-Typ-Filter träfe und alle Logins verwürfe.
+// verlangt, sonst fiele Dashlane hinein; und VOR Apple steht, damit eine KeePassXC-Datei mit OTPAuth-Spalte Gruppe und Datum behält),
+// NordPass und Google teilen name/url/username/password, und NordPass steht vor Proton, weil sein `type` sonst den Proton-Typ-Filter
+// träfe und alle Logins verwürfe.
 function csvMap(header){
   const h=header.map(x=>String(x).trim().toLowerCase()); const idx=n=>h.indexOf(n), has=n=>idx(n)>=0;
   const find=(...names)=>{ for(const n of names){ const i=idx(n); if(i>=0) return i; } return -1; };
@@ -720,16 +724,17 @@ function csvMap(header){
   if(has('type')&&has('name')&&has('password')&&(has('email')||has('username'))) return {fmt:'proton', title:idx('name'), user:idx('username'), email:idx('email'), pass:idx('password'), url:idx('url'), notes:idx('note'), totp:idx('totp'), type:idx('type'), created:idx('createtime'), updated:idx('modifytime'), cat:idx('vault')};
   if(has('grouping')&&has('extra')&&has('password')) return {fmt:'lastpass', title:idx('name'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('extra'), totp:idx('totp'), cat:idx('grouping'), fav:idx('fav')};
   if(has('archived')&&has('title')&&has('password')) return {fmt:'1password', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('otpauth'), fav:idx('favorite'), cat:idx('tags')};
-  if(has('otpauth')&&has('title')&&has('password')) return {fmt:'apple', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('otpauth')};
   if(has('group')&&has('title')&&has('password')&&has('username')) return {fmt:'keepassxc', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:find('totp','otpauth'), cat:idx('group'), created:idx('created'), updated:idx('last modified')};
+  if(has('otpauth')&&has('title')&&has('password')) return {fmt:'apple', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('otpauth')};
   if(has('httprealm')&&has('url')&&has('password')) return {fmt:'firefox', title:-1, user:idx('username'), pass:idx('password'), url:idx('url'), created:idx('timecreated'), updated:idx('timepasswordchanged')};
   if(has('name')&&has('url')&&has('username')&&has('password')&&!has('type')) return {fmt:'google', title:idx('name'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:find('note','notes')};
   const m={fmt:'generic', title:find('title','name','account','site','titel','bezeichnung','konto'), user:find('username','user','login','email','login_name','login name','benutzername','benutzer','anmeldename','e-mail'), pass:find('password','pass','login_password','passwort','kennwort'), url:find('url','website','uri','web site','login_uri','webseite','adresse'), notes:find('notes','note','comment','comments','extra','notizen','notiz','kommentar'), totp:find('totp','otp','otpauth','otpurl','login_totp','2fa'),
     cat:find('folder','group','grouping','category','tags','ordner','gruppe','kategorie'), fav:find('favorite','favourite','fav','favorit')};
   return ((m.title>=0||m.url>=0)&&m.pass>=0)?m:null;       // ohne Titelspalte dient der Hostname der URL als Titel (csvHost)
 }
-// Fehlender Titel → Hostname der URL (Firefox exportiert keinen Titel): Schema und Pfad weg, „www.“ bleibt
-function csvHost(u){ u=String(u||'').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i,''); const i=u.search(/[/?#]/); return (i>=0?u.slice(0,i):u).trim(); }
+// Fehlender Titel → Hostname der URL (Firefox exportiert keinen Titel): Schema, Zugangsdaten (`user:pw@`, Diff-Review v1.10 — der Titel
+// steht offen in der Liste) und Pfad weg, „www.“ bleibt. Beide Ausdrücke sind linear (gemessen: 20 MB in 20 ms).
+function csvHost(u){ u=String(u||'').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i,''); const i=u.search(/[/?#]/); u=(i>=0?u.slice(0,i):u); const at=u.lastIndexOf('@'); return (at>=0?u.slice(at+1):u).trim(); }
 function csvFlag(s){ return ['1','true','yes','y','ja'].includes(String(s||'').trim().toLowerCase()); }
 function csvDate(s, now){ s=String(s||'').trim(); if(!s) return new Date(now).toISOString(); if(/^\d{9,11}$/.test(s)) return new Date(Number(s)*1000).toISOString(); if(/^\d{12,14}$/.test(s)) return new Date(Number(s)).toISOString(); const t=Date.parse(s); return Number.isFinite(t)?new Date(t).toISOString():new Date(now).toISOString(); }
 // Zeile → sanitisierter Eintrag (neue ID) oder null (Typ nicht übernommen / unbrauchbar)
@@ -742,15 +747,16 @@ function csvRowToEntry(m, row, now, stats){
     if(m.fmt==='nordpass'&&t&&t!=='password'&&t!=='note') return null;              // credit_card, identity, folder …
     if(t==='note') type='note'; }
   if(m.fmt==='nordpass'&&(g(m.card).trim()||g(m.ident).trim())) return null;         // ältere Exporte ohne `type`: Karte/Identität an den Spalten erkennen
-  if(m.fmt==='lastpass'){ const u=url.trim().toLowerCase(); if(u==='http://group') return null; if(u==='http://sn'){ type='note'; url=''; } }   // Ordner-Zeile / Sichere Notiz
   let user=g(m.user), notes=g(m.notes), email='';
+  if(m.fmt==='lastpass'){ const u=url.trim().toLowerCase().replace(/\/$/,''); if(u==='http://group') return null;             // Ordner-Zeile
+    if(u==='http://sn'){ url=''; if(!user.trim()&&!g(m.pass)) type='note'; } }                                            // Sichere Notiz — mit Nutzer/Passwort bleibt es ein Login ohne URL (sonst würfe sanitizeEntry beide still weg)
   if(m.fmt==='proton'){ const em=g(m.email); if(!user) user=em; else if(em&&em!==user) email=em; }   // zweite Adresse → eigenes E-Mail-Feld (v1.4), nicht mehr in die Notizen
   // Ordner/Gruppe/Tresor der Quelle → Kategorie (KeePassXC: Pfad „Root/Sub“ → letztes Segment; „Root“ allein = keine;
   // LastPass „Ordner\Unter“ → letztes Segment; 1Password: erstes Tag)
   let cat=m.cat>=0?g(m.cat).trim():'';
   if(m.fmt==='keepassxc'){ const seg=cat.split('/').filter(Boolean); cat=seg.length&&seg[seg.length-1]!=='Root'?seg[seg.length-1]:''; }
   else if(m.fmt==='lastpass'){ const seg=cat.split('\\').filter(Boolean); cat=seg.length?seg[seg.length-1].trim():''; }
-  else if(m.fmt==='1password'){ cat=cat.split(',')[0].trim(); }
+  else if(m.fmt==='1password'){ cat=cat.split(',').map(x=>x.trim()).find(Boolean)||''; }
   const title=g(m.title).trim()||csvHost(url)||user.trim();
   if(!title) return null;
   if(stats&&notes.length>CAPS.notes) stats.truncated++;                 // Kürzung wird gemeldet, nie still
@@ -1728,7 +1734,8 @@ const App = (function(){
     if(f.size>MAX_FILE_BYTES){ $('csv-msg').textContent=tr('err.fileLarge'); input.value=''; return; }
     const r=new FileReader(); r.onerror=()=>{ $('csv-msg').textContent=tr('bk.readErr'); input.value=''; };
     r.onload=()=>{ input.value=''; if(!VAULT||!DEK) return; const text=String(r.result);   // währenddessen gesperrt → abbrechen
-      let rows=parseCsv(text,','); if(rows.length&&rows[0].length<2&&text.indexOf(';')>=0) rows=parseCsv(text,';');
+      let rows=parseCsv(text,',',MAX_CSV_ROWS); if(rows.length&&rows[0].length<2&&text.indexOf(';')>=0) rows=parseCsv(text,';',MAX_CSV_ROWS);
+      if(rows.length>MAX_CSV_ROWS){ $('csv-msg').textContent=tr('err.tooMany'); return; }
       if(rows.length<2){ $('csv-msg').textContent=tr('csv.empty'); return; }
       const map=csvMap(rows[0]); if(!map){ $('csv-msg').textContent=tr('csv.unknown'); return; }
       const now=Date.now(); const existing=new Set(live().map(dupKey)); const stats={truncated:0};
