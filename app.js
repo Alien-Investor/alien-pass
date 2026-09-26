@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.10';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.11';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -79,7 +79,7 @@ const I18N = {
   "set.al1":"1 minute","set.al2":"2 minutes","set.al5":"5 minutes","set.al15":"15 minutes",
   "set.bgLock":"Lock in background after","set.bg0":"immediately","set.bg30":"30 seconds","set.bg60":"1 minute","set.bg300":"5 minutes",
   "set.clip":"Clear clipboard after","set.c15":"15 seconds","set.c30":"30 seconds","set.c60":"1 minute","set.cOff":"only on lock (not recommended)",
-  "set.clipNote":"Note: in the Android app copied content is flagged as “sensitive” — the system preview then hides it (Android 13+). The app clears the clipboard after the chosen time — also in the background, as long as Android has not frozen the app (usually after the second app switch); at the latest when you return to the app and when it locks. From Android 13 the system additionally clears the clipboard after about an hour, older versions do not.",
+  "set.clipNote":"Note: in the Android app copied content is flagged as “sensitive” — the system preview then hides it (Android 13+). The app clears the clipboard after the chosen time — also in the background, as long as Android has not frozen the app (usually after the second app switch); at the latest when you return to the app and when it locks. Exception: if “Lock in background” is set to “immediately”, the app locks the moment you switch away, but leaves the copied item in place until the chosen time runs out — otherwise you could never paste it into another app. From Android 13 the system additionally clears the clipboard after about an hour, older versions do not.",
   "set.lockNow":"Lock now",
   "lock.bio":"Unlock with fingerprint",
   "set.bioTitle":"Fingerprint unlock (Android)",
@@ -120,7 +120,7 @@ const I18N = {
   "help.h2":"First steps",
   "help.l2":"<li><strong>Choose a passphrase</strong> — at least 12 characters, better six dice words (the suggest button builds them from the EFF list). Write it down and store it safely.</li><li>The <strong>key derivation</strong> (Argon2id) benchmarks itself during setup; “Standard” suits current phones.</li><li>Create entries — four types: <strong>Login</strong> (user, optional e-mail, password, URL, TOTP), <strong>Note</strong> (encrypted text only), <strong>Card</strong> (holder, number, expiry, CVV, PIN) and <strong>Account</strong> (holder, IBAN, BIC, bank, PIN). Every entry can carry up to eight <strong>extra fields</strong> — freely named (app PIN, phone password, security question …) and always secret: shown in the detail view only on request, each with its own copy button. Nothing of that has to sit in the notes in plain text.</li><li><strong>Categories</strong> work like folders: type one freely in the form (suggestions from existing ones). The list filters via the chips at the top; a category disappears once no entry carries it.</li><li><strong>Changing the type</strong> later is possible, but the old type's fields (e.g. a login's password and TOTP) are deleted — the app asks first. A backup does not bring them back, because the newer change wins when merging.</li><li>Tap an entry → detail view with copy buttons. Passwords, card number, CVV and PINs are only revealed on request; IBAN and BIC are shown in plain (needed for transfers, printed on every invoice).</li>",
   "help.h3":"Clipboard",
-  "help.l3":"<li>Copied passwords are cleared by the app after the chosen time (default 30 s), when you return to the app and when it locks.</li><li>In the background the Android app keeps trying to clear until Android freezes it (usually after the second app switch); afterwards it catches up when you return. From Android 13 the system additionally clears the clipboard after about an hour — older Android versions do not.</li><li>The Android app flags copied content as <strong>sensitive</strong>: the system preview shown when copying hides the content (Android 13+). In a browser this protection does not exist.</li>",
+  "help.l3":"<li>Copied passwords are cleared by the app after the chosen time (default 30 s), when you return to the app and when it locks. With “Lock in background: immediately” the app locks as soon as you switch away, but the copied item stays until the chosen time runs out, so you can still paste it into another app.</li><li>In the background the Android app keeps trying to clear until Android freezes it (usually after the second app switch); afterwards it catches up when you return. From Android 13 the system additionally clears the clipboard after about an hour — older Android versions do not.</li><li>The Android app flags copied content as <strong>sensitive</strong>: the system preview shown when copying hides the content (Android 13+). In a browser this protection does not exist.</li>",
   "help.h4":"Generator",
   "help.l4":"<li><strong>Characters:</strong> 8–64 characters from selectable sets; “no l/1/I/O/0” avoids mix-ups when typing.</li><li><strong>Dice words</strong> (Diceware): words from the EFF Large Wordlist, ~12.9 bits per word. Six words ≈ 77 bits — memorable and strong.</li><li>All randomness comes from the system generator without modulo bias; entropy is shown in bits — in character mode the requirement “every chosen set appears at least once” is subtracted honestly (about 1 bit at 8 characters, negligible from 16).</li>",
   "help.h5":"TOTP (2FA codes)",
@@ -1204,8 +1204,11 @@ const App = (function(){
   function leaveGate(){ if(DESK&&clipOwnedAt) clearClip(); if(bgAway&&settings().bgLock===0){ lock(); toast(tr('toast.autolocked')); return true; } return false; }
   function enterApp(){ if(leaveGate()) return; screen('app'); tab('list'); renderAll(); resetIdle(); runPendingFile();
     if(bioRearmDek){ const d=bioRearmDek; bioRearmDek=null; bioArm(d, KDF, WRAP, true).then(ok=>{ if(ok) toast(tr('bio.rearmed')); if(VAULT) renderSettings(); }); } }   // if(VAULT): während der Neu-Einrichtung gesperrt → sonst TypeError   // nach Neustart: Slot mit frischem Zufall neu bewaffnen
-  function lock(){
-    clearIdle(); stopTotp(); clearClip();
+  // keepClip (v1.11): nur die Sofort-Sperre beim Verstecken (bgLock=0) setzt es — Kopiertes bleibt dann bis zum laufenden Zeitgeber stehen
+  // (der native Pfad löscht auch im Hintergrund), sonst wäre Kopieren in eine andere App mit „sofort“ unmöglich (Gerätetest 26.09.2026).
+  // Ohne Zeitgeber („nie“) und bei jeder anderen Sperre wird wie bisher sofort geleert. Der Schlüssel selbst geht in jedem Fall sofort weg.
+  function lock(keepClip){
+    clearIdle(); stopTotp(); if(!(keepClip&&clipOwnedAt&&clipTimer)) clearClip();
     DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null; selMode=false; selIds=new Set(); shownIds=[];
     pendingUnlock=null; pendingSecret=null; pendingOtpauth=''; pendingProton=null;
     bioGen++; bioRearmDek=null; bioArmed=false; bioNeedsRearm=false;   // laufende Fingerabdruck-Vorgänge verfallen (Generation)
@@ -1240,12 +1243,12 @@ const App = (function(){
   function onHidden(){
     if(bgAway) return; bgAway=true;
     hiddenAt=Date.now(); clearGateInputs(); if(DESK&&!DEK&&clipOwnedAt) clearClip();   // gesperrt: nur Gate-Markierungen können hier eigene sein
-    if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(); }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen
+    if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(true); }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen; Kopiertes bleibt bis zum Zeitgeber
   }
   function onShown(){
     if(!bgAway) return; bgAway=false;
     const away=hiddenAt?Date.now()-hiddenAt:0; hiddenAt=0;
-    if(clipOwnedAt&&(clipDue||(settings().clipClear>0&&Date.now()-clipOwnedAt>=settings().clipClear*1000))) clearClip();
+    if(clipOwnedAt&&(clipDue||(clipDeadline&&Date.now()>=clipDeadline))) clearClip();   // Frist aus armClip(), nicht settings(): gesperrt kennt settings() die Einstellung nicht mehr (v1.11)
     dropQrFile();
     if(!DEK&&!pendingUnlock){ if(bioArmed&&bioAuto&&!$('screen-lock').classList.contains('hidden')) doBio(); return; }   // zurück auf dem Sperrbildschirm: Fingerabdruck anbieten
     // die Hürde-Wartestellung hält entschlüsselte Daten → gleiche Sperrregeln
@@ -1260,9 +1263,9 @@ const App = (function(){
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
   function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
-  let clipDue=false, clipTries=0;   // Löschen war fällig, konnte aber (Hintergrund/kein Fokus) noch nicht ausgeführt werden
+  let clipDue=false, clipTries=0, clipDeadline=0;   // Löschen war fällig, konnte aber (Hintergrund/kein Fokus) noch nicht ausgeführt werden; clipDeadline = Wanduhr-Frist der Kopie (0 = keine)
   const CLIP_MAX_TRIES=600;          // ~10 min Wiederholung im Vordergrund, dann aufgeben (Android leert spätestens nach 1 h selbst)
-  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); clipDue=false; clipTries=0; const s=settings().clipClear; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
+  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); clipDue=false; clipTries=0; const s=settings().clipClear; clipDeadline=s>0?clipOwnedAt+s*1000:0; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
   // Besitz erst aufgeben, wenn der Write bestätigt ist. Chromium lehnt writeText ohne Fokus ab (Document is not focused),
   // Android blockt Hintergrund-Writes → dann nur vormerken und beim Zurückkehren / nächsten Tick erneut versuchen.
   function clearClip(){
@@ -1271,7 +1274,7 @@ const App = (function(){
     const bg=document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus());
     if(bg&&!SC){ clipTimer=setTimeout(clearClip,1000); return; }     // Web-API braucht Fokus → vertagen; nativ (Android) darf ohne Fokus schreiben
     if(!bg&&++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipDue=false; return; }   // Versuche nur im Vordergrund zählen (Audit run-1 #2)
-    const ok=()=>{ clipOwnedAt=0; clipDue=false; clipTries=0; };
+    const ok=()=>{ clipOwnedAt=0; clipDue=false; clipTries=0; clipDeadline=0; };
     const retry=()=>{ if(!bg&&fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
     let p=null; try{ p=SC?SC.clear():(navigator.clipboard&&navigator.clipboard.writeText(' ')); }catch(_){ p=null; }
     if(p&&p.then) p.then(ok,retry); else retry();

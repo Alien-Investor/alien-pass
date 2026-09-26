@@ -26,8 +26,9 @@ description: |
   - Argon2id key derivation (32/64/128 MiB, self-benchmarked at setup) + AES-256-GCM via WebCrypto;
     a random data key is wrapped by your passphrase, file header authenticated (AAD)
   - Auto-lock after inactivity and in the background (immediately up to 5 min)
-  - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app and on lock; copied content is flagged
-    sensitive so the Android 13+ system preview hides it
+  - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app and on lock (with "lock in background:
+    immediately" the copied item stays until the timeout, so it can still be pasted elsewhere); copied content is
+    flagged sensitive so the Android 13+ system preview hides it
   - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown — also right inside the entry form
     (panel under the password field, same settings as the generator tab)
   - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time

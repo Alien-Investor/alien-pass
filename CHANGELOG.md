@@ -1,5 +1,14 @@
 # Changelog — Alien Pass
 
+## v1.11 — 2026-09-26
+
+Kleine Korrektur aus dem Alltag. Am Tresor-Format, an der Verschlüsselung und an deinen Daten ändert sich nichts.
+- **Behoben:** Stand „Sperren im Hintergrund“ auf „sofort“, ließ sich ein kopiertes Passwort nie in eine andere App einfügen — der
+  App-Wechsel sperrte Alien Pass und leerte dabei sofort die Zwischenablage (im Ziel-Feld gab es dann nur „Autofill“, kein „Einfügen“).
+  Jetzt bleibt das Kopierte bei der Sofort-Sperre bis zum Ablauf der eingestellten Zeit stehen (Standard 30 s) und wird wie bisher auch im
+  Hintergrund gelöscht. Der Schlüssel im Speicher geht weiterhin sofort weg. Steht „Zwischenablage leeren“ auf „nie“, leert die Sperre
+  wie bisher sofort. Handbuch entsprechend ergänzt.
+
 ## v1.10 — 2026-09-26
 
 Umzug aus den großen Passwort-Managern per CSV. Am Tresor-Format, an der Verschlüsselung und an deinen Daten ändert sich nichts;
