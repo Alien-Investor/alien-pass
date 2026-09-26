@@ -42,7 +42,9 @@ description: |
   - Import Proton Pass exports directly — PGP-encrypted (recommended), ZIP or JSON — with a small built-in
     OpenPGP reader (own AES block cipher, checked against FIPS-197 and WebCrypto in the test suite); vaults become categories, cards and notes come along,
     hidden custom fields become secret extra fields, a second e-mail address goes into the e-mail field
-  - CSV import from KeePassXC, Bitwarden and Proton Pass (folders/groups become categories)
+  - CSV import from Google Password Manager/Chrome, Apple Passwords, Firefox, KeePassXC, Bitwarden, LastPass, 1Password, NordPass
+    and Proton Pass (v1.10; detected by header, folders/groups/tags become categories, favourites and TOTP come along; with
+    "lock in background: immediately" the chosen file is imported right after unlocking)
   - Optional Aegis hurdle: an extra TOTP code on unlock (honestly documented as a hurdle, not a second factor)
   - Optional fingerprint unlock (Android keystore; passphrase required after a passphrase change or a new fingerprint, and after every
     restart unless you tick "also after a restart" when enabling (v1.8, off by default, the choice is authenticated inside the slot);
