@@ -131,7 +131,8 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   sehen ist — Suche und Kategorie-Chips wirken weiter. Höchstens 200 auf einmal in den Papierkorb; Sperren, Tab-Wechsel oder „Abbrechen“ beenden die Auswahl.
 - **Aegis-Hürde** (optional): nach der Passphrase zusätzlich ein TOTP-Code aus Aegis. Ehrlich benannt als *Hürde*, nicht als
   zweiter Faktor — siehe [Sicherheit](#sicherheit).
-- **Auto-Lock**: nach Inaktivität (1–15 min oder aus) und im Hintergrund (sofort / 30 s / 1 min / 5 min).
+- **Auto-Lock**: nach Inaktivität (1–15 min oder aus) und im Hintergrund (sofort / 30 s / 1 min / 5 min). Bei „sofort“ sperrt die App auch,
+  während der Datei-Picker offen ist; die gewählte Datei wird nach dem Entsperren importiert.
 - **Verschlüsseltes Backup** (`.vault`) und **Zusammenführen** zwischen Geräten: je Eintrag gewinnt
   die neuere Änderung, Löschungen werden ein Jahr lang mitgeführt. Die Datei darf eine andere
   Passphrase haben. Sync z.B. über Syncthing. Papierkorb-Inhalt reist dabei nie mit, nur die Löschung selbst.

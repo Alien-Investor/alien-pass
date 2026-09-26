@@ -16,6 +16,11 @@ Android und Linux-Desktop bekommen dieselbe App.
   ganzen Adresse.
 - **Handbuch und README:** Export-Weg für jeden der neun Manager (Menüpfade gegen die Hilfeseiten und Quelltexte der Hersteller geprüft),
   Hinweis auf die Klartext-Datei im Downloads-Ordner.
+- **Gerätetest-Fund: Import bei „Sperren im Hintergrund: sofort“ war unmöglich.** Der Datei-Picker ist eine eigene Android-Ansicht, die App
+  sperrte beim Öffnen und verwarf die gewählte Datei still. Jetzt merkt sie sich die Datei (nur den Verweis, gelesen wird nichts, solange die
+  App zu ist), zeigt auf dem Sperrbildschirm „Datei gewählt — zum Importieren entsperren“ und importiert nach dem Entsperren genau diese
+  Datei. Gilt für CSV, Proton-Export und .vault. Die Sperre selbst bleibt, wie sie ist: kein Schlüssel im Speicher, während die App im
+  Hintergrund liegt.
 - **Nach dem internen Diff-Review vor dem Gerätetest:** Zugangsdaten in einer Adresse (`https://nutzer:passwort@host/`) landen nicht mehr im
   Titel, wenn der Export keinen Titel liefert (Firefox, Google ohne Namen). Eine LastPass-Zeile mit `http://sn`, die trotzdem Nutzer und
   Passwort trägt, bleibt ein Login ohne Adresse, statt beide still zu verlieren. Eine KeePassXC-Datei mit Spalte „OTPAuth“ behält Gruppe und
