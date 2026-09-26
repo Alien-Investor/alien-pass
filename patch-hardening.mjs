@@ -64,6 +64,17 @@ import android.view.WindowManager;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    // Kein Android-Autofill, zweiter Hebel (v1.13): Chromiums WebView-Autofill holt sich den AutofillManager über den Context der
+    // WebView — das ist diese Activity. Bekommt es keinen, legt es keine Autofill-Sitzung an und meldet kein Feld an den
+    // systemweiten Dienst. setImportantForAutofill allein reichte nicht: Chromiums Provider prüft das Flag nicht, und der
+    // Framework-Pfad für virtuelle Felder fragt die Wichtigkeit nicht ab (Gerätetest GrapheneOS 26.09.2026, Proton Pass bot sich
+    // in v1.12 weiter an). Eigene Views nutzen den Manager nicht; ohne ihn verhalten sie sich wie ohne Autofill-Dienst.
+    @Override
+    public Object getSystemService(String name) {
+        if ("autofill".equals(name)) return null;   // Dienstname des AutofillManager (API 26+, Konstante ist nicht öffentlich)
+        return super.getSystemService(name);
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(SecureClipPlugin.class);
@@ -418,6 +429,7 @@ if (!changed) console.log('MainActivity + SecureClipPlugin + BiometricPlugin ber
 const jm = readFileSync(MAIN, 'utf8'), jb = readFileSync(BIO, 'utf8');
 if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin.class)') || !jm.includes('registerPlugin(BiometricPlugin.class)')
   || !jm.includes('setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS)')
+  || !jm.includes('if ("autofill".equals(name)) return null;')
   || !readFileSync(CLIP, 'utf8').includes('EXTRA_IS_SENSITIVE')
   || !jb.includes('setUserAuthenticationRequired(true)') || !jb.includes('setInvalidatedByBiometricEnrollment(true)') || !jb.includes('BIOMETRIC_STRONG') || !jb.includes('sameBoot(')
   || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT')

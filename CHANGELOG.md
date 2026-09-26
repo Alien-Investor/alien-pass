@@ -1,5 +1,12 @@
 # Changelog — Alien Pass
 
+## v1.13 — 2026-09-26
+
+- **Behoben:** Der Autofill-Ausschluss aus v1.12 wirkte nicht. Ein als Autofill-Dienst eingerichteter Passwort-Manager bot sich im
+  Passphrase-Feld weiter an. Grund: Die WebView (Chromium) beachtet die Android-Markierung „nicht wichtig für Autofill“ nicht. Jetzt
+  bekommt die WebView gar keinen Zugang zum Autofill-Dienst mehr, damit schaltet sich ihr Autofill vollständig ab (am Gerät geprüft).
+  Die Markierung aus v1.12 bleibt als zweite Schicht.
+
 ## v1.12 — 2026-09-26
 
 Härtung ohne Änderung an Oberfläche, Tresor-Format oder Daten.
