@@ -180,7 +180,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   Einzige Ergänzung gegenüber dem Sachwert-Tresor ist `'wasm-unsafe-eval'` — Chromium verlangt den Token für
   jede WebAssembly-Kompilierung (Argon2). Er erlaubt ausschließlich WASM, kein String-Eval.
 - **Sperre**: Schlüssel und alle Anzeigen werden aus dem Speicher entfernt; nach Fehlversuchen greift eine
-  Wartezeit. **Kein Autofill.** Nativer Code beschränkt sich auf vier kleine, im Repo im Klartext einsehbare Stücke: FLAG_SECURE,
+  Wartezeit. **Kein Autofill** — und seit v1.12 auch kein fremdes: Die App nimmt ihre WebView vom Android-Autofill-Framework aus, ein anderer
+  Passwort-Manager, der als Autofill-Dienst eingerichtet ist, sieht die Passphrase-Felder nicht und kann nicht anbieten, sie zu speichern.
+  Nativer Code beschränkt sich auf vier kleine, im Repo im Klartext einsehbare Stücke: FLAG_SECURE,
   Backup-Ausschluss, ein Zwischenablage-Plugin und das Fingerabdruck-Plugin (alle als Quelltext in `patch-hardening.mjs`; der
   Vendor-Hash-Check steht in `build-www.sh`, ebenfalls Klartext).
 - **Fingerabdruck-Entsperren, ehrlich eingeordnet** (optional, nur Android-App): Der Datenschlüssel wird zusätzlich unter einem

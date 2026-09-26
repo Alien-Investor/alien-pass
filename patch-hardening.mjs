@@ -2,7 +2,9 @@
 // Läuft in build-apk.sh nach `npx cap sync` — überlebt damit auch ein frisches `npx cap add android`.
 //   1) AndroidManifest: allowBackup=false (keine ADB-/Cloud-Backups der Tresor-Daten)
 //   2) AndroidManifest: INTERNET-Permission ENTFERNEN (App kann nachweisbar nicht funken)
-//   3) MainActivity: FLAG_SECURE (kein Screenshot/Recording, keine Recents-Vorschau)
+//   3) MainActivity: FLAG_SECURE (kein Screenshot/Recording, keine Recents-Vorschau) + WebView vom Android-Autofill-Framework
+//      ausgenommen (v1.12: fremde Autofill-Dienste wie ein anderer Passwort-Manager sehen die Passphrase-Felder sonst und bieten
+//      an, sie zu speichern; autocomplete="off" im HTML hält das nicht auf)
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 
 const MANIFEST = 'android/app/src/main/AndroidManifest.xml';
@@ -55,7 +57,9 @@ const JAVA_DIR = 'android/app/src/main/java/org/alieninvestor/pass';
 const MAIN = JAVA_DIR + '/MainActivity.java';
 const MAIN_SRC = `package org.alieninvestor.pass;
 
+import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.view.WindowManager;
 import com.getcapacitor.BridgeActivity;
 
@@ -67,6 +71,13 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // Kein Screenshot/Screen-Recording, keine Vorschau im App-Switcher (Recents)
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        // Kein Android-Autofill (API 26+): Die WebView meldet sonst jedes Passwortfeld an den systemweiten Autofill-Dienst — eine
+        // fremde App, die den Inhalt zum Speichern anbieten könnte. autocomplete="off" im HTML hält das nicht auf. Die App hat
+        // bewusst keinen eigenen Autofill-Dienst, darum braucht sie das Framework auch nicht.
+        if (Build.VERSION.SDK_INT >= 26) {
+            View webView = getBridge().getWebView();
+            webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
     }
 }
 `;
@@ -399,13 +410,14 @@ public class BiometricPlugin extends Plugin {
 }
 `;
 let changed = false;
-for (const [file, src, label] of [[MAIN, MAIN_SRC, 'MainActivity (FLAG_SECURE + Plugin-Registrierung)'], [CLIP, CLIP_SRC, 'SecureClipPlugin'], [BIO, BIO_SRC, 'BiometricPlugin']]) {
+for (const [file, src, label] of [[MAIN, MAIN_SRC, 'MainActivity (FLAG_SECURE + kein Autofill + Plugin-Registrierung)'], [CLIP, CLIP_SRC, 'SecureClipPlugin'], [BIO, BIO_SRC, 'BiometricPlugin']]) {
   const cur = existsSync(file) ? readFileSync(file, 'utf8') : '';
   if (cur !== src) { writeFileSync(file, src); changed = true; console.log(label + ': geschrieben.'); }
 }
 if (!changed) console.log('MainActivity + SecureClipPlugin + BiometricPlugin bereits aktuell.');
 const jm = readFileSync(MAIN, 'utf8'), jb = readFileSync(BIO, 'utf8');
 if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin.class)') || !jm.includes('registerPlugin(BiometricPlugin.class)')
+  || !jm.includes('setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS)')
   || !readFileSync(CLIP, 'utf8').includes('EXTRA_IS_SENSITIVE')
   || !jb.includes('setUserAuthenticationRequired(true)') || !jb.includes('setInvalidatedByBiometricEnrollment(true)') || !jb.includes('BIOMETRIC_STRONG') || !jb.includes('sameBoot(')
   || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT')

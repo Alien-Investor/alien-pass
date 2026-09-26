@@ -1,5 +1,13 @@
 # Changelog — Alien Pass
 
+## v1.12 — 2026-09-26
+
+Härtung ohne Änderung an Oberfläche, Tresor-Format oder Daten.
+- **Neu:** Die App nimmt ihre Felder vom Android-Autofill-Framework aus. Bisher meldete die WebView jedes Passwortfeld an den
+  systemweiten Autofill-Dienst — ist dort ein anderer Passwort-Manager eingerichtet, bot er sich in den Passphrase-Feldern von Alien Pass
+  an und konnte anbieten, die Passphrase zu speichern. Das Attribut `autocomplete="off"` im HTML hält das nicht auf, darum jetzt nativ
+  (eine Zeile in der MainActivity, Quelltext wie bisher in `patch-hardening.mjs`). Alien Pass hat weiterhin keinen eigenen Autofill-Dienst.
+
 ## v1.11 — 2026-09-26
 
 Kleine Korrektur aus dem Alltag. Am Tresor-Format, an der Verschlüsselung und an deinen Daten ändert sich nichts.

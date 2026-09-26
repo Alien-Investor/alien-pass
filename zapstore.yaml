@@ -54,7 +54,8 @@ description: |
     in memory only, at most 24 hours, honestly documented) — see the Codeberg release
   - No INTERNET permission; only USE_BIOMETRIC and USE_FINGERPRINT (up to Android 8.1) for the fingerprint sensor
     (plus the AndroidX-generated signature permission that grants nothing),
-    FLAG_SECURE (no screenshots / recents preview), allowBackup=false + data extraction rules (no cloud, adb or D2D backup)
+    FLAG_SECURE (no screenshots / recents preview), allowBackup=false + data extraction rules (no cloud, adb or D2D backup),
+    WebView excluded from the Android autofill framework (a third-party autofill service never sees the passphrase fields)
   - Strict CSP: connect-src 'none', no inline script; bundled Argon2 (hash-wasm) hash-checked in the build
   - German / English, offline in-app manual, open source (MIT)
 
