@@ -1,5 +1,22 @@
 # Changelog — Alien Pass
 
+## v1.10 — 2026-09-26
+
+Umzug aus den großen Passwort-Managern per CSV. Am Tresor-Format, an der Verschlüsselung und an deinen Daten ändert sich nichts;
+Android und Linux-Desktop bekommen dieselbe App.
+- **CSV-Import erkennt jetzt auch Google Passwortmanager / Chrome, Apple Passwörter, Firefox, LastPass, 1Password und NordPass** an der
+  Kopfzeile und nennt das Format im Ergebnis. Bisher liefen diese Exporte als „generisches CSV“ durch — und niemand wusste, dass das
+  für ihn gilt. Ordner (LastPass, NordPass), Tags (1Password, erstes Tag) und Favoriten (LastPass, 1Password) kommen mit; sichere
+  Notizen aus LastPass werden zu Notizen, Karten und Identitäten aus NordPass werden übersprungen. Firefox speichert keine Titel,
+  darum wird der Hostname der Adresse zum Titel.
+- **Behoben:** Ein Apple-Export (und ein KeePassXC-Export mit Spalte „OTPAuth“) fiel bisher in den KeePassXC-Zweig und verlor dabei
+  die Einmal-Codes. Ein NordPass-Export wäre als Proton Pass gelesen worden und hätte alle Logins verworfen.
+- **Generischer Zweig:** erkennt zusätzlich Ordner/Gruppen/Kategorien/Tags und Favoriten am Spaltennamen, „otpUrl“ als TOTP und die
+  Spalten des klassischen KeePass („Login Name“, „Comments“). Fehlt die Titelspalte, wird der Hostname der URL zum Titel statt der
+  ganzen Adresse.
+- **Handbuch und README:** Export-Weg für jeden der neun Manager (Menüpfade gegen die Hilfeseiten und Quelltexte der Hersteller geprüft),
+  Hinweis auf die Klartext-Datei im Downloads-Ordner.
+
 ## v1.9 — 2026-09-26
 
 Rückfragen im eigenen Look, „Rückgängig“ nach dem Löschen und eine Mehrfachauswahl. Am Tresor-Format, an der Verschlüsselung und an deinen Daten

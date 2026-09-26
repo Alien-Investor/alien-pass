@@ -568,8 +568,8 @@ html.desk .no-desk{display:none;}
         <div id="proton-msg" class="muted" style="margin-top:10px"></div>
       </div>
       <div class="card">
-        <h2 data-i18n="csv.title">Umzug per CSV (KeePassXC, Bitwarden, andere)</h2>
-        <p class="muted" data-i18n-html="csv.intro">Erkennt CSV-Exporte von <strong>KeePassXC</strong>, <strong>Bitwarden</strong> und <strong>Proton Pass</strong> automatisch (weitere Formate über passende Spaltennamen). Ordner bzw. Gruppen werden zu Kategorien. Einträge mit gleichem Titel, Nutzer und Passwort werden übersprungen.</p>
+        <h2 data-i18n="csv.title">Umzug per CSV (Google, Apple, Firefox, KeePassXC, Bitwarden, andere)</h2>
+        <p class="muted" data-i18n-html="csv.intro">Erkennt CSV-Exporte von <strong>Google Passwortmanager / Chrome</strong>, <strong>Apple Passwörter</strong>, <strong>Firefox</strong>, <strong>KeePassXC</strong>, <strong>Bitwarden</strong>, <strong>Proton Pass</strong>, <strong>LastPass</strong>, <strong>1Password</strong> und <strong>NordPass</strong> automatisch (weitere Formate über passende Spaltennamen). Ordner, Gruppen und Tags werden zu Kategorien, Favoriten bleiben Favoriten. Einträge mit gleichem Titel, Nutzer und Passwort werden übersprungen.</p>
         <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" class="hidden" data-change="importCsv">
         <button class="btn ghost" style="margin-top:8px" data-action="pickFile" data-arg="csv-file" data-i18n="csv.pick">CSV-Datei wählen</button>
         <div id="csv-msg" class="muted" style="margin-top:10px"></div>
@@ -807,12 +807,19 @@ html.desk .no-desk{display:none;}
       <li>Nach einem <strong>Passphrase-Wechsel</strong> öffnen ältere Backups weiterhin mit ihrer alten Passphrase.</li>
     </ul>
 
-    <h2 data-i18n="help.h8">Umzug aus Proton Pass, KeePassXC, Bitwarden</h2>
+    <h2 data-i18n="help.h8">Umzug aus Google, Apple, Firefox, Proton Pass, KeePassXC, Bitwarden und anderen</h2>
     <ul data-i18n-html="help.l8">
       <li><strong>Proton Pass (empfohlen: PGP):</strong> Im Web-Client oder der Browser-Erweiterung (die Mobil-Apps können nicht exportieren) Zahnrad → Exportieren → Format <strong>PGP-verschlüsselt</strong>, Passphrase vergeben. Das ZIP unverändert aufs Handy (Syncthing, USB) und in Alien Pass unter Sicherung → Proton-Export wählen. Die Passphrase wird nur zum Entschlüsseln gebraucht und nicht gespeichert.</li>
       <li>Übernommen werden Logins (inkl. TOTP, weitere URLs und Extra-Felder in den Notizen), Notizen, Kreditkarten, Aliase, WLAN-Zugänge, Identitäten und SSH-Schlüssel (als Notiz). Proton-Tresore werden zu Kategorien, angepinnte Einträge zu Favoriten. Dateianhänge und der Papierkorb werden nicht übernommen.</li>
-      <li><strong>KeePassXC:</strong> Datenbank → Exportieren → CSV-Datei. Gruppen werden zu Kategorien.</li>
-      <li><strong>Bitwarden:</strong> Tools → Tresor exportieren → Format .csv. Ordner werden zu Kategorien.</li>
+      <li><strong>Google Passwortmanager / Chrome:</strong> In Chrome: Menü → Passwörter und Autofill → Google Passwortmanager → Einstellungen → Passwörter exportieren (oder auf passwords.google.com unter Einstellungen). Die CSV-Datei landet im Downloads-Ordner des Browsers.</li>
+      <li><strong>Apple Passwörter:</strong> Nur am Mac: Passwörter-App → Ablage → Alle Passwörter in eine Datei exportieren. Einmal-Codes (TOTP) kommen mit.</li>
+      <li><strong>Firefox:</strong> Adresse about:logins → Menü ⋯ → Passwörter exportieren. Firefox speichert keine Titel — der Hostname der Adresse wird zum Titel.</li>
+      <li><strong>KeePassXC:</strong> Datenbank → Export → CSV-Datei. Gruppen werden zu Kategorien.</li>
+      <li><strong>Bitwarden:</strong> Web-Tresor: Tools → Export → Format .csv (Erweiterung: Einstellungen → Tresor-Optionen → Tresor exportieren). Ordner werden zu Kategorien.</li>
+      <li><strong>LastPass:</strong> Web-Tresor → Erweiterte Optionen → Exportieren. Ordner werden zu Kategorien, sichere Notizen zu Notizen.</li>
+      <li><strong>1Password:</strong> Desktop-App → Datei → Exportieren (Windows: Menü ⋯ in der Seitenleiste → Exportieren) → Format CSV; enthält nur Logins. Das erste Tag wird zur Kategorie, Favoriten bleiben Favoriten.</li>
+      <li><strong>NordPass:</strong> Einstellungen (Zahnrad) → Import and Export → Export items. Ordner werden zu Kategorien; Karten und Identitäten werden nicht übernommen.</li>
+      <li><strong>Andere Manager:</strong> Jede CSV mit Spalten für Titel bzw. Name (oder URL) und Passwort wird gelesen; Nutzer, URL, Notizen, TOTP, Ordner und Favorit werden am Spaltennamen erkannt.</li>
       <li><strong>CSV danach löschen</strong> — sie enthält alle Passwörter im Klartext. Der PGP-Export bleibt verschlüsselt und darf liegen bleiben.</li>
     </ul>
 

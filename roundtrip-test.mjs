@@ -23,7 +23,7 @@ const V = new Function(region + `
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
     normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,passCheck,MAX_TOMBSTONES,liveCount,
     tombFrom,isWiped,wipeTrash,shapeIncoming,bulkEdit,TRASH_DAYS,MAX_TRASH,TOMBSTONE_DAYS,ts,
-    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob,bioWrapOk,wrapTag};`)();
+    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob,bioWrapOk,wrapTag,csvHost,csvFlag};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
 const throwsWith=async(fn,code,m)=>{ try{ await fn(); ok(false,m+' (kein Fehler)'); }catch(e){ ok(e&&e.message===code,m+' → '+(e&&e.message)); } };
@@ -719,6 +719,54 @@ console.log('\n[24] v1.9 Mehrfachauswahl: bulkEdit (rein, neues Array, nie gewip
     const r3=V.bulkEdit(list,[hid('z',9)],{fav:true},NOW); ok(r3.n===0&&r3.entries===list,'unbekannte ID: n=0, Eingabe-Array identisch zurück'); }
   { const r=V.bulkEdit(list,[a.id],{deleted:true},NOW); const s=V.sanitizeEntries(r.entries, now);
     ok(s.length===4&&s.find(e=>e.id===a.id).pass==='p'&&V.isWiped(s.find(e=>e.id===w.id)),'Ergebnis übersteht sanitizeEntries (Papierkorb behält Inhalt, gewipte Marke bleibt Marke)'); }
+}
+
+console.log('\n[25] v1.10: CSV-Erkennung Google/Chrome, Apple, Firefox, LastPass, 1Password, NordPass (+ generisch Ordner/Favorit)');
+{
+  const N=Date.now(), row=(csv,i)=>{ const r=V.parseCsv(csv,','); const m=V.csvMap(r[0]); return {m, e:V.csvRowToEntry(m,r[i||1],N), r}; };
+  // Google Passwortmanager / Chrome: name,url,username,password,note
+  { const {m,e}=row('name,url,username,password,note\nAmazon,https://www.amazon.de/ap/signin,ich@mail.de,pw-amazon,"Zeile"\n');
+    ok(m.fmt==='google'&&e.title==='Amazon'&&e.user==='ich@mail.de'&&e.pass==='pw-amazon'&&e.url==='https://www.amazon.de/ap/signin'&&e.notes==='Zeile','Google/Chrome erkannt und gemappt (note)');
+    const {m:m2,e:e2}=row('name,url,username,password,notes\nA,https://a.de,u,p,n\n'); ok(m2.fmt==='google'&&e2.notes==='n','Google/Chrome: Spalte „notes“ ebenso'); }
+  // Apple Passwörter: Title,URL,Username,Password,Notes,OTPAuth — vorher fiel das in den KeePassXC-Zweig und verlor TOTP
+  { const {m,e}=row('Title,URL,Username,Password,Notes,OTPAuth\nGitHub,https://github.com,alien,pw-gh,memo,otpauth://totp/GitHub:alien?secret=JBSWY3DPEHPK3PXP&issuer=GitHub\n');
+    ok(m.fmt==='apple'&&e.title==='GitHub'&&e.user==='alien'&&e.notes==='memo'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP','Apple erkannt, OTPAuth → TOTP'); }
+  // KeePassXC mit OTPAuth-Spalte (Variante) behält TOTP
+  { const {m,e}=row('"Group","Title","Username","Password","URL","Notes","OTPAuth","Icon","Last Modified","Created"\n"Root/Mail","Posteo","ich","pw","https://posteo.de","","otpauth://totp/x?secret=JBSWY3DPEHPK3PXP","0","",""\n');
+    ok(m.fmt==='apple'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP','KeePassXC-Kopfzeile mit OTPAuth → TOTP bleibt erhalten (Zweig apple, Inhalt gleich)'); }
+  // Firefox: kein Titel → Hostname; Zeitstempel in ms
+  { const {m,e}=row('"url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"\n"https://accounts.google.com/signin/v2","ich@gmail.com","pw-ff","","https://accounts.google.com","{guid}","1704067200000","1704067200000","1717171717000"\n');
+    ok(m.fmt==='firefox'&&e.title==='accounts.google.com'&&e.user==='ich@gmail.com'&&e.pass==='pw-ff'&&e.url==='https://accounts.google.com/signin/v2','Firefox erkannt, Titel = Hostname');
+    ok(e.created==='2024-01-01T00:00:00.000Z'&&e.updated==='2024-05-31T16:08:37.000Z','Firefox: ms-Zeitstempel → created/updated'); }
+  // LastPass: url,username,password,totp,extra,name,grouping,fav — Sichere Notiz (http://sn), Ordner-Zeile (http://group), Ordner\Unter
+  { const {m,e,r}=row('url,username,password,totp,extra,name,grouping,fav\nhttps://www.paypal.com/,ich,pw-pp,JBSWY3DPEHPK3PXP,Notiz,Paypal,Finanzen\\Online,1\nhttp://sn,,,,Nur Text,Memo,Privat,0\nhttp://group,,,,,,Ordner,0\n');
+    ok(m.fmt==='lastpass'&&e.title==='Paypal'&&e.cat==='Online'&&e.fav===true&&e.notes==='Notiz'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP','LastPass erkannt: Ordner\\Unter → letztes Segment, Favorit, TOTP');
+    const n=V.csvRowToEntry(m,r[2],N); ok(n.type==='note'&&n.url===''&&n.title==='Memo'&&n.notes==='Nur Text'&&n.cat==='Privat','LastPass: http://sn → Notiz ohne URL');
+    ok(V.csvRowToEntry(m,r[3],N)===null,'LastPass: Ordner-Zeile (http://group) übersprungen'); }
+  // 1Password: Title,Url,Username,Password,OTPAuth,Favorite,Archived,Tags,Notes
+  { const {m,e,r}=row('Title,Url,Username,Password,OTPAuth,Favorite,Archived,Tags,Notes\nCodeberg,https://codeberg.org,alien,pw-cb,otpauth://totp/x?secret=JBSWY3DPEHPK3PXP,true,false,"Dev,Git",memo\nAlt,https://alt.de,u,p,,false,true,,\n');
+    ok(m.fmt==='1password'&&e.title==='Codeberg'&&e.fav===true&&e.cat==='Dev'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP'&&e.notes==='memo','1Password erkannt: Favorite true, erstes Tag → Kategorie, OTPAuth');
+    const a=V.csvRowToEntry(m,r[2],N); ok(a&&a.fav===false&&a.cat===''&&a.title==='Alt','1Password: archivierter Eintrag kommt mit (fav false)'); }
+  // NordPass (ohne type): name,url,username,password,note,cardholdername,cardnumber,…,folder,full_name,…
+  { const H='name,url,username,password,note,cardholdername,cardnumber,cvc,expirydate,zipcode,folder,full_name,phone_number,email,address1,address2,city,country,state\n';
+    const {m,e,r}=row(H+'Shop,https://shop.de,ich,pw-shop,memo,,,,,,Einkauf,,,,,,,,\nVisa,,,,,Max,4111,123,12/30,,,,,,,,,,\nIch,,,,,,,,,,,Max Muster,,a@b.de,,,,,\n');
+    ok(m.fmt==='nordpass'&&e.title==='Shop'&&e.cat==='Einkauf'&&e.user==='ich'&&e.pass==='pw-shop'&&e.notes==='memo','NordPass erkannt (kein Proton-Fehlgriff), folder → Kategorie');
+    ok(V.csvRowToEntry(m,r[2],N)===null&&V.csvRowToEntry(m,r[3],N)===null,'NordPass: Karte und Identität übersprungen');
+    const {m:m2,r:r2}=row('name,url,username,password,note,cardholdername,cardnumber,cvc,expirydate,zipcode,folder,full_name,phone_number,email,address1,address2,city,country,state,type\nS,https://s.de,u,p,,,,,,,,,,,,,,,,password\nM,,,,Text,,,,,,,,,,,,,,,note\nK,,,,,,,,,,,,,,,,,,,credit_card\n');
+    ok(m2.fmt==='nordpass'&&V.csvRowToEntry(m2,r2[1],N).type==='login'&&V.csvRowToEntry(m2,r2[2],N).type==='note'&&V.csvRowToEntry(m2,r2[3],N)===null,'NordPass mit type-Spalte: password → Login, note → Notiz, credit_card weg'); }
+  // Proton bleibt Proton (vault), KeePassXC/Bitwarden unverändert
+  { ok(row('type,name,url,email,username,password,note,totp,createTime,modifyTime,vault\nlogin,A,,a@b.de,,p,,,,,Personal\n').m.fmt==='proton','Proton weiterhin erkannt (vault)');
+    ok(row('"Group","Title","Username","Password","URL","Notes","TOTP","Icon","Last Modified","Created"\n"Root","A","u","p","","","","0","",""\n').m.fmt==='keepassxc','KeePassXC weiterhin erkannt');
+    ok(row('folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n,1,login,A,,,0,,u,p,\n').m.fmt==='bitwarden','Bitwarden weiterhin erkannt'); }
+  // Generisch: Ordner/Favorit-Spalten, Dashlane-ähnlich (category, otpUrl), KeePass-klassisch (Account, Login Name, Web Site, Comments)
+  { const {m,e}=row('username,username2,username3,title,password,note,url,category,otpUrl\nich,,,Bank,pw-b,memo,https://bank.de,Finanzen,otpauth://totp/x?secret=JBSWY3DPEHPK3PXP\n');
+    ok(m.fmt==='generic'&&e.title==='Bank'&&e.cat==='Finanzen'&&e.totp&&e.totp.secret==='JBSWY3DPEHPK3PXP','generisch: category → Kategorie, otpUrl → TOTP');
+    const {m:m2,e:e2}=row('Account,Login Name,Password,Web Site,Comments\nForum,ich,pw-f,https://forum.de,hallo\n');
+    ok(m2.fmt==='generic'&&e2.title==='Forum'&&e2.user==='ich'&&e2.url==='https://forum.de'&&e2.notes==='hallo','generisch: Login Name / Comments (KeePass klassisch)');
+    const {e:e3}=row('name,password,favorite\nX,p,yes\n'); ok(e3.fav===true,'generisch: favorite yes → Favorit');
+    const {e:e4}=row('url,password\nhttps://nur-url.de/pfad?x=1,p\n'); ok(e4.title==='nur-url.de'&&e4.url==='https://nur-url.de/pfad?x=1','ohne Titel: Hostname als Titel, URL bleibt vollständig'); }
+  ok(V.csvHost('HTTP://Www.Example.org:8443/a#b')==='Www.Example.org:8443'&&V.csvHost('foo.de')==='foo.de'&&V.csvHost('')==='','csvHost: Schema/Pfad/Fragment weg, Rest unverändert');
+  ok(V.csvFlag('1')&&V.csvFlag(' TRUE ')&&V.csvFlag('ja')&&!V.csvFlag('0')&&!V.csvFlag('')&&!V.csvFlag('nein'),'csvFlag: 1/true/yes/ja wahr, sonst falsch');
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

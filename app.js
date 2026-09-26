@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.9';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.10';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -71,8 +71,8 @@ const I18N = {
   "bk.importTitle":"Import backup (merge)",
   "bk.importIntro":"Merges a <code>.vault</code> file into this vault: per entry the <strong>newer change</strong> wins, deletions are applied. The file may use a different passphrase — your local one stays unchanged.",
   "bk.pick":"Choose .vault file","bk.filePass":"Passphrase of the file","bk.doImport":"Merge",
-  "csv.title":"Migrate via CSV (KeePassXC, Bitwarden, others)",
-  "csv.intro":"Detects CSV exports from <strong>KeePassXC</strong>, <strong>Bitwarden</strong> and <strong>Proton Pass</strong> automatically (other formats via matching column names). Folders and groups become categories. Entries with identical title, user and password are skipped.",
+  "csv.title":"Migrate via CSV (Google, Apple, Firefox, KeePassXC, Bitwarden, others)",
+  "csv.intro":"Detects CSV exports from <strong>Google Password Manager / Chrome</strong>, <strong>Apple Passwords</strong>, <strong>Firefox</strong>, <strong>KeePassXC</strong>, <strong>Bitwarden</strong>, <strong>Proton Pass</strong>, <strong>LastPass</strong>, <strong>1Password</strong> and <strong>NordPass</strong> automatically (other formats via matching column names). Folders, groups and tags become categories, favourites stay favourites. Entries with identical title, user and password are skipped.",
   "csv.pick":"Choose CSV file",
   "csv.warn":"⚠ The export file sits <strong>unencrypted</strong> on the device. Delete it right after importing (Downloads folder) — and don't leave the export lying around in the source manager either.",
   "set.secTitle":"Security","set.autolock":"Lock after inactivity","set.off":"Off",
@@ -133,8 +133,8 @@ const I18N = {
   "help.p6":"The list flags <strong>reused</strong> passwords, <strong>short</strong> ones (under 12 characters) and <strong>predictable</strong> ones: repetitions, character and keyboard sequences, years, common words (also as <code>P4ssw0rd</code>), digits only. The same check appears next to the bar while you type. It is an <strong>estimate</strong>, not a cracking test: it spots typical patterns, but not whether a password relates to you (name, birthday, pet). A truly strong password comes from the generator. For the vault passphrase the app asks before accepting a predictable pattern. Age is deliberately not flagged: a strong random password does not weaken with time, and forced rotation is an anti-pattern (NIST SP 800-63B) — change a password when it may have leaked, not on a schedule. If a service does not allow a longer password, the checkbox “Service does not allow a longer password” in the entry switches off the “short” flag — “predictable” only for a digits-only PIN; a sequence like <code>123456</code> stays flagged. Everything is computed locally — there is no lookup in breach databases, because the app has no network.",
   "help.h7":"Backup & sync",
   "help.l7":"<li><strong>Create backup</strong> writes a <code>.vault</code> file (encrypted with your passphrase). It can safely go into Syncthing, onto a stick or into a backup.</li><li><strong>Import</strong> merges: per entry the newer change wins, deletions are carried over (for one year). The file may use a different passphrase — your local one stays.</li><li>With two devices: export on both regularly and import the other's backup. Both sides end up at the same state.</li><li>After a <strong>passphrase change</strong> older backups still open with their old passphrase.</li>",
-  "help.h8":"Migrating from Proton Pass, KeePassXC, Bitwarden",
-  "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> Tools → Export vault → format .csv. Folders become categories.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
+  "help.h8":"Migrating from Google, Apple, Firefox, Proton Pass, KeePassXC, Bitwarden and others",
+  "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>Google Password Manager / Chrome:</strong> in Chrome: menu → Passwords and autofill → Google Password Manager → Settings → Export passwords (or on passwords.google.com under Settings). The CSV file ends up in the browser's Downloads folder.</li><li><strong>Apple Passwords:</strong> Mac only: Passwords app → File → Export All Passwords to File. One-time codes (TOTP) come along.</li><li><strong>Firefox:</strong> address about:logins → menu ⋯ → Export Passwords…. Firefox stores no titles — the hostname of the address becomes the title.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> web vault: Tools → Export → format .csv (extension: Settings → Vault → Export vault). Folders become categories.</li><li><strong>LastPass:</strong> web vault → Advanced Options → Export. Folders become categories, secure notes become notes.</li><li><strong>1Password:</strong> desktop app → File → Export (Windows: ⋯ menu in the sidebar → Export) → format CSV; contains logins only. The first tag becomes the category, favourites stay favourites.</li><li><strong>NordPass:</strong> Settings (gear) → Import and Export → Export items. Folders become categories; cards and identities are not imported.</li><li><strong>Other managers:</strong> any CSV with columns for title or name (or URL) and password is read; user, URL, notes, TOTP, folder and favourite are recognised by column name.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
   "help.hDesk":"Desktop version (Linux)",
   "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there. The same applies to text you select with the mouse in the app (on Linux instantly pasteable with a middle click); Ctrl+C and Ctrl+X in the app copy like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when the window is minimised or hidden (setting “Lock in background” — “background” here means minimised or hidden; switching to another window does not count, but it clears typed passphrases and PINs). On<strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
   "help.h9":"Security in detail",
@@ -310,6 +310,8 @@ const T = {
   "csv.done":{de:"{n} Einträge importiert ({f}), {s} Dubletten übersprungen, {b} Zeilen unbrauchbar. Jetzt die CSV-Datei löschen!",en:"{n} entries imported ({f}), {s} duplicates skipped, {b} rows unusable. Delete the CSV file now!"},
   "csv.empty":{de:"Keine Datenzeilen gefunden.",en:"No data rows found."},
   "fmt.proton":{de:"Proton Pass",en:"Proton Pass"},"fmt.keepassxc":{de:"KeePassXC",en:"KeePassXC"},"fmt.bitwarden":{de:"Bitwarden",en:"Bitwarden"},"fmt.generic":{de:"generisches CSV",en:"generic CSV"},
+  "fmt.google":{de:"Google Passwortmanager / Chrome",en:"Google Password Manager / Chrome"},"fmt.apple":{de:"Apple Passwörter",en:"Apple Passwords"},"fmt.firefox":{de:"Firefox",en:"Firefox"},
+  "fmt.lastpass":{de:"LastPass",en:"LastPass"},"fmt.1password":{de:"1Password",en:"1Password"},"fmt.nordpass":{de:"NordPass",en:"NordPass"},
   "about":{de:"Alien Pass v{v} · Argon2id m={m} MiB t={t} p={p} · AES-256-GCM",en:"Alien Pass v{v} · Argon2id m={m} MiB t={t} p={p} · AES-256-GCM"},
   "pass.s0":{de:"zu kurz (mind. 12 Zeichen)",en:"too short (min. 12 characters)"},
   "pass.s1":{de:"okay — länger ist besser",en:"okay — longer is better"},
@@ -705,35 +707,56 @@ function parseCsv(text, delim){
   if(field!==''||row.length){ row.push(field); rows.push(row); }
   return rows.filter(r=>!(r.length===1&&r[0].trim()===''));
 }
+// Kopfzeile → Spalten-Abbildung. Die Reihenfolge der Erkennung ist Teil der Invariante (v1.10): die spezifischen Kopfzeilen
+// (Bitwarden, NordPass, Proton, LastPass, 1Password, Apple, KeePassXC, Firefox, Google/Chrome) vor dem generischen Zweig,
+// weil sich die Spaltennamen überlappen — Apple und 1Password teilen Title/Username/Password mit KeePassXC (der deshalb `group`
+// verlangt, sonst fiele Dashlane hinein), NordPass und Google teilen name/url/username/password, und NordPass steht vor Proton,
+// weil sein `type` sonst den Proton-Typ-Filter träfe und alle Logins verwürfe.
 function csvMap(header){
   const h=header.map(x=>String(x).trim().toLowerCase()); const idx=n=>h.indexOf(n), has=n=>idx(n)>=0;
-  if(has('login_username')&&has('login_password')) return {fmt:'bitwarden', title:idx('name'), user:idx('login_username'), pass:idx('login_password'), url:idx('login_uri'), notes:idx('notes'), totp:idx('login_totp'), type:idx('type'), fav:idx('favorite'), cat:idx('folder')};
-  if(has('type')&&has('name')&&has('password')&&(has('email')||has('username'))) return {fmt:'proton', title:idx('name'), user:idx('username'), email:idx('email'), pass:idx('password'), url:idx('url'), notes:idx('note'), totp:idx('totp'), type:idx('type'), created:idx('createtime'), updated:idx('modifytime'), cat:idx('vault')};
-  if(has('title')&&has('password')&&has('username')) return {fmt:'keepassxc', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('totp'), cat:idx('group'), created:idx('created'), updated:idx('last modified')};
   const find=(...names)=>{ for(const n of names){ const i=idx(n); if(i>=0) return i; } return -1; };
-  const m={fmt:'generic', title:find('title','name','account','site','titel','bezeichnung','konto'), user:find('username','user','login','email','login_name','benutzername','benutzer','anmeldename','e-mail'), pass:find('password','pass','login_password','passwort','kennwort'), url:find('url','website','uri','web site','login_uri','webseite','adresse'), notes:find('notes','note','comment','extra','notizen','notiz','kommentar'), totp:find('totp','otp','otpauth','login_totp','2fa')};
-  if(m.title<0&&m.url>=0) m.title=m.url;                    // ohne Titelspalte dient die URL als Titel
-  return (m.title>=0&&m.pass>=0)?m:null;
+  if(has('login_username')&&has('login_password')) return {fmt:'bitwarden', title:idx('name'), user:idx('login_username'), pass:idx('login_password'), url:idx('login_uri'), notes:idx('notes'), totp:idx('login_totp'), type:idx('type'), fav:idx('favorite'), cat:idx('folder')};
+  if(has('cardholdername')&&has('name')&&has('password')) return {fmt:'nordpass', title:idx('name'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('note'), type:idx('type'), cat:idx('folder'), card:idx('cardnumber'), ident:idx('full_name')};
+  if(has('type')&&has('name')&&has('password')&&(has('email')||has('username'))) return {fmt:'proton', title:idx('name'), user:idx('username'), email:idx('email'), pass:idx('password'), url:idx('url'), notes:idx('note'), totp:idx('totp'), type:idx('type'), created:idx('createtime'), updated:idx('modifytime'), cat:idx('vault')};
+  if(has('grouping')&&has('extra')&&has('password')) return {fmt:'lastpass', title:idx('name'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('extra'), totp:idx('totp'), cat:idx('grouping'), fav:idx('fav')};
+  if(has('archived')&&has('title')&&has('password')) return {fmt:'1password', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('otpauth'), fav:idx('favorite'), cat:idx('tags')};
+  if(has('otpauth')&&has('title')&&has('password')) return {fmt:'apple', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:idx('otpauth')};
+  if(has('group')&&has('title')&&has('password')&&has('username')) return {fmt:'keepassxc', title:idx('title'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:idx('notes'), totp:find('totp','otpauth'), cat:idx('group'), created:idx('created'), updated:idx('last modified')};
+  if(has('httprealm')&&has('url')&&has('password')) return {fmt:'firefox', title:-1, user:idx('username'), pass:idx('password'), url:idx('url'), created:idx('timecreated'), updated:idx('timepasswordchanged')};
+  if(has('name')&&has('url')&&has('username')&&has('password')&&!has('type')) return {fmt:'google', title:idx('name'), user:idx('username'), pass:idx('password'), url:idx('url'), notes:find('note','notes')};
+  const m={fmt:'generic', title:find('title','name','account','site','titel','bezeichnung','konto'), user:find('username','user','login','email','login_name','login name','benutzername','benutzer','anmeldename','e-mail'), pass:find('password','pass','login_password','passwort','kennwort'), url:find('url','website','uri','web site','login_uri','webseite','adresse'), notes:find('notes','note','comment','comments','extra','notizen','notiz','kommentar'), totp:find('totp','otp','otpauth','otpurl','login_totp','2fa'),
+    cat:find('folder','group','grouping','category','tags','ordner','gruppe','kategorie'), fav:find('favorite','favourite','fav','favorit')};
+  return ((m.title>=0||m.url>=0)&&m.pass>=0)?m:null;       // ohne Titelspalte dient der Hostname der URL als Titel (csvHost)
 }
+// Fehlender Titel → Hostname der URL (Firefox exportiert keinen Titel): Schema und Pfad weg, „www.“ bleibt
+function csvHost(u){ u=String(u||'').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i,''); const i=u.search(/[/?#]/); return (i>=0?u.slice(0,i):u).trim(); }
+function csvFlag(s){ return ['1','true','yes','y','ja'].includes(String(s||'').trim().toLowerCase()); }
 function csvDate(s, now){ s=String(s||'').trim(); if(!s) return new Date(now).toISOString(); if(/^\d{9,11}$/.test(s)) return new Date(Number(s)*1000).toISOString(); if(/^\d{12,14}$/.test(s)) return new Date(Number(s)).toISOString(); const t=Date.parse(s); return Number.isFinite(t)?new Date(t).toISOString():new Date(now).toISOString(); }
 // Zeile → sanitisierter Eintrag (neue ID) oder null (Typ nicht übernommen / unbrauchbar)
 function csvRowToEntry(m, row, now, stats){
   const g=i=>(i>=0&&i<row.length)?String(row[i]):'';
-  let type='login';
+  let type='login', url=g(m.url);
   if(m.type>=0){ const t=g(m.type).trim().toLowerCase();
     if(m.fmt==='bitwarden'&&t!=='login'&&t!=='note') return null;
     if(m.fmt==='proton'&&!['login','note','alias'].includes(t)) return null;
+    if(m.fmt==='nordpass'&&t&&t!=='password'&&t!=='note') return null;              // credit_card, identity, folder …
     if(t==='note') type='note'; }
+  if(m.fmt==='nordpass'&&(g(m.card).trim()||g(m.ident).trim())) return null;         // ältere Exporte ohne `type`: Karte/Identität an den Spalten erkennen
+  if(m.fmt==='lastpass'){ const u=url.trim().toLowerCase(); if(u==='http://group') return null; if(u==='http://sn'){ type='note'; url=''; } }   // Ordner-Zeile / Sichere Notiz
   let user=g(m.user), notes=g(m.notes), email='';
   if(m.fmt==='proton'){ const em=g(m.email); if(!user) user=em; else if(em&&em!==user) email=em; }   // zweite Adresse → eigenes E-Mail-Feld (v1.4), nicht mehr in die Notizen
-  // Ordner/Gruppe/Tresor der Quelle → Kategorie (KeePassXC: Pfad „Root/Sub“ → letztes Segment; „Root“ allein = keine)
-  let cat=m.cat>=0?g(m.cat).trim():''; if(m.fmt==='keepassxc'){ const seg=cat.split('/').filter(Boolean); cat=seg.length&&seg[seg.length-1]!=='Root'?seg[seg.length-1]:''; }
-  const title=g(m.title).trim()||g(m.url).trim()||user.trim();
+  // Ordner/Gruppe/Tresor der Quelle → Kategorie (KeePassXC: Pfad „Root/Sub“ → letztes Segment; „Root“ allein = keine;
+  // LastPass „Ordner\Unter“ → letztes Segment; 1Password: erstes Tag)
+  let cat=m.cat>=0?g(m.cat).trim():'';
+  if(m.fmt==='keepassxc'){ const seg=cat.split('/').filter(Boolean); cat=seg.length&&seg[seg.length-1]!=='Root'?seg[seg.length-1]:''; }
+  else if(m.fmt==='lastpass'){ const seg=cat.split('\\').filter(Boolean); cat=seg.length?seg[seg.length-1].trim():''; }
+  else if(m.fmt==='1password'){ cat=cat.split(',')[0].trim(); }
+  const title=g(m.title).trim()||csvHost(url)||user.trim();
   if(!title) return null;
   if(stats&&notes.length>CAPS.notes) stats.truncated++;                 // Kürzung wird gemeldet, nie still
   const created=csvDate(m.created>=0?g(m.created):'', now), updated=csvDate(m.updated>=0?g(m.updated):'', now);
-  return sanitizeEntry({id:cryptoId(), type, cat, title, user, email, pass:g(m.pass), url:g(m.url), notes, totp:g(m.totp)||null,
-    fav:m.fav>=0&&g(m.fav).trim()==='1', created, updated, deleted:null}, now);
+  return sanitizeEntry({id:cryptoId(), type, cat, title, user, email, pass:g(m.pass), url, notes, totp:g(m.totp)||null,
+    fav:m.fav>=0&&csvFlag(g(m.fav)), created, updated, deleted:null}, now);
 }
 /* ---------- Proton-Pass-Export (JSON aus ZIP / PGP) → Einträge ----------
    Struktur (Proton WebClients, packages/pass/lib/export): {version, userId?, vaults:{shareId:{name, items:[...]}}}.

@@ -141,8 +141,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   Notizen, Kreditkarten, Aliase, WLAN, Identitäten, SSH-Schlüssel; Proton-Tresore werden zu Kategorien, Angepinntes zu Favoriten,
   versteckte Zusatzfelder zu geheimen Zusatzfeldern.
   Der Klartext liegt damit nie auf dem Handy, die Passphrase des Exports wird nur zum Entschlüsseln verwendet.
-- **Umzug per CSV** aus **KeePassXC** und **Bitwarden** (und Proton Pass) — automatische Erkennung, weitere Formate über
-  passende Spaltennamen, Gruppen/Ordner werden zu Kategorien. Dubletten werden übersprungen.
+- **Umzug per CSV** aus **Google Passwortmanager / Chrome**, **Apple Passwörter**, **Firefox**, **KeePassXC**, **Bitwarden**,
+  **LastPass**, **1Password** und **NordPass** (und Proton Pass) — automatische Erkennung, weitere Formate über passende
+  Spaltennamen; Ordner, Gruppen und Tags werden zu Kategorien, Favoriten bleiben Favoriten, TOTP kommt mit. Dubletten werden übersprungen.
 - **Deutsch / Englisch**, Handbuch in der App (`?`-Button), zwei Farbschemata.
 
 ## Sicherheit
@@ -294,11 +295,16 @@ Datei-Format (`.vault`, JSON):
 3. In Alien Pass **Sicherung → Proton-Export wählen** → Passphrase des Exports eingeben → importieren.
    Unverschlüsselte ZIP-/JSON-Exporte gehen genauso, dann ohne Passphrase.
 
-### Umzug per CSV (KeePassXC, Bitwarden, andere)
+### Umzug per CSV (Google, Apple, Firefox, KeePassXC, Bitwarden, LastPass, 1Password, NordPass, andere)
 
-1. Dort exportieren: **KeePassXC** → Datenbank → Exportieren → CSV · **Bitwarden** → Tools → Tresor exportieren → .csv.
-2. Datei aufs Handy, in Alien Pass **Sicherung → CSV-Datei wählen**.
-3. **Danach die CSV-Datei löschen** — sie enthält alle Passwörter im Klartext.
+1. Dort exportieren: **Google Passwortmanager / Chrome** → Menü → Passwörter und Autofill → Google Passwortmanager → Einstellungen →
+   Passwörter exportieren · **Apple Passwörter** (nur am Mac) → Ablage → Alle Passwörter in eine Datei exportieren · **Firefox** →
+   about:logins → ⋯ → Passwörter exportieren · **KeePassXC** → Datenbank → Export → CSV-Datei · **Bitwarden** (Web-Tresor) → Tools →
+   Export → .csv · **LastPass** → Advanced Options → Export · **1Password** → Datei → Exportieren → CSV · **NordPass** → Einstellungen →
+   Import and Export → Export items.
+2. Datei aufs Handy, in Alien Pass **Sicherung → CSV-Datei wählen**. Das Format wird an der Kopfzeile erkannt und im Ergebnis genannt;
+   jede andere CSV mit Spalten für Titel/Name (oder URL) und Passwort geht ebenfalls.
+3. **Danach die CSV-Datei löschen** — sie enthält alle Passwörter im Klartext (bei Google/Chrome liegt sie im Downloads-Ordner des Browsers).
 
 ### Backup & Sync
 
