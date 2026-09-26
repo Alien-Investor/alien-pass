@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.8';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.9';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -31,6 +31,8 @@ const I18N = {
   
   "lock.unlock":"Unlock",
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
+  "list.selTitle":"Select several entries","sel.all":"All","sel.none":"None","sel.trash":"Trash","sel.cat":"Category…","sel.cancel":"Cancel","dlg.cancel":"Cancel",
+  "help.pSel":"<strong>Several entries at once:</strong> the <strong>☑</strong> icon next to the <strong>+</strong> turns on multi-select — every row gets a checkbox, a tap on the row selects it. The bar at the bottom moves the selected entries to the trash (with one shared “Undo”), gives them a category or marks them as favourites. “All” only takes what is currently visible — search and category chips keep working. At most 200 entries to the trash at once, it holds no more. Locking, switching tabs or “Cancel” ends the selection.",
   "help.hTrash":"Trash",
   "help.pTrash":"Deleted entries go to the trash for <strong>30 days</strong> \u2014 the icon right of the <strong>+</strong> in the search row; the number next to it says how much is in there. It shows only <strong>title, type and date of deletion</strong>: no reveal, no copy. If you need the content, restore the entry first \u2014 it comes back complete, with password, extra fields and category. <strong>The trash holds 200 entries</strong>; once it is full the next deletion destroys the oldest one immediately and for good, and the confirmation tells you which one. <strong>Honestly:</strong> while an entry sits in the trash it is also part of every backup of this device. To get rid of something right away use \u201CDelete permanently\u201D or \u201CEmpty trash\u201D \u2014 that cannot be undone. After 30 days the app clears it out on the next unlock; after that only the deletion marker remains, until a year after the deletion. <strong>The trash is device-local</strong> (since the September 2026 audit): a deletion travels to your other devices when merging, the <em>content</em> does not. So you can only restore on the device where you deleted. That is deliberate \u2014 otherwise a planted backup file could displace your entire trash. <strong>A device running version 1.4 or older</strong> empties the trash when merging: the entries stay deleted, they never come back.",
   "trash.title":"Trash",
@@ -271,6 +273,22 @@ const T = {
   "confirm.delete":{de:"Eintrag „{t}“ in den Papierkorb legen? {d} Tage wiederherstellbar, danach endgültig. (Wird beim Sync auf andere Geräte übernommen.)",en:"Move “{t}” to the trash? Restorable for {d} days, then gone for good. (Deletion syncs to other devices.)"},
   "confirm.deleteFull":{de:"Eintrag „{t}“ in den Papierkorb legen? Der Papierkorb ist voll ({m}) — dabei wird „{o}“ (gelöscht am {od}) sofort und endgültig vernichtet. (Die Löschung wird beim Sync übernommen, der Papierkorb-Inhalt bleibt auf diesem Gerät.)",en:"Move “{t}” to the trash? The trash is full ({m}) — doing so destroys “{o}” (deleted on {od}) immediately and for good. (The deletion syncs to other devices, the trash content stays on this one.)"},
   "confirm.purge":{de:"„{t}“ endgültig löschen? Das lässt sich nicht rückgängig machen.",en:"Delete “{t}” permanently? This cannot be undone."},
+  // Rückfrage-Dialog (v1.9): je Frage der passende Knopf, nie nur „OK“
+  "dlg.ok":{de:"OK",en:"OK"},"dlg.cancel":{de:"Abbrechen",en:"Cancel"},"dlg.useAnyway":{de:"Trotzdem verwenden",en:"Use anyway"},"dlg.tryAnyway":{de:"Trotzdem versuchen",en:"Try anyway"},
+  "dlg.convert":{de:"Typ wechseln",en:"Change type"},"dlg.toTrash":{de:"In den Papierkorb",en:"Move to trash"},"dlg.deleteForever":{de:"Endgültig löschen",en:"Delete permanently"},
+  "dlg.disable":{de:"Deaktivieren",en:"Disable"},"dlg.discard":{de:"Verwerfen",en:"Discard"},"dlg.wipe":{de:"Tresor löschen",en:"Delete vault"},"dlg.catPh":{de:"Neue Kategorie (leer = ohne Kategorie)",en:"New category (empty = no category)"},
+  "toast.undo":{de:"Rückgängig",en:"Undo"},"toast.undoGone":{de:"Der Eintrag ist nicht mehr im Papierkorb.",en:"The entry is no longer in the trash."},
+  // Mehrfachauswahl (v1.9)
+  "sel.count":{de:"{n} ausgewählt",en:"{n} selected"},"sel.count1":{de:"1 ausgewählt",en:"1 selected"},"sel.fav":{de:"★ Favorit",en:"★ Favourite"},"sel.unfav":{de:"☆ Favorit weg",en:"☆ Unfavourite"},
+  "confirm.selDelete":{de:"{n} Einträge in den Papierkorb legen? {d} Tage wiederherstellbar, danach endgültig. (Wird beim Sync auf andere Geräte übernommen.)",en:"Move {n} entries to the trash? Restorable for {d} days, then gone for good. (Deletion syncs to other devices.)"},
+  "confirm.selDeleteFull":{de:"{n} Einträge in den Papierkorb legen? Der Papierkorb fasst {m} — dabei werden die {o} ältesten darin sofort und endgültig vernichtet.",en:"Move {n} entries to the trash? The trash holds {m} — the {o} oldest in it will be destroyed immediately and for good."},
+  "confirm.selCat":{de:"Kategorie für {n} Einträge:",en:"Category for {n} entries:"},
+  "toast.selTrashed":{de:"{n} Einträge im Papierkorb",en:"{n} entries in the trash"},"toast.selRestored":{de:"{n} Einträge wiederhergestellt",en:"{n} entries restored"},
+  "toast.selTooMany":{de:"Höchstens {m} Einträge auf einmal in den Papierkorb — bitte die Auswahl verkleinern.",en:"At most {m} entries to the trash at once — please reduce the selection."},
+  "toast.selRestoredPart":{de:"{n} von {t} Einträgen wiederhergestellt — mehr passen nicht (max. 10.000), der Rest bleibt im Papierkorb.",en:"{n} of {t} entries restored — no room for more (max. 10,000), the rest stays in the trash."},
+  "toast.catSet":{de:"{n} Einträge jetzt in „{c}“",en:"{n} entries now in “{c}”"},"toast.catSet1":{de:"1 Eintrag jetzt in „{c}“",en:"1 entry now in “{c}”"},
+  "toast.catCleared":{de:"{n} Einträge ohne Kategorie",en:"{n} entries without category"},"toast.catCleared1":{de:"1 Eintrag ohne Kategorie",en:"1 entry without category"},
+  "toast.selFav":{de:"{n} Einträge als Favorit markiert",en:"{n} entries marked as favourite"},"toast.selUnfav":{de:"{n} Einträge nicht mehr Favorit",en:"{n} entries no longer favourite"},
   "confirm.emptyTrash":{de:"Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.",en:"Permanently delete all {n} entries in the trash? This cannot be undone."},
   "confirm.wipe":{de:"Den Tresor auf diesem Gerät wirklich löschen? Ohne Backup sind alle Passwörter weg.",en:"Really delete the vault on this device? Without a backup all passwords are gone."},
   "confirm.bigKdf":{de:"Die Datei verlangt {m} MiB Arbeitsspeicher für Argon2 — das kann auf dem Handy abstürzen. Trotzdem versuchen?",en:"The file demands {m} MiB of memory for Argon2 — this may crash on a phone. Try anyway?"},
@@ -312,9 +330,9 @@ let LANG = (_qsLang==='de'||_qsLang==='en') ? _qsLang
 const _i18nCache = new WeakMap();
 function tr(key, params){ const e=T[key]; const s=e?(e[LANG]!==undefined?e[LANG]:e.de):key; return params?s.replace(/\{(\w+)\}/g,(m,k)=>Object.prototype.hasOwnProperty.call(params,k)?String(params[k]):m):s; }
 function applyI18n(){
-  document.querySelectorAll('[data-i18n],[data-i18n-html],[data-i18n-ph]').forEach(el=>{
+  document.querySelectorAll('[data-i18n],[data-i18n-html],[data-i18n-ph],[data-i18n-title]').forEach(el=>{
     let c=_i18nCache.get(el); if(!c){ c={}; _i18nCache.set(el,c); }
-    [['data-i18n','textContent'],['data-i18n-html','innerHTML'],['data-i18n-ph','placeholder']].forEach(([attr,prop])=>{
+    [['data-i18n','textContent'],['data-i18n-html','innerHTML'],['data-i18n-ph','placeholder'],['data-i18n-title','title']].forEach(([attr,prop])=>{
       const key=el.getAttribute(attr); if(!key) return;
       if(c[prop]===undefined) c[prop]=el[prop];
       const en=I18N[key];
@@ -588,6 +606,15 @@ function wipeTrash(entries, now){ now=now||Date.now();
   trash.sort((a,b)=>ts(b.deleted)-ts(a.deleted));                                     // jüngste Löschung zuerst — die ältesten weichen
   const wipe=new Set(trash.filter((e,i)=>i>=MAX_TRASH||now-ts(e.deleted)>=TRASH_DAYS*86400000).map(e=>e.id));
   return wipe.size?entries.map(e=>wipe.has(e.id)?tombFrom(e):e):entries; }
+// Mehrfachauswahl (v1.9, rein — aus Alien Notes v1.1): patch = {deleted:true} (lebende → Papierkorb), {deleted:null} (Papierkorb mit Inhalt → lebend, Rückgängig),
+// {cat:'…'} oder {fav:bool} (nur lebende). Nie gewipte Marken, updated=nowIso, NEUES Array (Persist-Regel), unbeteiligte Objekte identisch. Liefert {entries, n}.
+function bulkEdit(entries, ids, patch, nowIso){ const set=ids instanceof Set?ids:new Set(ids); let n=0;
+  const out=entries.map(e=>{ if(!set.has(e.id)||isWiped(e)) return e;
+    if(patch.deleted===true){ if(e.deleted) return e; n++; return Object.assign({}, e, {deleted:nowIso, updated:nowIso}); }
+    if(patch.deleted===null){ if(!e.deleted) return e; n++; return Object.assign({}, e, {deleted:null, updated:nowIso}); }
+    if(e.deleted) return e; const o=Object.assign({}, e, {updated:nowIso});
+    if(Object.prototype.hasOwnProperty.call(patch,'cat')) o.cat=line(patch.cat,CAPS.cat); if(Object.prototype.hasOwnProperty.call(patch,'fav')) o.fav=patch.fav===true; n++; return o; });
+  return {entries:n?out:entries, n}; }
 
 /* ---------- TOTP (RFC 6238; SHA1/256/512, 6–8 Stellen, Periode) ---------- */
 async function totpCode(t, forTime){
@@ -938,6 +965,8 @@ const App = (function(){
   let GEN=Object.assign({},GEN_DEFAULT);
   let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
   let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
+  let selMode=false, selIds=new Set(), shownIds=[];   // Mehrfachauswahl (v1.9): nur im RAM, Sperre räumt ab; shownIds = zuletzt gezeigte Zeilen (für „Alle“)
+  const UNDO_MS=6000;   // so lange steht „Rückgängig“ nach dem Löschen im Toast
   const DESK = window.AlienDesktop || null;   // Desktop-Hülle (desktop/preload.js), sonst null
   // Tresor-Speicher: Desktop = eigene Datei über die Hülle (synchron, wirft bei Lesefehlern), sonst localStorage.
   // Ein Lesefehler ist NIE „kein Tresor“ — sonst böte boot() „Tresor anlegen“ an und überschriebe den echten.
@@ -953,7 +982,38 @@ const App = (function(){
   const show = id => $(id).classList.remove('hidden');
   const hide = id => $(id).classList.add('hidden');
   function screen(name){ ['setup','lock','totp','app'].forEach(s=>$('screen-'+s).classList.add('hidden')); $('screen-'+name).classList.remove('hidden'); }
-  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.add('hidden'),2600); }
+  // Toast, optional mit einem Knopf (v1.9, Kit-Baustein aus Alien Notes v1.1: „Rückgängig“ nach dem Löschen): toast(msg,{action:{label,fn},ms}).
+  // Der Knopf trägt ohne Aktion keinen Text (Tests lesen #toast per textContent). hideToast() räumt Text und Aktion — auch beim Sperren
+  // (clearRendered), damit kein „Rückgängig“ in eine gesperrte App hinein wirkt; toastAction prüft zusätzlich VAULT.
+  let toastFn=null;
+  function toast(msg, opt){ const t=$('toast'); if(!t) return; opt=opt||{}; $('toast-msg').textContent=msg; const b=$('toast-btn'); toastFn=opt.action?opt.action.fn:null;
+    b.textContent=opt.action?opt.action.label:''; b.classList.toggle('hidden',!opt.action); t.classList.remove('hidden'); clearTimeout(t._t); t._t=setTimeout(hideToast, opt.ms||2600); }
+  function hideToast(){ const t=$('toast'); if(!t) return; clearTimeout(t._t); t.classList.add('hidden'); $('toast-msg').textContent=''; $('toast-btn').textContent=''; $('toast-btn').classList.add('hidden'); toastFn=null; }
+  function toastAction(){ const fn=toastFn; hideToast(); if(typeof fn==='function'&&VAULT) fn(); }
+  /* ---------- Rückfrage als eigener DOM-Dialog (v1.9) statt confirm(): der Android-Systemdialog erbt FLAG_SECURE nicht — ein Screenshot bei
+     offener Löschnachfrage zeigte den Eintragstitel, während die App dahinter schwarz war (Querfund Alien Notes, Gerätetest 25.09.2026).
+     ask(msg,{ok,danger}) liefert ein Promise<boolean>; nur ein Dialog zur Zeit (eine zweite Frage gilt sofort als abgelehnt); Escape/Hintergrund
+     = Abbrechen; Tab pendelt zwischen den Knöpfen; clearRendered() schließt ihn beim Sperren mit false, und JEDER Aufrufer prüft nach dem await
+     seinen Zustand neu (VAULT? Eintrag noch da? _busy?). Text nur per textContent (pre-line macht Absätze aus \n\n).
+     opt.input={value,placeholder,max}: Dialog mit Eingabefeld (prompt()-Ersatz, Kategorie für die Mehrfachauswahl) — löst mit dem per line()
+     bereinigten Text oder null auf. Das Feld wird bei JEDEM Schließen geleert (Nutzerdaten), auch beim Sperren. ---------- */
+  let dlgResolve=null, dlgPrev=null, dlgInput=null;
+  function ask(msg, opt){ opt=opt||{}; if(dlgResolve) return Promise.resolve(opt.input?null:false);
+    return new Promise(res=>{ dlgResolve=res; dlgPrev=document.activeElement; $('dlg-msg').textContent=msg; dlgInput=opt.input||null;
+      const inp=$('dlg-input'); inp.value=dlgInput?String(dlgInput.value||''):''; inp.placeholder=dlgInput&&dlgInput.placeholder?dlgInput.placeholder:''; inp.maxLength=dlgInput&&dlgInput.max?dlgInput.max:200; inp.classList.toggle('hidden',!dlgInput);
+      const b=$('dlg-ok'); b.textContent=tr(opt.ok||'dlg.ok'); b.classList.toggle('danger',!!opt.danger); $('dlg').classList.remove('hidden');
+      if(dlgInput){ inp.focus(); inp.select(); } else $('dlg-cancel').focus(); }); }
+  function dialogClose(v){ const r=dlgResolve; if(!r) return; dlgResolve=null; const inp=$('dlg-input'), wasInput=dlgInput, max=wasInput&&wasInput.max?wasInput.max:200; dlgInput=null;
+    const text=wasInput&&v?line(inp.value,max):null; inp.value=''; inp.classList.add('hidden');
+    $('dlg').classList.add('hidden'); $('dlg-msg').textContent=''; $('dlg-ok').classList.remove('danger');
+    const f=dlgPrev; dlgPrev=null; if(f&&document.contains(f)&&typeof f.focus==='function'){ try{ f.focus(); }catch(_){} } r(wasInput?text:!!v); }
+  function dialogOk(){ dialogClose(true); }
+  function dialogCancel(){ dialogClose(false); }
+  function dialogOpen(){ return !!dlgResolve; }
+  function dialogKey(ev){ if(!dlgResolve) return false;
+    if(ev.key==='Escape'){ dialogCancel(); return true; }
+    if(ev.key==='Tab'){ const ring=[$('dlg-input'),$('dlg-cancel'),$('dlg-ok')].filter(n=>!n.classList.contains('hidden')); const i=ring.indexOf(document.activeElement); ring[(i+(ev.shiftKey?-1:1)+ring.length)%ring.length].focus(); return true; }
+    return false; }
   function err(id,msg){ const e=$(id); if(!msg){ e.classList.add('hidden'); e.textContent=''; return; } e.textContent=msg; e.classList.remove('hidden'); }
   function el(tag, cls, text){ const n=document.createElement(tag); if(cls) n.className=cls; if(text!=null) n.textContent=text; return n; }
   const nowIso=()=>new Date().toISOString();
@@ -969,7 +1029,9 @@ const App = (function(){
   // und überspringen ihren Rollback (VAULT ist längst null, ein Rollback schriebe nur einen toten Stand zurück).
   function lockedErr(){ const e=new Error('locked'); e.locked=true; return e; }
   // Rollback-Helfer für die Aufrufer: Snapshot zurückspielen, außer die Sitzung ist zwischendurch gesperrt worden.
-  const rollback=snap=>e=>{ if(e&&e.locked) return; if(VAULT) VAULT.entries=snap; };
+  // Rollback nur, wenn der eigene Stand (base = das Array, das der Aufrufer gesetzt hat) noch aktuell ist — sonst spielte ein gescheiterter Schreiber A
+  // den Snapshot über die Änderung eines späteren Schreibers B zurück (Querfund Alien Notes Audit run-2 #1, Fehlerpfad). Ohne base wie bisher.
+  const rollback=(snap,base)=>e=>{ if(e&&e.locked) return; if(VAULT&&(base===undefined||VAULT.entries===base)) VAULT.entries=snap; };
   async function persist(){
     const dek=DEK, kdf=KDF, wrap=WRAP, vault=VAULT;          // Schlüssel-Generation pinnen (lock/changePass während des await)
     if(!dek||!vault) throw lockedErr();
@@ -984,7 +1046,10 @@ const App = (function(){
     const s=serializeFile(kdf, wrap, body);
     try{ vaultSet(s); }
     catch(e){ toast(tr('err.saveFailed')); throw e; }
-    if(VAULT===vault) vault.entries=entries;
+    // Nur den EIGENEN Stand committen: vaultSet ist hier heute synchron (localStorage/Hülle), ein späterer Dateispeicher wäre es nicht — dann
+    // könnte ein zweiter Schreiber währenddessen vault.entries neu gesetzt haben, und die bedingungslose Zuweisung überschriebe dessen Array
+    // (Lost Update, Querfund Alien Notes Audit run-2 #1). Wipe/Purge rechnet der spätere Schreiber auf seinem Stand selbst.
+    if(VAULT===vault&&vault.entries===list) vault.entries=entries;
   }
   function fileErrMsg(e){ const c=e&&e.message; return tr(c==='newer'?'err.fileNewer':c==='kdfbounds'?'err.fileBounds':c==='toolarge'?'err.fileLarge':c==='toomany'?'err.tooMany':'err.fileFormat'); }
 
@@ -1015,7 +1080,8 @@ const App = (function(){
     const p1=$('setup-pass1').value, p2=$('setup-pass2').value;
     if(p1.length<12) return err('setup-err',tr('err.setupShort'));
     if(p1!==p2) return err('setup-err',tr('err.setupMismatch'));
-    { const c=passCheck(p1); if(c.weak&&!confirm(tr('confirm.weakPass',{why:whyText(c.why)}))) return; }   // Rückfrage, kein Verbot (v1.6)
+    { const c=passCheck(p1); if(c.weak&&!(await ask(tr('confirm.weakPass',{why:whyText(c.why)}),{ok:'dlg.useAnyway'}))) return; }   // Rückfrage, kein Verbot (v1.6)
+    if(doSetup._busy||$('setup-pass1').value!==p1||$('setup-pass2').value!==p2) return;   // während der Rückfrage versteckt (Felder geleert) oder doppelt gestartet → nichts anlegen
     const btn=$('setup-btn'), orig=btn.textContent; doSetup._busy=true; btn.disabled=true; btn.textContent=tr('busy.creating');
     try{
       const m=parseInt($('setup-kdf').value,10);
@@ -1110,7 +1176,7 @@ const App = (function(){
     if(bioRearmDek){ const d=bioRearmDek; bioRearmDek=null; bioArm(d, KDF, WRAP, true).then(ok=>{ if(ok) toast(tr('bio.rearmed')); if(VAULT) renderSettings(); }); } }   // if(VAULT): während der Neu-Einrichtung gesperrt → sonst TypeError   // nach Neustart: Slot mit frischem Zufall neu bewaffnen
   function lock(){
     clearIdle(); stopTotp(); clearClip();
-    DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null;
+    DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null; selMode=false; selIds=new Set(); shownIds=[];
     pendingUnlock=null; pendingSecret=null; pendingOtpauth=''; pendingProton=null;
     bioGen++; bioRearmDek=null; bioArmed=false; bioNeedsRearm=false;   // laufende Fingerabdruck-Vorgänge verfallen (Generation)
     clearRendered(); boot();
@@ -1122,9 +1188,9 @@ const App = (function(){
     ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin','search','import-pass','proton-pass','cp-cur','cp1','cp2','bio-pass','lock-pass','setup-pass1','setup-pass2','totp-code','totp-verify','vault-file','csv-file','proton-file','lock-pin','pin-new','pin-rep','pin-pass'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
     $('f-fav').checked=false; $('f-nowarn').checked=false; { const bk=$('bio-keep'); if(bk) bk.checked=false; }   // „auch nach Neustart“ nie stehen lassen (ab Werk aus)
     clearExtraRows(); fgClose(); genReset(); setEntryType('login'); err('add-err'); err('cp-err'); err('lock-err'); err('setup-err'); err('totp-err'); err('totp-setup-err'); err('bio-err'); bioMsg(''); err('pin-err'); pinMsg('');
-    maskInputs(''); dropQrFile(); closeMenus();
+    maskInputs(''); dropQrFile(); closeMenus(); dialogClose(false); hideToast();   // offene Rückfrage verfällt (Aufrufer sieht false), Toast samt „Rückgängig“ weg (v1.9)
     clearQrCanvas();
-    hide('detail-overlay'); hide('help-overlay'); hide('import-pass-box'); hide('proton-pass-box'); hide('totp-setup');
+    hide('detail-overlay'); hide('help-overlay'); hide('import-pass-box'); hide('proton-pass-box'); hide('totp-setup'); hide('sel-bar'); document.documentElement.classList.remove('selmode');
     doImportVault._busy=false; const ib=$('import-btn'); if(ib){ ib.disabled=false; }
     doImportProton._busy=false; const pb=$('proton-btn'); if(pb){ pb.disabled=false; }
     tab('list');   // sonst stünde nach dem Entsperren die (leere) Papierkorb-Ansicht offen
@@ -1199,6 +1265,7 @@ const App = (function(){
   function tab(name){
     if(DESK&&name!=='list'&&currentId) closeDetail();   // Desktop: Detail steckt in der Listen-Ansicht, nicht offen stehen lassen
     if(name!=='add'&&editId){ editId=null; resetForm(); }   // sonst überschreibt „Neu“ später still den zuletzt bearbeiteten Eintrag
+    if(name!=='list') selCancel();                            // Mehrfachauswahl lebt nur in der Liste (v1.9)
     const mark=TAB_ACTIVE[name]||name;
     document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===mark));
     document.querySelectorAll('.tabview').forEach(v=>v.classList.toggle('hidden',v.id!=='tab-'+name));
@@ -1241,7 +1308,10 @@ const App = (function(){
     const wasOpen=!menu.classList.contains('hidden'); closeMenus(); if(wasOpen) return;
     for(const o of sel.options) menu.appendChild(comboOpt(o.textContent,'chooseOpt',o.value,o.value===sel.value,id));
     menu.classList.remove('hidden'); }
-  function chooseOpt(value, elx){ const sel=$(elx&&elx.dataset.sel); closeMenus(); if(!sel) return;
+  function chooseOpt(value, elx){ const sel=$(elx&&elx.dataset.sel); closeMenus();
+    // Guard (Review-Fund Tresor v2.10, hier v1.9): nur echte Optionen eines Wertspeichers; gleicher Wert → kein change (sonst unnötiges Speichern + Toast).
+    // Ein fremder Wert setzte sonst selectedIndex -1 — die Auto-Sperre wäre still aus.
+    if(!sel||!sel.classList.contains('combo-native')||!Array.from(sel.options).some(o=>o.value===value)||sel.value===value) return;
     sel.value=value; syncCombo(sel.id);
     sel.dispatchEvent(new Event('change',{bubbles:true})); }   // die bestehende change-Delegation übernimmt von hier
   // --- Kategorie: freies Textfeld mit Vorschlägen ---
@@ -1277,9 +1347,12 @@ const App = (function(){
     const h=health(); const hEl=$('health'); const bad=h.r.size+h.w.size+h.v.size;
     hEl.textContent=all.length?(bad?tr('health.bad',{r:h.r.size,w:h.w.size,v:h.v.size}):tr('health.ok')):''; hEl.classList.toggle('bad',bad>0);
     renderBioAlert(); renderBackupHint();
-    if(!items.length){ list.appendChild(el('div','empty',all.length?tr('list.noMatch'):tr('list.empty'))); return; }
+    // shownIds VOR dem Leer-Zweig setzen: sonst nähme „Alle“ bei leerer Trefferliste die zuvor gezeigten, jetzt unsichtbaren Zeilen (Querfund Alien Notes Audit run-2 #4)
+    shownIds=items.map(e=>e.id); if(selMode){ for(const id of [...selIds]) if(!byId(id)) selIds.delete(id); }   // verschwundene (gelöschte) Einträge fallen aus der Auswahl
+    if(!items.length){ list.appendChild(el('div','empty',all.length?tr('list.noMatch'):tr('list.empty'))); renderSelBar(); return; }
     for(const e of items){
-      const row=el('div',e.id===currentId?'entry sel':'entry'); row.dataset.action='openDetail'; row.dataset.arg=e.id;
+      const row=el('div',e.id===currentId?'entry sel':'entry'); row.dataset.action=selMode?'toggleSel':'openDetail'; row.dataset.arg=e.id;
+      if(selMode){ const cb=el('label','chk selbox'); const i=el('input'); i.type='checkbox'; i.checked=selIds.has(e.id); i.tabIndex=-1; cb.appendChild(i); row.appendChild(cb); if(selIds.has(e.id)) row.classList.add('picked'); }
       row.appendChild(el('div','av',(e.title.trim()[0]||'?').toUpperCase()));
       const main=el('div','main'); main.appendChild(el('div','t',e.title));
       const sub=e.type==='card'?[e.card&&e.card.holder,e.card&&maskNumber(e.card.number)].filter(Boolean).join(' · '):e.type==='bank'?[e.bank&&e.bank.bank,e.bank&&maskNumber(e.bank.iban)].filter(Boolean).join(' · '):e.type==='note'?'':(e.user||e.email||e.url||'');
@@ -1296,7 +1369,38 @@ const App = (function(){
     }
     // Dezente Summe am Listenende: nur lebende Einträge (Papierkorb zählt nicht), bei Filter/Suche „n von t“
     list.appendChild(el('div','list-count',items.length===all.length?(all.length===1?tr('list.count1'):tr('list.count',{n:all.length})):tr('list.countOf',{n:items.length,t:all.length})));
+    renderSelBar();
   }
+  /* ---------- Mehrfachauswahl (v1.9, Kit-Baustein aus Alien Notes v1.1): Knopf ☑ → Kästchen je Zeile, Leiste unten mit Papierkorb / Kategorie… / Favorit ----------
+     Auswahl nur im RAM (selIds). Massenänderungen laufen über bulkEdit (rein, Sentinel) → persist → Auswahlmodus endet; Papierkorb bekommt EIN „Rückgängig“ für alle.
+     Escape, Tab-Wechsel (tab()) und Sperren (lock/clearRendered) beenden die Auswahl. Das Detail wird beim Start geschlossen (Zeilen öffnen im Modus nichts). */
+  function selStart(){ if(!VAULT||selMode) return; closeDetail(); selMode=true; selIds=new Set(); document.documentElement.classList.add('selmode'); tab('list'); }
+  function selCancel(){ if(!selMode) return; selMode=false; selIds=new Set(); document.documentElement.classList.remove('selmode'); hide('sel-bar'); if(VAULT) renderList(); }
+  function toggleSel(id){ if(!selMode||!byId(id)) return; if(selIds.has(id)) selIds.delete(id); else selIds.add(id); renderList(); }
+  function selAll(){ if(!selMode) return; shownIds.forEach(id=>selIds.add(id)); renderList(); }   // nur die gezeigten Zeilen — Suche und Chips wirken weiter
+  function selNone(){ if(!selMode) return; selIds=new Set(); renderList(); }
+  function renderSelBar(){ const bar=$('sel-bar'); if(!bar) return; if(!selMode){ bar.classList.add('hidden'); return; } bar.classList.remove('hidden');
+    const n=selIds.size, picked=[...selIds].map(byId).filter(Boolean); $('sel-count').textContent=tr(n===1?'sel.count1':'sel.count',{n});
+    ['sel-trash','sel-cat','sel-fav'].forEach(id=>{ $(id).disabled=n===0; }); const allFav=n>0&&picked.every(e=>e.fav); $('sel-fav').textContent=tr(allFav?'sel.unfav':'sel.fav'); $('sel-fav').dataset.arg=allFav?'0':'1'; }
+  function selSnapshot(){ return {ids:new Set(selIds), snap:VAULT.entries.slice()}; }
+  // Höchstens MAX_TRASH auf einmal: alle Gewählten bekommen denselben deleted-Stempel, wipeTrash (stabil sortiert) vernichtete bei n > 200 sonst n−200 der
+  // GEWÄHLTEN sofort — die Rückfrage spräche von „den ältesten darin“, der Toast meldete n, Rückgängig holte nur 200 (Querfund Alien Notes Audit run-2 #3).
+  async function selDelete(){ if(!VAULT||!selMode||!selIds.size) return; const n=selIds.size; if(n>MAX_TRASH) return toast(tr('toast.selTooMany',{m:MAX_TRASH}));
+    const over=Math.max(0, trash().length+n-MAX_TRASH);
+    const yes=await ask(tr(over?'confirm.selDeleteFull':'confirm.selDelete',{n,d:TRASH_DAYS,m:MAX_TRASH,o:over}),{ok:'dlg.toTrash',danger:true}); if(!yes||!VAULT||!selMode) return;
+    const {ids,snap}=selSnapshot(); const r=bulkEdit(VAULT.entries, ids, {deleted:true}, nowIso()); if(!r.n) return; VAULT.entries=r.entries; selCancel();
+    persist().then(()=>{ if(!VAULT) return; renderList(); toast(tr('toast.selTrashed',{n:r.n}),{action:{label:tr('toast.undo'),fn:()=>undoBulk(ids)},ms:UNDO_MS}); }).catch(e=>{ rollback(snap,r.entries)(e); if(VAULT&&!(e&&e.locked)){ renderList(); toast(tr('err.saveFailed')); } }); }
+  // Rückgängig für alle — mit Deckel: nur so viele zurück, wie unter MAX_ENTRIES Platz ist (sonst wiese sanitizeEntries den Tresor beim nächsten Entsperren ab); der Rest bleibt im Papierkorb.
+  function undoBulk(ids){ if(!VAULT) return; const room=MAX_ENTRIES-liveCount(VAULT.entries); if(room<=0) return toast(tr('err.tooMany'));
+    const want=[...ids].filter(id=>trashById(id)), pick=want.slice(0,room);
+    const snap=VAULT.entries.slice(); const r=bulkEdit(VAULT.entries, pick, {deleted:null}, nowIso()); if(!r.n) return toast(tr('toast.undoGone')); VAULT.entries=r.entries;
+    persist().then(()=>{ if(!VAULT) return; renderTrash(); renderList(); toast(want.length>r.n?tr('toast.selRestoredPart',{n:r.n,t:want.length}):tr('toast.selRestored',{n:r.n})); }).catch(rollback(snap,r.entries)); }
+  async function selCat(){ if(!VAULT||!selMode||!selIds.size) return; const n=selIds.size, picked=[...selIds].map(byId).filter(Boolean); const common=picked.length&&picked.every(e=>e.cat===picked[0].cat)?picked[0].cat:'';
+    const v=await ask(tr('confirm.selCat',{n}),{ok:'dlg.ok',input:{value:common,placeholder:tr('dlg.catPh'),max:CAPS.cat}}); if(v===null||!VAULT||!selMode) return; const to=line(v,CAPS.cat);
+    const {ids,snap}=selSnapshot(); const r=bulkEdit(VAULT.entries, ids, {cat:to}, nowIso()); if(!r.n) return; VAULT.entries=r.entries; selCancel();
+    persist().then(()=>{ if(!VAULT) return; renderList(); toast(to?tr(r.n===1?'toast.catSet1':'toast.catSet',{n:r.n,c:to}):tr(r.n===1?'toast.catCleared1':'toast.catCleared',{n:r.n})); }).catch(e=>{ rollback(snap,r.entries)(e); if(VAULT&&!(e&&e.locked)){ renderList(); toast(tr('err.saveFailed')); } }); }
+  function selFav(on){ if(!VAULT||!selMode||!selIds.size) return; const fav=on!=='0'; const {ids,snap}=selSnapshot(); const r=bulkEdit(VAULT.entries, ids, {fav}, nowIso()); if(!r.n) return; VAULT.entries=r.entries; selCancel();
+    persist().then(()=>{ if(!VAULT) return; renderList(); toast(tr(fav?'toast.selFav':'toast.selUnfav',{n:r.n})); }).catch(e=>{ rollback(snap,r.entries)(e); if(VAULT&&!(e&&e.locked)){ renderList(); toast(tr('err.saveFailed')); } }); }
   function renderBackupHint(){
     const box=$('backup-hint'); box.replaceChildren(); if(!VAULT||!live().length) return;
     const lb=VAULT.meta.lastBackup; let msg='';
@@ -1308,9 +1412,10 @@ const App = (function(){
   /* ---------- Formular: neu / bearbeiten / speichern ---------- */
   function setEntryType(t){ formType=entryType(t); closeMenus(); if(formType!=='login') fgClose(); ENTRY_TYPES.forEach(x=>$('ft-'+x).classList.toggle('on',x===formType)); $('grp-login').classList.toggle('hidden',formType!=='login'); $('grp-card').classList.toggle('hidden',formType!=='card'); $('grp-bank').classList.toggle('hidden',formType!=='bank'); }
   // Typwechsel per Segment: beim Bearbeiten gehen die Felder des alten Typs verloren → benennen und rückfragen (Audit run-2 #2)
-  function changeEntryType(t){ t=entryType(t); if(t===formType) return;
-    const lost=(formType==='login'?['f-user','f-email','f-pass','f-url','f-totp']:formType==='card'?['f-holder','f-number','f-expiry','f-cvv','f-pin']:formType==='bank'?['f-bholder','f-iban','f-bic','f-bank','f-bpin']:[]).filter(id=>$(id).value);
-    if(lost.length&&!confirm(tr('confirm.typeChange',{f:lost.map(id=>tr('lostf.'+id)).join(', ')}))) return;
+  async function changeEntryType(t){ t=entryType(t); if(t===formType) return;
+    const from=formType, lost=(formType==='login'?['f-user','f-email','f-pass','f-url','f-totp']:formType==='card'?['f-holder','f-number','f-expiry','f-cvv','f-pin']:formType==='bank'?['f-bholder','f-iban','f-bic','f-bank','f-bpin']:[]).filter(id=>$(id).value);
+    if(lost.length&&!(await ask(tr('confirm.typeChange',{f:lost.map(id=>tr('lostf.'+id)).join(', ')}),{ok:'dlg.convert',danger:true}))) return;
+    if(!VAULT||formType!==from) return;   // während der Rückfrage gesperrt oder Formular zurückgesetzt
     setEntryType(t); }
   function resetForm(){ ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin'].forEach(id=>$(id).value=''); $('f-fav').checked=false; $('f-nowarn').checked=false; $('f-meter').textContent=''; clearExtraRows(); fgClose(); closeMenus(); err('add-err'); setEntryType('login'); maskInputs('#tab-add'); }
   function newEntry(){ editId=null; resetForm(); if(catFilter) $('f-cat').value=catFilter; $('add-title').textContent=tr('add.titleNew'); tab('add'); setTimeout(()=>$('f-title').focus(),80); }
@@ -1405,14 +1510,18 @@ const App = (function(){
   function toggleReveal(which){ which=which||'pass'; const e=byId(currentId), v=$('d-'+which), btn=$('d-reveal-'+which); if(!e||!v) return; const masked=v.classList.contains('masked'); v.textContent=masked?fieldValue(e,which):'••••••••••••'; v.classList.toggle('masked',!masked); if(btn) btn.textContent=masked?tr('d.hide'):tr('d.show'); }
   function copyField(which){ if(which==='gen') return copyText(genValue,'what.gen'); const e=byId(currentId); if(!e) return toast(tr('toast.noEntry')); const val=which==='totp'?lastCode:fieldValue(e,which); copyText(val,/^x\d+$/.test(which)?'what.extra':'what.'+which); }
   function toggleFavCurrent(){ const e=byId(currentId); if(!e) return; const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(); const upd=Object.assign({},e,{fav:!e.fav,updated:nowIso()}); VAULT.entries[idx]=upd; persist().then(()=>{ openDetail(e.id); renderList(); }).catch(rollback(snapshot)); }
-  function deleteCurrent(){ const e=byId(currentId); if(!e) return;
+  async function deleteCurrent(){ const e=byId(currentId); if(!e) return;
     // Bei vollem Papierkorb vernichtet diese Löschung die älteste — das muss dastehen, bevor der Nutzer zustimmt (Audit run-5 #1).
     const t=trash(), full=t.length>=MAX_TRASH, oldest=full?t[t.length-1]:null;
-    if(!confirm(full?tr('confirm.deleteFull',{t:e.title,m:MAX_TRASH,o:oldest.title||tr('trash.untitled'),od:fmtDate(oldest.deleted)})
-                    :tr('confirm.delete',{t:e.title,d:TRASH_DAYS}))) return;
-    const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice(), iso=nowIso();
-    VAULT.entries[idx]=Object.assign({},e,{updated:iso, deleted:iso});     // in den Papierkorb — der Inhalt bleibt TRASH_DAYS erhalten
-    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.trashed',{d:TRASH_DAYS})); }).catch(rollback(snapshot)); }
+    if(!(await ask(full?tr('confirm.deleteFull',{t:e.title,m:MAX_TRASH,o:oldest.title||tr('trash.untitled'),od:fmtDate(oldest.deleted)})
+                      :tr('confirm.delete',{t:e.title,d:TRASH_DAYS}),{ok:'dlg.toTrash',danger:true}))) return;
+    if(!VAULT||currentId!==e.id) return;                          // während der Rückfrage gesperrt oder Detail gewechselt
+    const cur=byId(e.id); if(!cur) return;                        // (Import) verschwunden — nie ein fremdes Objekt treffen; frisch per ID holen
+    const idx=VAULT.entries.indexOf(cur), snapshot=VAULT.entries.slice(), iso=nowIso();
+    VAULT.entries[idx]=Object.assign({},cur,{updated:iso, deleted:iso});   // in den Papierkorb — der Inhalt bleibt TRASH_DAYS erhalten
+    persist().then(()=>{ closeDetail(); renderList(); toast(tr('toast.trashed',{d:TRASH_DAYS}),{action:{label:tr('toast.undo'),fn:()=>undoDelete(cur.id)},ms:UNDO_MS}); }).catch(rollback(snapshot)); }
+  // „Rückgängig“ aus dem Toast (v1.9): nur, solange der Eintrag noch im Papierkorb liegt — sonst ehrlich sagen, dass er weg ist
+  function undoDelete(id){ if(!VAULT) return; if(!trashById(id)) return toast(tr('toast.undoGone')); restoreEntry(id); }
 
   /* ---------- Papierkorb (v1.5) ---------- */
   // Zähler am Symbol in der Suchzeile; leer bleibt das Symbol sichtbar (nur gedimmt), damit man es findet, bevor man es braucht.
@@ -1449,12 +1558,14 @@ const App = (function(){
     const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice();
     VAULT.entries[idx]=Object.assign({},e,{updated:nowIso(), deleted:null});   // neueres updated ⇒ schlägt die Löschmarke auf anderen Geräten
     persist().then(()=>{ renderTrash(); renderList(); toast(tr('toast.restored')); }).catch(rollback(snapshot)); }
-  function purgeEntry(id){ const e=trashById(id); if(!e) return; if(!confirm(tr('confirm.purge',{t:e.title||tr('trash.untitled')}))) return;
+  async function purgeEntry(id){ const e0=trashById(id); if(!e0) return; if(!(await ask(tr('confirm.purge',{t:e0.title||tr('trash.untitled')}),{ok:'dlg.deleteForever',danger:true}))) return;
+    const e=trashById(id); if(!VAULT||!e) return;                             // während der Rückfrage gesperrt oder (Wiederherstellen/Import) verschwunden — frisch per ID
     const idx=VAULT.entries.indexOf(e), snapshot=VAULT.entries.slice();
     VAULT.entries[idx]=tombstone(e, nowIso());                                 // updated=jetzt ⇒ der leere Stand gewinnt überall
     persist().then(()=>{ renderTrash(); renderList(); toast(tr('toast.purged')); }).catch(rollback(snapshot)); }
-  function emptyTrash(){ if(!VAULT) return; const t=trash(); if(!t.length) return;
-    if(!confirm(tr('confirm.emptyTrash',{n:t.length}))) return;
+  async function emptyTrash(){ if(!VAULT) return; const n0=trash().length; if(!n0) return;
+    if(!(await ask(tr('confirm.emptyTrash',{n:n0}),{ok:'dlg.deleteForever',danger:true}))) return;
+    if(!VAULT) return; const t=trash(); if(!t.length) return;                  // Stand nach der Rückfrage neu lesen
     const snapshot=VAULT.entries.slice(), iso=nowIso(), ids=new Set(t.map(e=>e.id));
     VAULT.entries=VAULT.entries.map(e=>ids.has(e.id)?tombstone(e,iso):e);
     persist().then(()=>{ renderTrash(); renderList(); toast(tr('toast.trashEmptied')); }).catch(rollback(snapshot)); }
@@ -1573,7 +1684,8 @@ const App = (function(){
   function cancelImport(){ pendingImport=null; $('import-pass').value=''; hide('import-pass-box'); }
   async function doImportVault(){
     if(doImportVault._busy||!pendingImport||!VAULT) return; const f=pendingImport;
-    if(f.kdf.m>KDF_CONFIRM_M && !confirm(tr('confirm.bigKdf',{m:Math.round(f.kdf.m/1024)}))) return;
+    if(f.kdf.m>KDF_CONFIRM_M && !(await ask(tr('confirm.bigKdf',{m:Math.round(f.kdf.m/1024)}),{ok:'dlg.tryAnyway'}))) return;
+    if(doImportVault._busy||pendingImport!==f||!VAULT) return;   // während der Rückfrage gesperrt, abgebrochen oder andere Datei gewählt
     const btn=$('import-btn'), orig=btn.textContent; doImportVault._busy=true; btn.disabled=true; btn.textContent=tr('busy.decrypting');
     try{
       let incoming;
@@ -1677,7 +1789,7 @@ const App = (function(){
     }finally{ totpConfirm._busy=false; }
   }
   function totpCancel(){ pendingSecret=null; pendingOtpauth=''; $('totp-verify').value=''; $('totp-secret').textContent=''; clearQrCanvas(); dropQrFile(); renderSettings(); }
-  async function totpDisable(){ if(!VAULT||!VAULT.totp||!confirm(tr('confirm.totpDisable'))) return; const before=VAULT.totp; VAULT.totp=null; try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT) VAULT.totp=before; return; } renderSettings(); toast(tr('toast.totpOff')); }
+  async function totpDisable(){ if(!VAULT||!VAULT.totp||!(await ask(tr('confirm.totpDisable'),{ok:'dlg.disable',danger:true}))) return; if(!VAULT||!VAULT.totp) return; const before=VAULT.totp; VAULT.totp=null; try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT) VAULT.totp=before; return; } renderSettings(); toast(tr('toast.totpOff')); }
 
   /* ---------- Fingerabdruck-Entsperren (nur Android-App) ----------
      Der DEK wird zusätzlich unter einem 32-Byte-Zufallsschlüssel verpackt (Rolle 'bio', Blob in localStorage, nie in der .vault).
@@ -1803,7 +1915,7 @@ const App = (function(){
       if(await bioArm(dekX, KDF, WRAP, false, keep)){ toast(tr('bio.on')); const k=$('bio-keep'); if(k) k.checked=false; }
     }finally{ bioEnable._busy=false; btn.disabled=false; btn.textContent=orig; $('bio-pass').value=''; maskInputs('#bio-card'); renderSettings(); }
   }
-  function bioDisable(){ if(!VAULT||!bioArmed||!confirm(tr('confirm.bioDisable'))) return; bioDrop(true); toast(tr('bio.off')); renderSettings(); }
+  async function bioDisable(){ if(!VAULT||!bioArmed||!(await ask(tr('confirm.bioDisable'),{ok:'dlg.disable',danger:true}))) return; if(!VAULT||!bioArmed) return; bioDrop(true); toast(tr('bio.off')); renderSettings(); }
 
   /* ---------- Schnell-Entsperren per PIN (v1.8, bis zum Beenden der App) ----------
      Die PIN ersetzt nach einer Sperre INNERHALB derselben Programmlaufzeit die Passphrase. Sie schützt NIE die Tresordatei,
@@ -1883,11 +1995,12 @@ const App = (function(){
     finally{ pinEnable._busy=false; btn.disabled=false; btn.textContent=orig; $('pin-new').value=$('pin-rep').value=$('pin-pass').value=''; maskInputs('#pin-card'); renderPinGate(); if(VAULT) renderSettings();
       if(!done&&(gen!==bioGen||!VAULT||!DEK)) toast(tr('pin.aborted')); }   // stiller Abbruch war verwirrend: geleerte Felder, Karte weiter „aus“ (Audit run-8, Härtung)
   }
-  function pinDisable(){ if(!VAULT||!PIN||!confirm(tr('confirm.pinDisable'))) return; pinDrop(); toast(tr('pin.off')); }
+  async function pinDisable(){ if(!VAULT||!PIN||!(await ask(tr('confirm.pinDisable'),{ok:'dlg.discard',danger:true}))) return; if(!VAULT||!PIN) return; pinDrop(); toast(tr('pin.off')); }
   // Desktop-Tastatur (KeePassXC-Gewohnheit): Strg+L sperren, Strg+F Suche, Strg+N neuer Eintrag. Nur in der Hülle, nur entsperrt.
   function deskKey(ev){
     if(!DESK||!ev.ctrlKey||ev.altKey||ev.shiftKey||ev.metaKey) return false; const k=(ev.key||'').toLowerCase();
     if(k==='l'&&(DEK||pendingUnlock)){ lockNow(); return true; }
+    if(dlgResolve) return true;   // offene Rückfrage: kein Strg+N/F daran vorbei (nur Sperren)
     if(!DEK) return false;
     if(k==='f'){ closeHelp(); tab('list'); const q=$('search'); q.focus(); q.select(); return true; }
     if(k==='n'){ closeHelp(); newEntry(); return true; }
@@ -1923,7 +2036,7 @@ const App = (function(){
     try{
       try{ const kOld=await deriveKek(passBytes(cur), KDF); await unwrapDek(WRAP,kOld,KDF,false); }   // alte Passphrase real prüfen
       catch(_){ return err('cp-err',tr('err.cpWrong')); }
-      { const c=passCheck(p1); if(c.weak&&!confirm(tr('confirm.weakPassCp',{why:whyText(c.why)}))) return; }   // erst nach der alten Passphrase (Review v1.6)
+      { const c=passCheck(p1); if(c.weak&&!(await ask(tr('confirm.weakPassCp',{why:whyText(c.why)}),{ok:'dlg.useAnyway'}))) return; }   // erst nach der alten Passphrase (Review v1.6)
       if(!VAULT||!DEK) return;                                   // während der Rückfrage gesperrt
       const kdf={m:KDF.m,t:KDF.t,p:KDF.p,salt:rand(16)};
       const kNew=await deriveKek(passBytes(p1), kdf);
@@ -1937,7 +2050,7 @@ const App = (function(){
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr(hadBio?'toast.passChangedBio':'toast.passChanged')); renderSettings();
     }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; }
   }
-  function wipeLocal(){ if(!confirm(tr('confirm.wipe'))) return; bioDrop(true); pinDrop(); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){}
+  async function wipeLocal(){ if(!VAULT||!(await ask(tr('confirm.wipe'),{ok:'dlg.wipe',danger:true}))) return; if(!VAULT) return; bioDrop(true); pinDrop(); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){}
     if(DESK){ try{ localStorage.removeItem(LS_KEY); }catch(_){} }   // sonst holt migrateDesk() eine Prototyp-Kopie zurück (Audit run-6 #4)
     try{ vaultDel(); }catch(_){ toast(tr('err.saveFailed')); return; } lock(); }
 
@@ -1954,7 +2067,8 @@ const App = (function(){
     setEntryType,changeEntryType,addExtraRow,removeExtraRow,setCatFilter,clearCatFilter,setGenMode,genChanged,genNew,genCopy,genUse,genIntoForm,fgGen,fgClose,suggestPass,exportVault,importVault,doImportVault,cancelImport,importCsv,pickFile,
     importProton,doImportProton,cancelProton,totpStart,totpConfirm,totpCancel,totpDisable,copySecret,copyOtpauth,saveQR,
     setAutolock,setBgLock,setClipClear,theme,changePass,wipeLocal,openHelp,closeHelp,toggleLang,relabel,meterSetup,meterCp,meterForm,kdfChanged,
-    doBio,bioEnable,bioDisable,doPin,pinEnable,pinDisable,lockNow,deskKey,togglePass,enhancePassFields};
+    doBio,bioEnable,bioDisable,doPin,pinEnable,pinDisable,lockNow,deskKey,togglePass,enhancePassFields,
+    ask,dialogOk,dialogCancel,dialogOpen,dialogKey,hideToast,toastAction,selStart,selCancel,toggleSel,selAll,selNone,selDelete,selCat,selFav};
 })();
 
 /* ---------- Event-Delegation ----------
@@ -1983,13 +2097,15 @@ document.addEventListener('input',ev=>{
 });
 document.addEventListener('keydown',ev=>{
   if(App.deskKey(ev)){ ev.preventDefault(); return; }
-  if(ev.key==='Escape'){ App.closeMenus(); App.closeDetail(); App.closeHelp(); return; }
+  if(App.dialogKey(ev)){ ev.preventDefault(); return; }   // offener Dialog: Escape bricht ab, Tab pendelt (v1.9)
+  if(ev.key==='Escape'){ App.closeMenus(); App.closeDetail(); App.closeHelp(); App.selCancel(); return; }   // Escape beendet auch die Mehrfachauswahl
   if(ev.key!=='Enter') return;
   const elx=ev.target.closest('[data-enter]'); if(!elx) return;
-  const fn=App[elx.dataset.enter]; if(typeof fn==='function') fn();
+  const fn=App[elx.dataset.enter]; if(typeof fn==='function'){ ev.preventDefault(); fn(); }   // preventDefault: sonst löst Enter nach einem Fokuswechsel (Dialog schließt → Knopf) dort einen Klick aus
 });
 
 window.addEventListener('DOMContentLoaded',()=>{
+  const dg=document.getElementById('dlg'); if(dg) dg.addEventListener('click',ev=>{ if(ev.target===dg) App.dialogCancel(); });   // Tippen auf den Hintergrund = Abbrechen
   const ok=window.crypto&&crypto.subtle&&typeof WebAssembly!=='undefined'&&window.hashwasm&&typeof hashwasm.argon2id==='function';
   if(!ok){ const c=document.querySelector('.container'); c.replaceChildren(); const d=document.createElement('div'); d.className='card warn'; d.textContent=tr('nocrypto'); c.appendChild(d); return; }
   const k=document.getElementById('setup-kdf'); if(k) k.addEventListener('change',App.kdfChanged);

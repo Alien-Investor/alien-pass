@@ -125,6 +125,10 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   jedem Backup dieses Geräts.** Nach 30 Tagen räumt die App beim nächsten Entsperren selbst auf.
   **Der Papierkorb ist gerätelokal**: beim Zusammenführen wandert die *Löschung* auf die anderen Geräte, der *Inhalt* nicht —
   wiederherstellen lässt sich ein Eintrag nur dort, wo er gelöscht wurde. Das ist Absicht (siehe [Sicherheit](#sicherheit)).
+  **„Rückgängig“** (seit v1.9): Nach dem Löschen steht sechs Sekunden lang ein Knopf im Hinweis, der den Eintrag sofort zurückholt.
+- **Mehrfachauswahl** (seit v1.9): Das Symbol ☑ neben dem `+` schaltet Kästchen an jeder Zeile ein. Die Leiste unten legt die gewählten Einträge in
+  den Papierkorb (mit einem gemeinsamen „Rückgängig“), gibt ihnen eine Kategorie oder markiert sie als Favorit. „Alle“ nimmt nur, was gerade zu
+  sehen ist — Suche und Kategorie-Chips wirken weiter. Höchstens 200 auf einmal in den Papierkorb; Sperren, Tab-Wechsel oder „Abbrechen“ beenden die Auswahl.
 - **Aegis-Hürde** (optional): nach der Passphrase zusätzlich ein TOTP-Code aus Aegis. Ehrlich benannt als *Hürde*, nicht als
   zweiter Faktor — siehe [Sicherheit](#sicherheit).
 - **Auto-Lock**: nach Inaktivität (1–15 min oder aus) und im Hintergrund (sofort / 30 s / 1 min / 5 min).
@@ -164,7 +168,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   APK nachprüfbar (`aapt dump permissions`). Daneben steht dort nur eine von AndroidX automatisch erzeugte, selbst definierte Signatur-Berechtigung
   (`org.alieninvestor.pass.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`), die app-interne Broadcast-Empfänger nicht exportiert;
   sie gibt keiner anderen App Zugriff und erscheint nicht in den Android-Berechtigungen. Der Build bricht ab, sobald irgendeine andere Berechtigung auftaucht.
-- **FLAG_SECURE**: keine Screenshots, kein Screen-Recording, keine Vorschau im App-Switcher.
+- **FLAG_SECURE**: keine Screenshots, kein Screen-Recording, keine Vorschau im App-Switcher. **Rückfragen sind seit v1.9 eigene Dialoge im
+  Fenster der App**, kein Android-Systemdialog mehr — der erbte diesen Schutz nicht, ein Screenshot bei offener Löschnachfrage zeigte den
+  Eintragstitel (intern gefunden beim Gerätetest von Alien Notes, 25.09.2026).
   **allowBackup=false** verhindert ADB- und Cloud-Backups; **data_extraction_rules.xml** schließt zusätzlich den
   Gerät-zu-Gerät-Transfer aus (Android 12+ ignoriert dort `allowBackup`, auch Seedvault-D2D). Backups machst nur du
   selbst über die verschlüsselte `.vault`-Datei.

@@ -49,7 +49,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 /* HEADER */
 .app-head{text-align:center;position:relative;margin-bottom:24px;}
-.header-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:100px;background:radial-gradient(ellipse,rgba(0,255,204,.08) 0%,transparent 70%);pointer-events:none;}
+.header-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(400px,100%);height:100px;background:radial-gradient(ellipse,rgba(0,255,204,.08) 0%,transparent 70%);pointer-events:none;}
 .logo{font-family:'Orbitron',sans-serif;font-size:clamp(1.3rem,4vw,1.9rem);font-weight:900;letter-spacing:4px;text-transform:uppercase;color:var(--neon);text-shadow:0 0 20px rgba(0,255,204,.7),0 0 40px rgba(0,255,204,.3);}
 .app-head .logo{padding:0 52px;min-height:36px;display:flex;align-items:center;justify-content:center;text-align:center;}
 @media(max-width:520px){.app-head .logo{letter-spacing:2px;font-size:clamp(1rem,4.4vw,1.5rem);}}
@@ -192,6 +192,29 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
 
 /* MISC */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--neon-mid);color:var(--neon);padding:10px 18px;border-radius:4px;z-index:200;font-size:.8rem;letter-spacing:1px;box-shadow:0 0 20px rgba(0,255,204,.3);max-width:92vw;text-align:center;}
+/* Toast mit Knopf („Rückgängig“ nach dem Löschen — Kit-Baustein aus Alien Notes v1.1, v1.9): toast(msg,{action:{label,fn},ms}); ohne Aktion trägt der Knopf keinen Text. Sperren räumt Toast und Aktion (hideToast). */
+.toast{display:flex;align-items:center;justify-content:center;gap:12px;width:max-content;}   /* max-content: ein fixiertes Element mit left:50% bekäme sonst nur die halbe Fensterbreite und bräche „2 Einträge im Papierkorb“ dreizeilig um (Sichtprüfung v1.9) */
+.toast-btn{flex-shrink:0;background:none;border:1px solid var(--neon-mid);border-radius:3px;color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:.66rem;letter-spacing:1px;text-transform:uppercase;padding:6px 10px;cursor:pointer;}
+.toast-btn:hover{background:var(--neon-dim);}
+/* Rückfrage-Dialog (statt confirm(): der Android-Systemdialog erbt FLAG_SECURE nicht — Querfund Alien Notes, Gerät 25.09.2026; v1.9)
+   z-index 150: über Handbuch/Detail (100), unter dem Toast (200). Text nur per textContent, pre-line für Absätze. Knöpfe teilen sich die Breite,
+   bei 360 px stehen sie untereinander (flex-wrap). Abbrechen links (ghost), Aktion rechts, bei Vernichten .danger. */
+.dlg-back{position:fixed;inset:0;z-index:150;background:rgba(0,8,6,.85);display:flex;align-items:center;justify-content:center;padding:16px;}
+.dlg{width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow-y:auto;background:var(--card-bg);border:1px solid var(--neon-mid);border-radius:6px;padding:18px;box-shadow:0 0 24px rgba(0,255,204,.25);}
+.dlg-msg{font-size:.86rem;line-height:1.6;color:var(--neon);white-space:pre-line;overflow-wrap:break-word;}
+.dlg-btns{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap;}
+.dlg-btns .btn{flex:1 1 auto;padding:10px 12px;letter-spacing:1px;font-size:.72rem;}
+.dlg input{margin-top:12px;}   /* Eingabefeld (prompt()-Ersatz: Kategorie für die Auswahl) */
+/* Mehrfachauswahl (Auswahl-Leiste + Zeilen-Kästchen — Kit-Baustein aus Alien Notes v1.1, v1.9)
+   html.selmode: je Zeile ein Kästchen .selbox NUR als Anzeige (pointer-events:none, die ZEILE schaltet — kein Doppelschalten), gewählt = .picked;
+   Leiste #sel-bar fixiert unten (z 90, unter Handbuch 100/Dialog 150/Toast 200), .container bekommt Platz, der Toast rückt hoch. Auswahl nur im RAM:
+   Escape, Tab-Wechsel und Sperren beenden sie (selCancel in clearRendered). „Alle“ nimmt nur die gezeigten Zeilen (shownIds), auch bei leerer Liste. */
+.entry .selbox{margin:0;flex-shrink:0;} .entry .selbox input{pointer-events:none;}
+.entry.picked{background:var(--neon-dim);}
+.sel-bar{position:fixed;left:0;right:0;bottom:0;z-index:90;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;background:var(--card-bg);border-top:1px solid var(--neon-mid);box-shadow:0 -6px 18px rgba(0,0,0,.5);}
+.sel-bar .sel-count{font-size:.74rem;letter-spacing:1px;color:var(--neon);margin-right:4px;min-width:6.5em;}
+.sel-bar .btn{padding:6px 9px;letter-spacing:1px;font-size:.66rem;} .sel-bar .btn:disabled{opacity:.4;}
+html.selmode .container{padding-bottom:140px;} html.selmode .toast{bottom:104px;}
 .help-btn{position:absolute;top:0;right:0;width:36px;height:36px;border:1px solid var(--neon-mid);border-radius:50%;background:var(--neon-dim);color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.05rem;cursor:pointer;z-index:5;display:flex;align-items:center;justify-content:center;}
 .lang-btn{position:absolute;top:0;left:0;height:36px;padding:0 10px;border:1px solid var(--neon-mid);border-radius:18px;background:var(--neon-dim);color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:.7rem;letter-spacing:1px;cursor:pointer;z-index:5;}
 .lang-btn:hover,.help-btn:hover{box-shadow:0 0 12px rgba(0,255,204,.45);}
@@ -325,6 +348,7 @@ html.desk .no-desk{display:none;}
         <div class="search-row">
           <input id="search" type="search" placeholder="Suchen (Titel, Nutzer, URL)…" data-i18n-ph="list.search" data-input="renderList" autocomplete="off" autocapitalize="none" spellcheck="false">
           <button class="btn sm" data-action="newEntry" title="Neuer Eintrag">+</button>
+          <button id="sel-btn" class="btn sm icon ghost" data-action="selStart" title="Mehrere Einträge auswählen" data-i18n-title="list.selTitle" aria-label="Mehrere Einträge auswählen">☑</button>
           <button id="trash-btn" class="btn sm icon ghost" data-action="openTrash" title="Papierkorb" aria-label="Papierkorb"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.6 7l.8 12a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9L17.4 7"/><path d="M10 11v6"/><path d="M14 11v6"/></svg><span id="trash-n"></span></button>
         </div>
         <div id="cat-chips" class="chips"></div>
@@ -773,6 +797,7 @@ html.desk .no-desk{display:none;}
 
     <h2 data-i18n="help.hTrash">Papierkorb</h2>
     <p data-i18n-html="help.pTrash">Gelöschte Einträge landen für <strong>30 Tage</strong> im Papierkorb — das Symbol rechts neben dem <strong>+</strong> in der Suchzeile, die Zahl daneben sagt, wie viel drin ist. Dort stehen nur <strong>Titel, Typ und Löschdatum</strong>: kein Aufdecken, kein Kopieren. Wer den Inhalt braucht, stellt den Eintrag erst wieder her — dann ist er vollständig zurück, mit Passwort, Zusatzfeldern und Kategorie. <strong>Der Papierkorb fasst 200 Einträge</strong>; ist er voll, vernichtet die nächste Löschung die älteste sofort und endgültig, und die Rückfrage sagt dir, welche das ist. <strong>Ehrlich dazu:</strong> Solange ein Eintrag im Papierkorb liegt, steht er auch in jedem Backup dieses Geräts. Wer etwas sofort loswerden will, nimmt „Endgültig löschen“ oder „Papierkorb leeren“ — das ist nicht umkehrbar. Nach 30 Tagen räumt die App beim nächsten Entsperren selbst auf; danach bleibt bis ein Jahr nach dem Löschen nur die Löschmarke für den Abgleich. <strong>Der Papierkorb ist gerätelokal</strong> (seit dem Audit im September 2026): eine Löschung wandert beim Zusammenführen auf deine anderen Geräte, der <em>Inhalt</em> nicht. Wiederherstellen kannst du also nur auf dem Gerät, auf dem du gelöscht hast. Das ist Absicht — sonst könnte eine untergeschobene Sicherungsdatei deinen ganzen Papierkorb verdrängen. <strong>Ein Gerät mit Version 1.4 oder älter</strong> leert den Papierkorb beim Zusammenführen: die Einträge bleiben gelöscht, sie tauchen nie wieder auf.</p>
+    <p data-i18n-html="help.pSel"><strong>Mehrere Einträge auf einmal:</strong> Das Symbol <strong>☑</strong> neben dem <strong>+</strong> schaltet die Mehrfachauswahl ein — jede Zeile bekommt ein Kästchen, ein Tipp auf die Zeile wählt sie. Die Leiste unten legt die gewählten Einträge in den Papierkorb (mit einem gemeinsamen „Rückgängig“), gibt ihnen eine Kategorie oder markiert sie als Favorit. „Alle“ nimmt nur, was gerade zu sehen ist — Suche und Kategorie-Chips wirken also weiter. Höchstens 200 Einträge auf einmal in den Papierkorb, mehr fasst er nicht. Sperren, Tab-Wechsel oder „Abbrechen“ beenden die Auswahl.</p>
 
     <h2 data-i18n="help.h7">Backup &amp; Sync</h2>
     <ul data-i18n-html="help.l7">
@@ -805,6 +830,27 @@ html.desk .no-desk{display:none;}
   </div>
 </div>
 
-<div id="toast" class="toast hidden"></div>
+<!-- Rückfrage-Dialog (statt confirm(): der Android-Systemdialog erbt FLAG_SECURE nicht). Text nur per textContent; Abbrechen links, Aktion rechts -->
+<div id="dlg" class="dlg-back hidden" role="dialog" aria-modal="true" aria-describedby="dlg-msg">
+  <div class="dlg">
+    <div id="dlg-msg" class="dlg-msg"></div>
+    <input id="dlg-input" class="hidden" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="200" data-enter="dialogOk">
+    <div class="dlg-btns">
+      <button id="dlg-cancel" class="btn ghost" data-action="dialogCancel" data-i18n="dlg.cancel">Abbrechen</button>
+      <button id="dlg-ok" class="btn" data-action="dialogOk">OK</button>
+    </div>
+  </div>
+</div>
+<!-- Auswahl-Leiste (Mehrfachauswahl) — fixiert unten, nur bei html.selmode sichtbar -->
+<div id="sel-bar" class="sel-bar hidden">
+  <span id="sel-count" class="sel-count"></span>
+  <button class="btn ghost sm" data-action="selAll" data-i18n="sel.all">Alle</button>
+  <button class="btn ghost sm" data-action="selNone" data-i18n="sel.none">Keine</button>
+  <button id="sel-trash" class="btn danger sm" data-action="selDelete" data-i18n="sel.trash">Papierkorb</button>
+  <button id="sel-cat" class="btn sm" data-action="selCat" data-i18n="sel.cat">Kategorie…</button>
+  <button id="sel-fav" class="btn sm" data-action="selFav" data-arg="1">★ Favorit</button>
+  <button class="btn ghost sm" data-action="selCancel" data-i18n="sel.cancel">Abbrechen</button>
+</div>
+<div id="toast" class="toast hidden" role="status"><span id="toast-msg"></span><button id="toast-btn" class="toast-btn hidden" data-action="toastAction"></button></div>
 </body>
 </html>

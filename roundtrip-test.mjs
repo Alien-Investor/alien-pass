@@ -22,7 +22,7 @@ const V = new Function(region + `
   return {bufToB64,b64ToBuf,base32Encode,base32Decode,rand,randInt,cryptoId,passBytes,aad,deriveKek,newDek,wrapDek,unwrapDek,
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
     normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,passCheck,MAX_TOMBSTONES,liveCount,
-    tombFrom,isWiped,wipeTrash,shapeIncoming,TRASH_DAYS,MAX_TRASH,TOMBSTONE_DAYS,ts,
+    tombFrom,isWiped,wipeTrash,shapeIncoming,bulkEdit,TRASH_DAYS,MAX_TRASH,TOMBSTONE_DAYS,ts,
     parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob,bioWrapOk,wrapTag};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
@@ -691,6 +691,34 @@ console.log('\n[23] Audit run-5: Verdrängung durch fremde Dateien (shapeIncomin
   { const live=[mk({id:hid('d',13), title:'Lebt'})], inc0=V.sanitizeEntries(live, now);
     const out=V.shapeIncoming([], inc0);
     ok(out.length===1&&out[0]===inc0[0],'shapeIncoming reicht lebende Einträge unverändert durch (identisch)'); }
+}
+
+console.log('\n[24] v1.9 Mehrfachauswahl: bulkEdit (rein, neues Array, nie gewipte Marken)');
+{
+  const DAY=86400000, now=Date.now(), NOW=new Date(now).toISOString();
+  const iso=d=>new Date(now-d*DAY).toISOString();
+  const hid=(p,i)=>(p+i.toString(16).padStart(10,'0')).padEnd(16,'0').slice(0,16);
+  const mk=(o)=>V.sanitizeEntry(Object.assign({type:'login',title:'T',user:'u',pass:'p',created:iso(100),updated:iso(3)},o), now);
+  const a=mk({id:hid('a',1),title:'A',cat:'Alt'}), b=mk({id:hid('b',2),title:'B',fav:true}), c=mk({id:hid('c',3),title:'C',deleted:iso(1),updated:iso(1)});
+  const w=V.tombFrom(mk({id:hid('d',4),title:'',deleted:iso(2),updated:iso(2)}));   // gewipte Marke
+  const list=[a,b,c,w];
+  { const r=V.bulkEdit(list,[a.id,b.id,c.id,w.id],{deleted:true},NOW);
+    ok(r.n===2&&r.entries!==list&&list.length===4&&list[0]===a,'Papierkorb: nur lebende zählen (2), neues Array, Eingabe unverändert');
+    ok(r.entries[0].deleted===NOW&&r.entries[0].updated===NOW&&r.entries[0].pass==='p'&&r.entries[0].id===a.id,'gelöschter Eintrag behält Inhalt, deleted=updated=jetzt');
+    ok(r.entries[2]===c&&r.entries[3]===w,'schon gelöschte und gewipte Objekte identisch durchgereicht');
+    ok(V.isWiped(r.entries[3])&&!V.isWiped(r.entries[0]),'Marke bleibt Marke, Papierkorb-Eintrag ist keine'); }
+  { const r=V.bulkEdit(list,new Set([a.id,c.id,w.id]),{deleted:null},NOW);
+    ok(r.n===1&&r.entries[2].deleted===null&&r.entries[2].updated===NOW&&r.entries[2].title==='C','Rückgängig: nur Papierkorb-Einträge (1) werden lebend, updated=jetzt');
+    ok(r.entries[0]===a&&r.entries[3]===w,'lebende und gewipte Objekte bleiben identisch'); }
+  { const r=V.bulkEdit(list,[a.id,b.id,c.id],{cat:'  Neu'+String.fromCharCode(0)+'e  Kat  '},NOW);
+    ok(r.n===2&&r.entries[0].cat==='Neue Kat'&&r.entries[1].cat==='Neue Kat'&&r.entries[2]===c,'Kategorie: nur lebende (2), line()-Bereinigung (Steuerzeichen, Leerraum), Papierkorb unberührt');
+    ok(r.entries[0].updated===NOW&&r.entries[0].fav===false&&r.entries[1].fav===true,'Kategorie-Patch lässt fav unverändert, updated=jetzt');
+    const long=V.bulkEdit(list,[a.id],{cat:'x'.repeat(200)},NOW); ok(long.entries[0].cat.length===V.CAPS.cat,'Kategorie auf CAPS.cat gekappt'); }
+  { const r=V.bulkEdit(list,[a.id,b.id],{fav:true},NOW); ok(r.n===2&&r.entries[0].fav===true&&r.entries[1].fav===true&&r.entries[0].cat==='Alt','Favorit setzen: beide, Kategorie unverändert');
+    const r2=V.bulkEdit(list,[a.id,b.id],{fav:'ja'},NOW); ok(r2.entries[0].fav===false&&r2.entries[1].fav===false,'fav nur bei echtem true, sonst false');
+    const r3=V.bulkEdit(list,[hid('z',9)],{fav:true},NOW); ok(r3.n===0&&r3.entries===list,'unbekannte ID: n=0, Eingabe-Array identisch zurück'); }
+  { const r=V.bulkEdit(list,[a.id],{deleted:true},NOW); const s=V.sanitizeEntries(r.entries, now);
+    ok(s.length===4&&s.find(e=>e.id===a.id).pass==='p'&&V.isWiped(s.find(e=>e.id===w.id)),'Ergebnis übersteht sanitizeEntries (Papierkorb behält Inhalt, gewipte Marke bleibt Marke)'); }
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

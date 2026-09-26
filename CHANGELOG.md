@@ -1,5 +1,26 @@
 # Changelog — Alien Pass
 
+## v1.9 — 2026-09-26
+
+Rückfragen im eigenen Look, „Rückgängig“ nach dem Löschen und eine Mehrfachauswahl. Am Tresor-Format, an der Verschlüsselung und an deinen Daten
+ändert sich nichts; Android und Linux-Desktop bekommen dieselbe App.
+- **Rückfragen erscheinen als eigener Dialog in der App, nicht mehr als Android-Systemdialog (intern gefunden beim Gerätetest der Schwester-App
+  Alien Notes).** Der Systemdialog erbt den Screenshot-Schutz der App nicht: Ein Screenshot bei offener Löschnachfrage zeigte den Titel des
+  Eintrags, während die App dahinter schwarz blieb. Jetzt liegt jede Rückfrage (Löschen, endgültig löschen, Papierkorb leeren, Typwechsel,
+  vorhersagbare Passphrase, großer Import, Aegis/Fingerabdruck/PIN abschalten, Tresor löschen) im Fenster der App und wird wie alles andere
+  geschützt. Jeder Dialog trägt seinen eigenen Knopf („In den Papierkorb“, „Endgültig löschen“, „Typ wechseln“ …) statt eines nackten „OK“;
+  Escape oder ein Tipp daneben bricht ab, eine Sperre während der Frage lässt die Antwort verfallen.
+- **„Rückgängig“ nach dem Löschen.** Der Hinweis „In den Papierkorb gelegt“ bekommt für sechs Sekunden einen Knopf, der den Eintrag sofort
+  zurückholt. Für „Endgültig löschen“ und „Papierkorb leeren“ gibt es das bewusst nicht — dort bleibt die Rückfrage.
+- **Mehrfachauswahl.** Das Symbol ☑ neben dem + in der Suchzeile schaltet Kästchen an jeder Zeile ein; die Leiste unten legt die gewählten
+  Einträge in den Papierkorb (mit einem gemeinsamen „Rückgängig“), gibt ihnen eine Kategorie oder markiert sie als Favorit. „Alle“ nimmt nur,
+  was gerade zu sehen ist — Suche und Kategorie-Chips wirken also weiter. Höchstens 200 Einträge auf einmal in den Papierkorb, mehr fasst er nicht;
+  bei vollem Papierkorb sagt die Rückfrage, wie viele alte Einträge dabei vernichtet würden. Die Auswahl lebt nur bis zum Sperren, Tab-Wechsel
+  oder „Abbrechen“.
+- **Kleinigkeiten:** Ein Auswahlfeld (Auto-Sperre, Zwischenablage, Trennzeichen) speichert nicht mehr, wenn man den schon gewählten Wert noch einmal
+  antippt, und nimmt keine Werte an, die es nicht kennt. Die Speicher-Nachprüfung übernimmt nach dem Schreiben nur noch den eigenen Stand (heute
+  ohne Folgen, Vorsorge für einen späteren Sync-Ordner). Der Leuchtschein hinter dem Logo passt sich schmalen Fenstern an. Handbuch DE/EN ergänzt.
+
 ## v1.8 — 2026-09-23
 
 **Desktop-Neubau `1.8-r2` (23.09.2026, nur die Linux-Hülle, gleiche App):** Das minimierte Fenster zeigte in der Taskleiste ein Standard-Icon,
