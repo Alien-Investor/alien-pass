@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.14';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.15';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -1737,7 +1737,7 @@ const App = (function(){
       let incoming;
       try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); incoming=sanitizeVault(obj).entries; }
       catch(e){ $('import-pass').value=''; if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
-      if(!VAULT||!DEK) return;                                   // während des Argon2-Laufs gesperrt → sauber abbrechen
+      if(!VAULT||!DEK||pendingImport!==f) return;                // während des Argon2-Laufs gesperrt (auch schnell wieder entsperrt: lock() nullt pendingImport) → abbrechen (Diff-Review v1.15)
       incoming=shapeIncoming(VAULT.entries, incoming);          // Papierkorb-Inhalt bleibt gerätelokal, fremde Marken verdrängen keine eigenen (Audit run-5)
       const before=VAULT.entries.slice(); const m=mergeEntries(VAULT.entries, incoming);
       if(liveCount(m.entries)>MAX_ENTRIES){ $('import-msg').textContent=tr('err.tooMany'); return; }

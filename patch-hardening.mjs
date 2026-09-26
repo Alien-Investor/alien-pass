@@ -57,6 +57,7 @@ const JAVA_DIR = 'android/app/src/main/java/org/alieninvestor/pass';
 const MAIN = JAVA_DIR + '/MainActivity.java';
 const MAIN_SRC = `package org.alieninvestor.pass;
 
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -75,8 +76,24 @@ public class MainActivity extends BridgeActivity {
         return super.getSystemService(name);
     }
 
+    // Gegenstück zum Hebel oben (v1.15, Diff-Review): Activity.restoreAutofillSaveUi() ruft getAutofillManager() OHNE Null-Prüfung, ausgelöst
+    // allein durch diese Intent-Extras (finish/onBackPressed/onStop, Android 9+). Jede App könnte Alien Pass mit ihnen starten und beim Schließen
+    // abstürzen lassen (NullPointerException) — deshalb vor super.onCreate/onNewIntent entfernen.
+    private static void dropAutofillRestore(Intent i) {
+        if (i == null) return;
+        i.removeExtra("android.view.autofill.extra.RESTORE_SESSION_TOKEN");
+        i.removeExtra("android.view.autofill.extra.RESTORE_CROSS_ACTIVITY");
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        dropAutofillRestore(intent);
+        super.onNewIntent(intent);
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        dropAutofillRestore(getIntent());
         registerPlugin(SecureClipPlugin.class);
         registerPlugin(BiometricPlugin.class);
         super.onCreate(savedInstanceState);
@@ -430,6 +447,8 @@ const jm = readFileSync(MAIN, 'utf8'), jb = readFileSync(BIO, 'utf8');
 if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin.class)') || !jm.includes('registerPlugin(BiometricPlugin.class)')
   || !jm.includes('setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS)')
   || !jm.includes('if ("autofill".equals(name)) return null;')
+  || !jm.includes('dropAutofillRestore(getIntent());') || !jm.includes('dropAutofillRestore(intent);') || !jm.includes('i.removeExtra("android.view.autofill.extra.RESTORE_SESSION_TOKEN");')
+  || /\/\/[^\n]*if \("autofill"\.equals/.test(jm) || !jm.includes('return super.getSystemService(name);')
   || !readFileSync(CLIP, 'utf8').includes('EXTRA_IS_SENSITIVE')
   || !jb.includes('setUserAuthenticationRequired(true)') || !jb.includes('setInvalidatedByBiometricEnrollment(true)') || !jb.includes('BIOMETRIC_STRONG') || !jb.includes('sameBoot(')
   || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT')

@@ -1,13 +1,18 @@
 # Changelog — Alien Pass
 
-## v1.14 — 2026-09-26
+## v1.15 — 2026-09-26
 
-Nacharbeit aus dem internen Audit run-9 (nachgeholter Import). Keine Änderung an Tresor-Format, Verschlüsselung oder Daten.
+Nacharbeit aus dem internen Audit run-9 (nachgeholter Import) und dem internen Diff-Review davor. v1.14 wurde nie veröffentlicht, ihr Inhalt steckt hier mit drin. Keine Änderung an Tresor-Format, Verschlüsselung oder Daten.
 - **Import hält die Sitzung fest.** Sperrte die App, während eine Datei noch gelesen wurde, stand nach dem nächsten Entsperren die
   Passphrase-Abfrage eines .vault-Imports aus der alten Sitzung offen; eine CSV- oder Proton-Datei konnte in die nächste Sitzung laufen.
   Jetzt verfällt ein Import, dessen Sitzung inzwischen gesperrt wurde — Datei einfach neu wählen.
 - **Zurückgestellte Uhr** verlängert die fünf Minuten nicht mehr, in denen eine bei gesperrter App gewählte Datei nachgeholt wird.
 - **Neuer Tresor** übernimmt keine vorher gewählte Datei mehr.
+- **.vault-Import:** Wurde die App während der Entschlüsselung gesperrt und gleich wieder entsperrt, lief der Import in der neuen Sitzung
+  weiter. Jetzt bricht er ab.
+- **Android — Absturz verhindert:** Seit v1.13 bekommt die WebView keinen Autofill-Dienst. Eine andere App konnte Alien Pass mit
+  bestimmten Zusatzangaben starten, und Android stürzte dann beim Schließen der App ab (keine Daten betroffen). Die App entfernt diese
+  Angaben jetzt beim Start.
 - **Handbuch und README:** „bei ‚sofort‘ sperrt die App, während der Datei-Picker offen ist“ gilt nur für Android — am Desktop zählt der
   Dateidialog nicht als Hintergrund. Beim nachgeholten Import von .vault und PGP-Export folgt nach dem Entsperren noch die Passphrase-Abfrage.
 
