@@ -760,6 +760,7 @@ html.desk .no-desk{display:none;}
       <li><strong>Kategorien</strong> wie Ordner: im Formular frei eintippen (Vorschläge aus den vorhandenen). Die Liste filtert oben per Chip; eine Kategorie verschwindet, sobald kein Eintrag sie mehr trägt.</li>
       <li><strong>Typ ändern</strong> geht auch nachträglich, aber die Felder des alten Typs (z.B. Passwort und TOTP eines Logins) werden dabei gelöscht — die App fragt vorher nach. Ein Backup bringt sie nicht zurück, weil beim Zusammenführen die neuere Änderung gewinnt.</li>
       <li>Auf einen Eintrag tippen → Detailansicht mit Kopier-Buttons. Passwörter, Kartennummer, CVV und PINs erscheinen nur auf Anfrage; IBAN und BIC stehen im Klartext (werden zum Überweisen gebraucht, stehen auf jeder Rechnung).</li>
+      <li><strong>Passwort ändern ohne Risiko:</strong> das neue Passwort erst als Zusatzfeld (z.B. „neu“) speichern, dann auf der Website ändern und einmal neu anmelden. Klappt die Anmeldung, das neue ins Passwortfeld übernehmen und das Zusatzfeld löschen. So geht keines verloren, falls die Website die Änderung nicht übernimmt.</li>
     </ul>
 
     <h2 data-i18n="help.h3">Zwischenablage</h2>
@@ -803,8 +804,12 @@ html.desk .no-desk{display:none;}
     <ul data-i18n-html="help.l7">
       <li><strong>Backup erstellen</strong> schreibt eine <code>.vault</code>-Datei (verschlüsselt, mit deiner Passphrase). Sie kann bedenkenlos in Syncthing, auf einen Stick oder in ein Backup.</li>
       <li><strong>Importieren</strong> führt zusammen: je Eintrag gewinnt die neuere Änderung, Löschungen werden mitgenommen (ein Jahr lang). Die Datei darf eine andere Passphrase haben — deine lokale bleibt.</li>
-      <li>Bei zwei Geräten: regelmäßig auf beiden exportieren und das jeweils andere Backup importieren. Beide Seiten landen beim gleichen Stand.</li>
+      <li><strong>Unsere Empfehlung für mehrere Geräte: Syncthing.</strong> Es gleicht Ordner direkt zwischen deinen Geräten ab, Ende-zu-Ende-verschlüsselt, ohne Konto und ohne Cloud-Speicher. Hilfsserver zum Finden der Geräte und zum Weiterleiten sehen nur IP-Adresse und Geräte-ID, nie Inhalte; wer will, schaltet sie ab und bleibt im Heimnetz. Kein Muss: USB-Kabel, Stick oder jeder andere Weg, eine Datei zu übertragen, geht genauso.</li>
+      <li><strong>Zwei Geräte mit Syncthing:</strong> auf beiden „Backup erstellen“ und die Datei in einen gemeinsamen Syncthing-Ordner legen (am Handy speichert die App sie in <em>Dokumente</em> und öffnet danach das Teilen-Menü — von dort direkt an Syncthing-Fork (F-Droid, die gepflegte Android-App) und den Ordner wählen, oder mit dem Dateimanager) und auf dem jeweils anderen Gerät die neue Datei unter „Importieren“ wählen. Beide Seiten landen beim gleichen Stand. Die App liest den Ordner nie von selbst: was und wann importiert wird, entscheidest du.</li>
+      <li>Handy und Desktop schlagen am selben Tag denselben Dateinamen vor. Auf dem Desktop beim Speichern deshalb einen eigenen Namen wählen (z.B. <code>alien-pass-desktop.vault</code>), sonst ersetzt Syncthing die eine Datei durch die andere oder legt eine Konfliktkopie an.</li>
+      <li>Denselben Eintrag nicht auf beiden Geräten ändern, bevor abgeglichen ist — beim Zusammenführen gewinnt die neuere Änderung, die andere geht verloren.</li>
       <li>Nach einem <strong>Passphrase-Wechsel</strong> öffnen ältere Backups weiterhin mit ihrer alten Passphrase.</li>
+      <li><strong>Alte Backups aufräumen:</strong> Am Handy bleibt jedes Backup zusätzlich in <em>Dokumente</em> liegen, auch wenn du es weitergeteilt hast (am Desktop entsteht nur die Datei, die du im Speichern-Dialog wählst). Die Dateien sind verschlüsselt, aber jede öffnet sich mit der Passphrase, die beim Erstellen galt. Nach einem Passphrase-Wechsel die alten Dateien deshalb löschen — in <em>Dokumente</em>, im Syncthing-Ordner in dessen Versionierung (<code>.stversions</code>, falls eingeschaltet — auf jedem Gerät einzeln, der Ordner wird nicht mit abgeglichen) und eventuelle Konfliktkopien (<code>.sync-conflict-…</code>).</li>
     </ul>
 
     <h2 data-i18n="help.h8">Umzug aus Google, Apple, Firefox, Proton Pass, KeePassXC, Bitwarden und anderen</h2>
