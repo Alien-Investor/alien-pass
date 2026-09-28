@@ -784,4 +784,46 @@ console.log('\n[25] v1.10: CSV-Erkennung Google/Chrome, Apple, Firefox, LastPass
   ok(V.csvFlag('1')&&V.csvFlag(' TRUE ')&&V.csvFlag('ja')&&!V.csvFlag('0')&&!V.csvFlag('')&&!V.csvFlag('nein'),'csvFlag: 1/true/yes/ja wahr, sonst falsch');
 }
 
+console.log('\n[26] CSV-Fuzz: zufällige Zeilen gegen alle zehn Kopfzeilen — jeder Eintrag sanitizer-stabil, kein Wurf, keine Zukunft, kein Steuerzeichen');
+{ // Deterministisch (LCG-Seed), damit ein Fehlschlag reproduzierbar bleibt. Alphabet: Anführungszeichen, Trenner, Zeilenumbrüche im Feld, NUL, BOM,
+  // Nullbreite, Formel-Präfixe, Schemata, otpauth, Emoji, Backslash-Pfade, Zeitstempel in Sekunden/Millisekunden/kaputt.
+  const MAX_CSV_ROWS=4*V.MAX_ENTRIES; let seed=20260928; const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };
+  const A=['a','b','"',',',';','\n','\r','\r\n',String.fromCharCode(0),'\uFEFF','\u200b','=','+','@','http://','otpauth://totp/x?secret=JBSWY3DPEHPK3PXP','🙂','\\','/','Root/',' ','1234567890','99999999999','99999999999999','2020-13-45T99:99:99Z','-1','1e309','true','http://sn','http://group'];
+  const H=['name,url,username,password,note','folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp','type,name,url,email,username,password,note,totp,createTime,modifyTime,vault',
+    'url,username,password,totp,extra,name,grouping,fav','Title,Url,Username,Password,OTPAuth,Notes','Group,Title,Username,Password,URL,Notes,TOTP,Icon,Last Modified,Created',
+    'url,username,password,httpRealm,formActionOrigin,guid,timeCreated,timeLastUsed,timePasswordChanged','name,url,username,password,note,cardholdername,cardnumber,cvc,expirydate,zipcode,folder,full_name,phone_number,address1,address2,city,country,state,type',
+    'Title,Website,Username,Password,OneTimePassword,Favorite,Archived,Tags,Notes','titel,passwort,adresse'];
+  const fld=()=>{ let s=''; const n=Math.floor(rnd()*8); for(let i=0;i<n;i++) s+=A[Math.floor(rnd()*A.length)]; return s; };
+  const now=Date.now(), maxT=now+120000; let rows=0, live=0, unknown=0, err=null; const t0=Date.now();
+  for(let r=0;r<6000&&!err;r++){
+    const h=H[Math.floor(rnd()*H.length)], cols=h.split(',').length; let text=(rnd()<0.2?'\uFEFF':'')+h+'\n'; const n=Math.floor(rnd()*6);
+    for(let i=0;i<n;i++){ const f=[], nc=cols+Math.floor(rnd()*3)-1; for(let c=0;c<nc;c++) f.push(rnd()<0.3?'"'+fld()+'"':fld()); text+=f.join(rnd()<0.1?';':',')+(rnd()<0.9?'\n':''); }
+    if(rnd()<0.05) text=text.slice(0,Math.floor(rnd()*text.length));            // abgeschnittene Datei
+    try{ let p=V.parseCsv(text,',',MAX_CSV_ROWS); if(p.length&&p[0].length<2&&text.indexOf(';')>=0) p=V.parseCsv(text,';',MAX_CSV_ROWS);
+      if(p.length<2) continue; const m=V.csvMap(p[0]); if(!m){ unknown++; continue; } const st={truncated:0};
+      for(const row of p.slice(1)){ const e=V.csvRowToEntry(m,row,now,st); rows++; if(!e) continue; live++;
+        if(JSON.stringify(V.sanitizeEntry(e,now))!==JSON.stringify(e)) throw new Error('nicht sanitizer-stabil: '+JSON.stringify(e).slice(0,160));
+        if(Date.parse(e.updated)>maxT||Date.parse(e.created)>maxT||Date.parse(e.updated)<Date.parse(e.created)) throw new Error('Zeitstempel: '+e.created+' / '+e.updated);
+        if(e.title.length>V.CAPS.title||e.notes.length>V.CAPS.notes||e.pass.length>V.CAPS.pass||e.user.length>V.CAPS.user) throw new Error('Cap verletzt');
+        if(/[\u0000-\u001f]/.test(e.title)||/[\u0000-\u001f]/.test(e.cat)) throw new Error('Steuerzeichen in Titel/Kategorie: '+JSON.stringify(e.title));
+        if(!e.title) throw new Error('Eintrag ohne Titel: '+JSON.stringify(row).slice(0,160));
+        if(e.type!=='login'&&e.type!=='note') throw new Error('CSV liefert Typ '+e.type);
+        if(e.type==='note'&&(e.user||e.pass||e.url||e.totp)) throw new Error('Notiz trägt Login-Felder'); } }
+    catch(x){ err=x.message+' | '+JSON.stringify(text).slice(0,200); }
+  }
+  ok(!err,'6000 zufällige Dateien, '+rows+' Zeilen ('+live+' Einträge, '+unknown+' unbekannt) ohne Wurf, jeder Eintrag sanitizer-stabil, geklemmt, ohne Steuerzeichen'+(err?' — '+err:''));
+  ok(rows>30000&&live>15000&&Date.now()-t0<10000,'Fuzz erreicht genug Zeilen und Einträge in unter 10 s ('+(Date.now()-t0)+' ms)');
+  { const t1=Date.now(); const p=V.parseCsv('a,b\n"'+'x'.repeat(5*1024*1024),',',MAX_CSV_ROWS); ok(p.length===2&&p[1][0].length===5*1024*1024&&Date.now()-t1<3000,'offenes Anführungszeichen über 5 MB: eine Zeile, linear ('+(Date.now()-t1)+' ms)'); }
+  { const F={fmt:'firefox',title:-1,user:0,pass:1,url:2,created:3,updated:3}; const u=s=>V.csvRowToEntry(F,['u','p','http://x.de',s],now,{}).updated;
+    ok(Date.parse(u('99999999999'))<=maxT&&Date.parse(u('99999999999999'))<=maxT&&Date.parse(u('1e309'))<=maxT&&Date.parse(u('2020-13-45'))<=maxT,'Zeitstempel-Kanten (11/14 Ziffern, 1e309, kaputtes Datum) werfen nicht und bleiben ≤ jetzt + 2 min');
+    ok(u('1700000000')==='2023-11-14T22:13:20.000Z'&&u('1700000000000')==='2023-11-14T22:13:20.000Z','Sekunden und Millisekunden landen auf demselben Zeitpunkt'); }
+  ok(V.csvRowToEntry({fmt:'google',title:0,user:1,pass:2,url:3,notes:-1},['=cmd|\' /C calc\'!A0','+u','-p','@x'],now,{}).title==='=cmd|\' /C calc\'!A0','Formel-Präfixe bleiben Text (App schreibt nie CSV, rendert nur per textContent)');
+  // Fund des Fuzz-Laufs (28.09.2026): Titelquelle nur aus Steuerzeichen (NUL-URL ohne Namen, Proton-Name aus Nullbreiten) überlebte den Trim-Guard und
+  // wurde nach line() ein Eintrag OHNE Titel — jetzt unbrauchbar (null), Zählung als „unbrauchbar“ im Import
+  { const G={fmt:'google',title:0,user:1,pass:2,url:3,notes:-1}; const NUL=String.fromCharCode(0);
+    ok(V.csvRowToEntry(G,['','u','p',NUL],now,{})===null&&V.csvRowToEntry(G,['\u200b\u200b','u','p',''],now,{})===null,'CSV: Titel/URL nur aus Steuerzeichen → Zeile unbrauchbar, kein Eintrag ohne Titel');
+    ok(V.csvRowToEntry(G,['','u','p',NUL+'host.de'],now,{}).title==='host.de','CSV: Steuerzeichen vor dem Hostnamen werden entfernt, Titel bleibt');
+    ok(V.protonItemToEntry({data:{type:'login',metadata:{name:'\u200b'+NUL,note:''},content:{}}},'V',now,{})===null,'Proton: Name nur aus Steuerzeichen → Eintrag unbrauchbar'); }
+}
+
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

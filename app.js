@@ -762,8 +762,9 @@ function csvRowToEntry(m, row, now, stats){
   if(!title) return null;
   if(stats&&notes.length>CAPS.notes) stats.truncated++;                 // Kürzung wird gemeldet, nie still
   const created=csvDate(m.created>=0?g(m.created):'', now), updated=csvDate(m.updated>=0?g(m.updated):'', now);
-  return sanitizeEntry({id:cryptoId(), type, cat, title, user, email, pass:g(m.pass), url, notes, totp:g(m.totp)||null,
+  const o=sanitizeEntry({id:cryptoId(), type, cat, title, user, email, pass:g(m.pass), url, notes, totp:g(m.totp)||null,
     fav:m.fav>=0&&csvFlag(g(m.fav)), created, updated, deleted:null}, now);
+  return o&&o.title?o:null;                                            // Titel nur aus Steuerzeichen (CSV-Fuzz [26]) → nach line() leer → unbrauchbar, nie ein Eintrag ohne Titel
 }
 /* ---------- Proton-Pass-Export (JSON aus ZIP / PGP) → Einträge ----------
    Struktur (Proton WebClients, packages/pass/lib/export): {version, userId?, vaults:{shareId:{name, items:[...]}}}.
@@ -809,7 +810,7 @@ function protonItemToEntry(item, vaultName, now, stats){
   lines.push(...protonFieldLines(rest)); if(note) lines.push(note);
   ent.notes=lines.join('\n');
   if(stats&&ent.notes.length>CAPS.notes) stats.truncated++;             // Kürzung wird gemeldet, nie still
-  return sanitizeEntry(ent, now);
+  const o=sanitizeEntry(ent, now); return o&&o.title?o:null;         // Name nur aus Steuerzeichen → nach line() leer → unbrauchbar (CSV-Fuzz [26])
 }
 // Gesamter Export → {entries, skipped, vaults}; wirft 'format' (keine Proton-Struktur) oder 'toomany'
 function protonExportToEntries(obj, now){
