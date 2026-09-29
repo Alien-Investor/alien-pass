@@ -245,7 +245,8 @@ html.desk .no-desk{display:none;}
   html.desk #tab-list{display:grid;grid-template-columns:minmax(360px,460px) minmax(0,1fr);gap:18px;align-items:start;}
   html.desk #tab-list>.card{margin:0;}
   html.desk #detail-overlay,html.desk .detail-empty{grid-column:2;grid-row:1;}
-  html.desk #detail-overlay{position:sticky;top:12px;inset:auto;z-index:auto;max-height:calc(100vh - 24px);background:var(--card-bg);border:1px solid var(--border);border-radius:4px;}
+  html.desk #detail-overlay,html.desk .detail-empty{position:sticky;inset:auto;top:12px;}   /* inset VOR top — sonst setzt inset:auto top zurück und sticky greift nicht */
+  html.desk #detail-overlay{z-index:auto;max-height:calc(100vh - 24px);background:var(--card-bg);border:1px solid var(--border);border-radius:4px;}
   html.desk #detail-overlay .help-head{background:var(--card-bg);}
   html.desk #detail-overlay .help-inner{max-width:none;padding:0 22px 24px;}
   html.desk .detail-empty{display:flex;align-items:center;justify-content:center;min-height:260px;border:1px dashed var(--border);border-radius:4px;color:var(--text-dim);font-size:.85rem;letter-spacing:1px;}
