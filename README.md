@@ -6,21 +6,27 @@ Die Android-App fordert **keine Internet-Berechtigung** an — nur die zwei norm
 Die Desktop-Fassung läuft als Flatpak **ohne Netzwerk-Berechtigung und ohne Zugriff auf deine Dateien**.
 Deine Passwörter verlassen das Gerät nie im Klartext.
 
-Schwester-App des [Sachwert-Tresors](https://codeberg.org/Alien-Investor/sachwert-tresor) — gleiche Architektur, gleiche Härtung, gleicher Alien-Investor-Stil.
+Schwester-App des [Sachwert-Tresors](https://github.com/Alien-Investor/sachwert-tresor) — gleiche Architektur, gleiche Härtung, gleicher Alien-Investor-Stil.
 
 ## 📲 Installieren (Android / GrapheneOS)
 
-Bewusst **nicht im Google Play Store**. Verteilung über signierte Releases hier auf Codeberg
+Bewusst **nicht im Google Play Store**. Verteilung über signierte Releases hier auf GitHub
 und im [Zap Store](https://zapstore.dev). Empfohlen über **[Obtainium](https://github.com/ImranR98/Obtainium)**:
 
 1. In Obtainium **„App hinzufügen"** → diese Repo-URL eintragen:
    ```
-   https://codeberg.org/Alien-Investor/alien-pass
+   https://github.com/Alien-Investor/alien-pass
    ```
-2. Quell-Typ wird als **Forgejo/Gitea** erkannt → **Hinzufügen** → **Installieren**.
+2. Quell-Typ wird als **GitHub** erkannt → **Hinzufügen** → **Installieren**.
 3. Updates meldet Obtainium automatisch.
 
-**Ohne Obtainium:** [Neuestes Release](https://codeberg.org/Alien-Investor/alien-pass/releases/latest) → `.apk` laden und installieren.
+> **Umgezogen (seit v1.16):** Die Releases liegen jetzt auf GitHub statt auf Codeberg. Im Zap Store ändert sich nichts.
+> Obtainium kann die Quelle einer App nicht bearbeiten, deshalb einmalig: vorher ein `.vault`-Backup anlegen,
+> den Eintrag „Alien Pass“ entfernen und im Dialog nur **„Aus Obtainium entfernen“** eingeschaltet lassen
+> (**„Vom Gerät deinstallieren“ aus**, das löscht App und Daten), dann die GitHub-URL oben neu hinzufügen. Obtainium erkennt die installierte App,
+> Signatur und Paket-ID bleiben gleich.
+
+**Ohne Obtainium:** [Neuestes Release](https://github.com/Alien-Investor/alien-pass/releases/latest) → `.apk` laden und installieren.
 
 **Signatur-Fingerprint** (SHA-256 des Signatur-Zertifikats, über alle Versionen gleich — mit
 [AppVerifier](https://github.com/soupslurpr/AppVerifier) prüfen):
@@ -35,7 +41,7 @@ Plain SHA-256 (apksigner):
 ## 🖥️ Installieren (Linux-Desktop, Flatpak)
 
 Derselbe Code wie auf dem Handy, verpackt mit Electron als **Flatpak** (x86_64). Das Tresor-Format ist identisch: Backups vom Handy lassen
-sich am Desktop importieren und umgekehrt. Verteilung als Datei mit GPG-signierter Prüfsumme im [Codeberg-Release](https://codeberg.org/Alien-Investor/alien-pass/releases) —
+sich am Desktop importieren und umgekehrt. Verteilung als Datei mit GPG-signierter Prüfsumme im [GitHub-Release](https://github.com/Alien-Investor/alien-pass/releases) —
 nicht auf Flathub, kein automatisches Update.
 
 **Voraussetzung:** Flatpak mit dem Flathub-Remote (für die Laufzeit `org.freedesktop.Platform` 25.08, die flatpak beim Installieren nachlädt):
