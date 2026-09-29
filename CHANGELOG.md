@@ -1,5 +1,16 @@
 # Changelog — Alien Pass
 
+## v1.16 — 2026-09-29
+
+Kleine Verbesserungen an Oberfläche, Import und Handbuch. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten.
+- **Desktop — Eintrag bleibt stehen:** In der zweispaltigen Ansicht scrollt jetzt nur die Liste links, der geöffnete Eintrag rechts bleibt
+  oben stehen. Bisher rutschte er mit der Liste weg, und bei vielen Einträgen musste man zum Ansehen wieder hochscrollen.
+- **Import:** Eine CSV-Zeile oder ein Proton-Eintrag, dessen Titel nur aus unsichtbaren Steuerzeichen besteht, wird als unbrauchbar
+  übersprungen, statt als Eintrag ohne Titel anzukommen (gefunden durch einen neuen Zufallstest der Import-Prüfungen).
+- **Handbuch — Backup & Sync:** Syncthing als Empfehlung für mehrere Geräte (kein Konto, kein Cloud-Speicher; Kabel oder Stick gehen
+  genauso), Schritt für Schritt mit Handy und Desktop, eigener Dateiname am Desktop, alte Backups nach einem Passphrase-Wechsel aufräumen.
+- **Handbuch — Passwort ändern ohne Risiko:** das neue Passwort erst als Zusatzfeld speichern und nach erfolgreicher Anmeldung übernehmen.
+
 ## v1.15 — 2026-09-26
 
 Nacharbeit aus dem internen Audit run-9 (nachgeholter Import) und dem internen Diff-Review davor. v1.14 wurde nie veröffentlicht, ihr Inhalt steckt hier mit drin. Keine Änderung an Tresor-Format, Verschlüsselung oder Daten.
