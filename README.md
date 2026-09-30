@@ -10,23 +10,37 @@ Schwester-App des [Sachwert-Tresors](https://github.com/Alien-Investor/sachwert-
 
 ## 📲 Installieren (Android / GrapheneOS)
 
-Bewusst **nicht im Google Play Store**. Verteilung über signierte Releases hier auf GitHub
-und im [Zap Store](https://zapstore.dev). Empfohlen über **[Obtainium](https://github.com/ImranR98/Obtainium)**:
+Bewusst **nicht im Google Play Store**. Verteilung über signierte Releases von der eigenen Download-Adresse
+[api.alien-investor.org/downloads/alien-pass/](https://api.alien-investor.org/downloads/alien-pass/) und im [Zap Store](https://zapstore.dev).
+Jedes Release liegt zusätzlich als Spiegel hier auf [GitHub](https://github.com/Alien-Investor/alien-pass/releases).
+Empfohlen über **[Obtainium](https://github.com/ImranR98/Obtainium)**, in Obtainium **„App hinzufügen“**:
 
-1. In Obtainium **„App hinzufügen"** → diese Repo-URL eintragen:
+1. **„Quell-URL der App“**:
    ```
-   https://github.com/Alien-Investor/alien-pass
+   https://api.alien-investor.org/downloads/alien-pass/
    ```
-2. Quell-Typ wird als **GitHub** erkannt → **Hinzufügen** → **Installieren**.
-3. Updates meldet Obtainium automatisch.
+2. Unter **„Zusatzoptionen für HTML“** → **„Versionsextraktion per RegEx“**:
+   ```
+   alien-pass-([0-9]+(\.[0-9]+)+)\.apk$
+   ```
+3. **„Zu verwendende Gruppe abgleichen“**: `$1`
+4. **„Expected signing certificate hashes“** (so heißt es auch in der deutschen Fassung):
+   ```
+   73:C7:17:D8:05:6C:6A:02:B0:8B:AB:BA:24:18:17:F3:93:E4:6D:EA:03:19:D4:FA:26:B8:C3:D8:E1:F9:3C:95
+   ```
+5. Mit dem **„+“** hinzufügen → **Installieren**. Updates meldet Obtainium automatisch.
 
-> **Umgezogen (seit v1.16):** Die Releases liegen jetzt auf GitHub statt auf Codeberg. Im Zap Store ändert sich nichts.
-> Obtainium kann die Quelle einer App nicht bearbeiten, deshalb einmalig: vorher ein `.vault`-Backup anlegen,
-> den Eintrag „Alien Pass“ entfernen und im Dialog nur **„Aus Obtainium entfernen“** eingeschaltet lassen
-> (**„Vom Gerät deinstallieren“ aus**, das löscht App und Daten), dann die GitHub-URL oben neu hinzufügen. Obtainium erkennt die installierte App,
+Die RegEx braucht Obtainium, um auf einer Download-Seite die Versionsnummer aus dem Dateinamen zu lesen; ohne sie kann es die
+installierte Version nicht vergleichen. Der Zertifikats-Hash ist eine harte Sperre: Eine APK mit anderem Schlüssel installiert Obtainium nicht.
+Zum Kopieren und mit „In Obtainium öffnen“ (alles vorbelegt): [Obtainium-Blatt auf der Website](https://alien-investor.org/alien-pass.html#obtainium).
+
+> **Schon über GitHub eingerichtet?** Dann musst du nichts ändern, GitHub bekommt jedes Release weiter als Spiegel.
+> **Noch mit einer Codeberg-Adresse?** Dort erscheinen keine Releases mehr. Obtainium kann die Quelle einer App nicht bearbeiten, deshalb einmalig:
+> vorher ein `.vault`-Backup anlegen, den Eintrag „Alien Pass“ entfernen und im Dialog nur **„Aus Obtainium entfernen“** eingeschaltet lassen
+> (**„Vom Gerät deinstallieren“ aus**, das löscht App und Daten), dann wie oben neu hinzufügen. Obtainium erkennt die installierte App,
 > Signatur und Paket-ID bleiben gleich.
 
-**Ohne Obtainium:** [Neuestes Release](https://github.com/Alien-Investor/alien-pass/releases/latest) → `.apk` laden und installieren.
+**Ohne Obtainium:** [Download-Seite](https://api.alien-investor.org/downloads/alien-pass/) → `.apk` laden und installieren.
 
 **Signatur-Fingerprint** (SHA-256 des Signatur-Zertifikats, über alle Versionen gleich — mit
 [AppVerifier](https://github.com/soupslurpr/AppVerifier) prüfen):
