@@ -1,5 +1,13 @@
 # Changelog — Alien Pass
 
+## v1.17 — 2026-09-30
+
+Kleiner Fix für die Desktop-Fassung und eine neuere Engine. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten.
+- **Desktop — Cursor beim Auge:** Wer beim Tippen eines Passworts aufs Auge klickte, um es kurz anzusehen, fand den Cursor danach am
+  Zeilenanfang, und die nächsten Zeichen landeten vorne. Cursor und Markierung bleiben jetzt beim Aufdecken und Verdecken stehen.
+- **Desktop — Electron 44.5.1** (vorher 44.4.3): enthält die seither nachgereichten Sicherheitskorrekturen aus Chromium und V8.
+  Das Archiv ist wie bisher per Hash gepinnt.
+
 ## v1.16 — 2026-09-29
 
 Kleine Verbesserungen an Oberfläche, Import und Handbuch. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten.

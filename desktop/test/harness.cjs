@@ -133,6 +133,19 @@ async function restart(){
   await sleep(500);
   R('Sperrbildschirm: markierte Passphrase nach dem Entsperren aus der Auswahl', (await clipboard.selection.readText())!==PP);
   await clipboard.selection.clear();
+  // Auge beim Tippen (v1.17): Chromium setzt beim type-Wechsel die Auswahl auf 0 — echte Tasten und echter Mausklick aufs Auge
+  const key=c=>{ win.webContents.sendInputEvent({type:'char',keyCode:c}); };
+  const press=k=>{ win.webContents.sendInputEvent({type:'keyDown',keyCode:k}); win.webContents.sendInputEvent({type:'keyUp',keyCode:k}); };
+  const eye=async()=>{ const r=await js(`(()=>{const b=document.querySelector('[data-showpass="f-pass"]').getBoundingClientRect();return {x:Math.round(b.left+b.width/2),y:Math.round(b.top+b.height/2)};})()`);
+    win.webContents.sendInputEvent({type:'mouseDown',x:r.x,y:r.y,button:'left',clickCount:1}); win.webContents.sendInputEvent({type:'mouseUp',x:r.x,y:r.y,button:'left',clickCount:1}); await sleep(300); };
+  const cur=()=>js(`(()=>{const f=document.getElementById('f-pass');return {v:f.value,s:f.selectionStart,e:f.selectionEnd,t:f.type,foc:document.activeElement===f};})()`);
+  await js(`App.newEntry(); true`); await sleep(400); await js(`document.getElementById('f-pass').focus(); true`); await sleep(100);
+  for(const c of 'abcdef') key(c); await sleep(200);
+  await eye(); key('X'); await sleep(200);
+  { const c=await cur(); R('Auge beim Tippen: Cursor bleibt am Ende (aufdecken)', c.v==='abcdefX'&&c.s===7&&c.t==='text'&&c.foc, {s:c.s,t:c.t,foc:c.foc,len:c.v.length}); }
+  press('Left'); press('Left'); await sleep(100); await eye(); key('Y'); await sleep(200);
+  { const c=await cur(); R('Auge beim Tippen: Cursor mitten im Wort bleibt stehen (verdecken)', c.v==='abcdeYfX'&&c.s===6&&c.t==='password', {s:c.s,t:c.t,v_ok:c.v==='abcdeYfX'}); }
+  await js(`App.tab('list')`).catch(()=>{}); await sleep(300);
 }
 // Sperre beim Minimieren (Audit run-6 #1): backgroundThrottling:false schaltet visibilitychange ab, die Hülle meldet selbst
 async function background(){

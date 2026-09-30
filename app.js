@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.16';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.17';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -1194,7 +1194,13 @@ const App = (function(){
   // data-showpass-Augen innerhalb eines Bereichs zurücksetzen (Feld wieder type=password)
   function maskInputs(scope){ document.querySelectorAll((scope||'')+' [data-showpass]').forEach(b=>setEye(b,false)); }
   // Auge im Passwortfeld (statt „anzeigen“-Kästchen): Knopf mit data-showpass=<Feld-ID>, Zustand in aria-pressed
-  function setEye(b,on){ b.setAttribute('aria-pressed',on?'true':'false'); b.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(f) f.type=on?'text':'password'; }); }
+  // Chromium setzt beim type-Wechsel die Auswahl auf 0 — nach echtem Mausklick erst VERSPÄTET (selectionchange nach dem click,
+  // Messung Electron 44.5.1 am 30.09.2026). Beim fokussierten Feld Cursor/Auswahl merken, sofort UND nach dem Zurücksetzen wiederherstellen (v1.17)
+  function setEye(b,on){ b.setAttribute('aria-pressed',on?'true':'false'); b.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(!f) return;
+    const keep=document.activeElement===f, s=f.selectionStart, e=f.selectionEnd, d=f.selectionDirection||'none', v=f.value, ty=on?'text':'password';
+    f.type=ty; if(!keep||s==null) return;
+    const put=()=>{ if(document.activeElement===f&&f.type===ty&&f.value===v) try{ f.setSelectionRange(s,e,d); }catch(_){} };
+    put(); setTimeout(put,0); }); }
   function togglePass(_,b){ if(b) setEye(b,b.getAttribute('aria-pressed')!=='true'); }
   function eyeWrap(inp){ const w=el('div','pw-wrap'), b=el('button','pw-eye'); b.type='button'; b.dataset.showpass=inp.id; b.setAttribute('aria-pressed','false'); b.title=tr('pw.toggle');
     if(inp.parentNode) inp.parentNode.insertBefore(w,inp); w.append(inp,b); return w; }

@@ -6,7 +6,14 @@
 #   SIGN_WITH=npub1cnlymdm5jz8eayycwynhze4s2zh9n0y04atce8ahxl5qfkptplls0s40hp zsp publish zapstore.yaml --offline
 
 repository: https://github.com/Alien-Investor/alien-pass
-# Nur die APK aus dem Release (dort liegt seit v1.7 auch das Flatpak)
+# APK von der eigenen Download-Seite (seit v1.17; GitHub ist nur Spiegel). Die Seite schreibt make-release.sh mit genau einem Link auf die aktuelle APK.
+release_source:
+  version:
+    url: https://api.alien-investor.org/downloads/alien-pass/
+    selector: "a"
+    match: "alien-pass-([0-9]+(?:\\.[0-9]+)+)\\.apk"
+  asset_url: https://api.alien-investor.org/downloads/alien-pass/alien-pass-{version}.apk
+# Nur die APK (im GitHub-Release liegt seit v1.7 auch das Flatpak)
 match: '.*\.apk$'
 pubkey: npub1cnlymdm5jz8eayycwynhze4s2zh9n0y04atce8ahxl5qfkptplls0s40hp
 
