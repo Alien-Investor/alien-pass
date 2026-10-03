@@ -1,5 +1,22 @@
 # Changelog — Alien Pass
 
+## v1.18 — 2026-10-03
+
+Kleine Verbesserungen an der Desktop-Fassung. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten.
+- **Desktop — Spendenlink:** Der Link „Energie aufladen · Spenden“ im Fuß öffnet jetzt die Spendenseite im System-Browser, je nach
+  Sprache auf Deutsch oder Englisch. Bisher passierte am Desktop nichts. Die Hülle lässt dafür genau diese zwei Adressen nach außen, höchstens
+  eine je Sekunde; jede andere Adresse wird weiterhin verworfen. Das Flatpak bekommt dafür keine neue Berechtigung.
+- **Desktop — Auge bei markiertem Passwort:** War ein Passwort im Feld markiert und wurde dann aufgedeckt, stand es als markierter Klartext da.
+  Jetzt fällt die Markierung beim Aufdecken weg, der Cursor steht am Ende.
+- **Desktop — Tab ins Passwortfeld:** Springt man mit Tab in ein gefülltes Passwortfeld, markiert der Browser den Inhalt, und unter X11
+  landet er in der Auswahl für den Mittelklick. Die App meldet das jetzt der Hülle (auch bei gehaltener Tab-Taste), die die Auswahl wie bei der Maus mit der Kopier-Frist
+  bzw. beim Sperren wieder löscht.
+- **Desktop — markiertes Passwort nach einem Klick:** War ein Passwort im Feld markiert (per Maus, Strg+A oder Tab) und klickte man danach woanders hin,
+  zum Beispiel auf „Einstellungen“, blieb es in der Mittelklick-Auswahl liegen: Weder die Kopier-Frist noch das Sperren löschten es. Jetzt wird es wie
+  vorgesehen gelöscht. Strg+C auf einer solchen Markierung läuft weiter über die geschützte Zwischenablage.
+- **Desktop — Scrollbalken** im Neon-Look statt grauer Standardbalken.
+- **Einrichtung — „Passphrase vorschlagen“:** zeigt wieder Stärke-Balken und Hinweis an, und das Auge steht richtig auf „aufgedeckt“.
+
 ## v1.17 — 2026-09-30
 
 Kleiner Fix für die Desktop-Fassung und eine neuere Engine. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten.

@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.17';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.18';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -344,6 +344,7 @@ function applyI18n(){
   });
   document.documentElement.setAttribute('lang',LANG);
   const lb=document.getElementById('lang-btn'); if(lb) lb.textContent=(LANG==='de'?'DE':'EN');
+  const dl=document.getElementById('donate-link'); if(dl) dl.href='https://alien-investor.org/'+(LANG==='en'?'en/':'')+'spenden.html';   // Desktop-Hülle: genau diese zwei in LINKS
   document.querySelectorAll('.pw-eye').forEach(b=>{ b.title=tr('pw.toggle'); });
   if(typeof App!=='undefined'&&App.syncCombos) App.syncCombos();   // Optionen tragen data-i18n → Knopfbeschriftung nachziehen
 }
@@ -1199,7 +1200,9 @@ const App = (function(){
   function setEye(b,on){ b.setAttribute('aria-pressed',on?'true':'false'); b.dataset.showpass.split(',').forEach(id=>{ const f=$(id); if(!f) return;
     const keep=document.activeElement===f, s=f.selectionStart, e=f.selectionEnd, d=f.selectionDirection||'none', v=f.value, ty=on?'text':'password';
     f.type=ty; if(!keep||s==null) return;
-    const put=()=>{ if(document.activeElement===f&&f.type===ty&&f.value===v) try{ f.setSelectionRange(s,e,d); }catch(_){} };
+    // Beim Aufdecken eine Markierung nicht als Klartext-Markierung wiederherstellen (X11 legt markierten Text in PRIMARY) — Cursor ans Ende (Querfund Alien Notes Audit run-4 B-V1)
+    const s2=on&&s!==e?e:s;
+    const put=()=>{ if(document.activeElement===f&&f.type===ty&&f.value===v) try{ f.setSelectionRange(s2,e,d); }catch(_){} };
     put(); setTimeout(put,0); }); }
   function togglePass(_,b){ if(b) setEye(b,b.getAttribute('aria-pressed')!=='true'); }
   function eyeWrap(inp){ const w=el('div','pw-wrap'), b=el('button','pw-eye'); b.type='button'; b.dataset.showpass=inp.id; b.setAttribute('aria-pressed','false'); b.title=tr('pw.toggle');
@@ -1643,7 +1646,7 @@ const App = (function(){
   function genCopy(){ copyText(genValue,'what.gen'); }
   function genUse(){ if(!genValue) return; if(!editId&&!$('f-title').value) { editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); } if(formType!=='login') setEntryType('login'); $('f-pass').value=genValue; meterForm(); tab('add'); }
   function genIntoForm(){ $('fg-panel').classList.remove('hidden'); const b=document.querySelector('[data-showpass="f-pass"]'); if(b) setEye(b,true); else $('f-pass').type='text'; fgGen(); }   // „Generieren“: Panel auf, EINMAL aufdecken, erzeugen
-  function suggestPass(){ const r=genWords(6,'-',false,false); if(!r.pw) return toast(tr('toast.wordsMissing')); $('setup-pass1').value=r.pw; $('setup-pass2').value=r.pw; $('setup-pass1').type=$('setup-pass2').type='text'; $('setup-show').checked=true; meterSetup(); toast(tr('toast.suggest')); }
+  function suggestPass(){ const r=genWords(6,'-',false,false); if(!r.pw) return toast(tr('toast.wordsMissing')); $('setup-pass1').value=r.pw; $('setup-pass2').value=r.pw; document.querySelectorAll('[data-showpass="setup-pass1"],[data-showpass="setup-pass2"]').forEach(b=>setEye(b,true)); meterSetup(); toast(tr('toast.suggest')); }   // Augen über setEye: #setup-show gab es seit dem Auge nicht mehr → TypeError, kein Balken/Toast (Release-Audit v1.18 B-2)
   function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const c=passCheck(p), st=c.level; const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren();
     const txt=p.length<12?tr('pass.s0'):c.weak?tr('pass.weak',{why:whyText(c.why)}):tr('pass.est',{s:tr('pass.s'+st)})+(c.why.length?' · '+tr('pass.has',{why:whyText(c.why)}):'');
     const s=el('span',null,'▮'.repeat(st+1)+'▯'.repeat(3-st)+' '+txt); s.style.color=col; o.appendChild(s); }
@@ -1663,12 +1666,22 @@ const App = (function(){
     // Ohne Meldung könnte die Hülle die Auswahl nie aufräumen. Über die Brücke geht der Text nur zum Hashen (Hauptprozess salzt, kein Orakel).
     const selText=()=>{ const a=document.activeElement;
       if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') return a.value.substring(a.selectionStart,a.selectionEnd);
-      const g=window.getSelection(); return g?String(g):''; };
+      // Liegt der Fokus nicht im Feld (Klick auf einen Knopf), liefert getSelection() für ein markiertes Passwortfeld dessen PUNKTE — als Meldung überschrieben
+      // sie den Hash des echten Werts in PRIMARY, Sperren und Frist ließen ihn liegen (Gerätetest 03.10.2026). Chromium beschreibt diese Auswahl als LEERE Range
+      // an der Stelle des Feldes (gemessen), String() liefert trotzdem die Punkte. Dann das Feld dort auflösen und seinen echten markierten Wert nehmen — so stimmt
+      // der Hash, und Strg+C/Strg+X laufen weiter über die Brücke statt über Chromium ohne KDE-Hinweis (Runde 4); sonst nichts.
+      const g=window.getSelection(); if(!g||!g.rangeCount) return '';
+      const r=g.getRangeAt(0);
+      if(r.collapsed){ const n=r.startContainer&&r.startContainer.childNodes?r.startContainer.childNodes[r.startOffset]:null;
+        if(n&&(n.tagName==='INPUT'||n.tagName==='TEXTAREA')&&typeof n.selectionStart==='number'&&n.selectionStart!==n.selectionEnd) return n.value.substring(n.selectionStart,n.selectionEnd);
+        return ''; }
+      return String(g); };
     // Auch auf Sperr-/Einrichtungsbildschirm (DEK null): eine markierte Master-Passphrase läge sonst unbegrenzt in der Auswahl —
     // dort gilt die Standard-Frist, beim Verlassen des Bildschirms wird sofort gelöscht (leaveGate, Audit run-7 #2)
-    const onSel=()=>{ const t=selText(); if(!t) return;
+    const report=t=>{ if(!t) return;
       let p=null; try{ p=DESK.clip.selected(t); }catch(_){ p=null; }
       if(p&&p.then) p.then(()=>{ if(!clipOwnedAt) armClip(); },()=>{}); };
+    const onSel=()=>report(selText());
     document.addEventListener('mouseup',onSel);
     // Strg+C auf Markiertem: nicht Chromium kopieren lassen (ohne KDE-Hinweis, ohne Löschen → Klipper-Verlauf), sondern über die Brücke
     document.addEventListener('copy',ev=>{ const t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel'); });
@@ -1679,6 +1692,16 @@ const App = (function(){
       let done=false; try{ done=document.execCommand('delete'); }catch(_){}
       if(!done){ a.setRangeText('',a.selectionStart,a.selectionEnd,'end'); a.dispatchEvent(new Event('input',{bubbles:true})); } });
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&(ev.key||'').toLowerCase()==='a')) onSel(); });
+    // Fokus in ein Feld (Tab, focus()/select(), Rückkehr aus dem Dialog) kann dessen ganzen Inhalt markieren — Chromium legt ihn auch aus type=password in PRIMARY
+    // (gemessen 03.10.2026, Release-Audit v1.18 B-1). Nach JEDER Fokusbewegung melden, nicht erst beim Loslassen von Tab: gehaltenes Tab wanderte sonst auf einen
+    // Knopf weiter (keyup dort → nichts zu melden), und Weitertippen vor dem Loslassen hob die Markierung auf, bevor sie gemeldet war (Runde 2, R2-1).
+    // Im Timer direkt vom Feld lesen (ein Feld behält seine Markierung nach dem Blur): wandert der Fokus vor dem Timer schon weiter, wird trotzdem gemeldet,
+    // und der Timer des nächsten Feldes überschreibt den Hash in der richtigen Reihenfolge. Nur Textfelder (Kästchen/Regler haben kein selectionStart, Runde 3 N-1/N-2).
+    document.addEventListener('focusin',ev=>{ const a=ev.target; if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||typeof a.selectionStart!=='number') return;
+      setTimeout(()=>{ try{ report(a.value.substring(a.selectionStart,a.selectionEnd)); }catch(_){} },0); });
+    // Vor jeder Taste synchron (Capture, vor der Standardaktion): Weitertippen klappt die Markierung zusammen, PRIMARY behält sie aber — Blink zieht Eingaben
+    // dem Timer vor, bei Auto-Type kam die Taste sonst vor der focusin-Meldung (Runde 3 N-1)
+    document.addEventListener('keydown',onSel,true);
   }
   if(DESK&&typeof DESK.onLock==='function') DESK.onLock(()=>{ if(DEK||pendingUnlock) lock(); });   // Hülle meldet Ruhezustand/Bildschirmsperre — nur außerhalb des Flatpaks wirksam (im Käfig kein logind; Portal-Weg bewusst verworfen)
   const BIO = (isNative && CAP.Plugins && CAP.Plugins.Biometric) ? CAP.Plugins.Biometric : null;   // Fingerabdruck-Plugin (patch-hardening.mjs), Web: kein Slot
