@@ -12,7 +12,11 @@ const WWW=path.join(__dirname,'www');
 const TYPES={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
   '.svg':'image/svg+xml','.woff2':'font/woff2','.png':'image/png'};
 const KDE_HINT='electron application/osclipboard;format="x-kde-passwordManagerHint"';   // Klipper übernimmt so markierte Einträge nicht
-const CLIP_MAX=20000;
+// Markierungen werden nur gehasht: eigene Grenze, damit auch eine seitenweite Markierung (lange Eintragsliste, Strg+A außerhalb eines Feldes) gemeldet
+// und gelöscht wird — mit 20.000 wies die Hülle sie ab, und sie lag unbegrenzt in PRIMARY (Querfund Alien Notes v1.7 B-M1). Kopien ebenso, sonst scheiterte
+// Strg+C auf derselben Markierung mit „Manuell kopieren“ (Fassung Sachwert-Tresor v3.7).
+const CLIP_MAX=16*1024*1024;
+const SEL_MAX=16*1024*1024;
 const FILE_MAX=20*1024*1024;   // wie MAX_FILE_BYTES in app.js
 // Tresor als eigene Datei statt im Browser-Speicher. Im Flatpak liegt XDG_DATA_HOME unter ~/.var/app/<id>/data.
 const DATA_DIR=path.join(process.env.XDG_DATA_HOME||path.join(app.getPath('home'),'.local','share'),'alien-pass');
@@ -69,27 +73,67 @@ else {
   const SALT=crypto.randomBytes(16);
   const sha=t=>crypto.createHash('sha256').update(SALT).update(String(t)).digest('hex');
   let owned=null;      // Hash des zuletzt von uns kopierten Texts — nie der Text selbst
-  let ownedSel=null;   // Hash des zuletzt in der App markierten Texts (X11-Auswahl, Mittelklick) — Klipper speichert sie nicht, aber jedes Programm liest sie
-  async function clearOwned(){
-    if(owned){ let cur=''; try{ cur=await clipboard.readText(); }catch(_){}
-      if(cur&&sha(cur)===owned) await clipboard.clear();   // nur löschen, was noch von uns stammt; fremde Kopien bleiben
-      owned=null; }
-    if(ownedSel){ let cur=''; try{ cur=await clipboard.selection.readText(); }catch(_){}
-      if(cur&&sha(cur)===ownedSel){ try{ await clipboard.selection.clear(); }catch(_){} }   // ebenso nur die eigene Markierung
-      ownedSel=null; }
+  // Hashes der zuletzt in der App markierten Texte (X11-Auswahl, Mittelklick) — Klipper speichert sie nicht, aber jedes Programm liest sie.
+  // Ein RING statt eines einzelnen Hashes (R2-N2, gemessen 03.10.2026): ein Klick links neben/knapp über ein Feld mit alter interner Markierung
+  // lässt die leere Range auf DIESES Feld zeigen, selText meldet dessen Wert — mit nur einem Hash verdrängte das den des Passworts, das noch in
+  // PRIMARY lag, und Sperren/Frist ließen es liegen. Im Ring kann eine falsche Meldung eine richtige nicht mehr verdrängen. Grenze: 8 Meldungen.
+  const SEL_RING=8;
+  let ownedSel=[];
+  // Jeder einzelne Zugriff auf die Zwischenablage hat eine eigene Frist (Release-Audit v1.19 A-1, Runde 2 R2-1): ein hängender X11-Besitzer (eingefrorenes
+  // fremdes Programm) blockiert sonst die Kette — und eine Frist für das ganze Glied verwarf die schon übernommenen Hashes, PRIMARY blieb ungeprüft.
+  const LINK_MS=2000, LATE=Symbol('spät');
+  // Ablehnung zählt wie Hängen (Nachprüfung N-5): sonst galt ein abgelehntes readText als „kein Text“, ein abgelehntes clear als Erfolg — Hashes weg.
+  const within=(f,ms)=>Promise.race([Promise.resolve().then(f).catch(()=>LATE),new Promise(r=>setTimeout(()=>r(LATE),ms))]);
+  // Alle Hashes, deren Löschen noch nicht BESTÄTIGT ist — liegengeblieben oder gerade in Arbeit. Einfüge-Reihenfolge = Alter: die Kappung wirft die
+  // ältesten (N-1), und der direkte Durchgang beim Beenden sieht auch die Hashes eines laufenden Glieds (N-4).
+  const pending=new Set(); let retryTimer=null, retryN=0;
+  const keep=h=>{ pending.delete(h); pending.add(h); while(pending.size>32) pending.delete(pending.values().next().value); };
+  async function clearOwned(mode){
+    // mode 'retry' (Nachfassen): nur die liegengebliebenen Hashes — sonst löschte das Nachfassen eine frische Kopie sofort mit (Runde 2, gemessen).
+    // Eindeutiger Wert, weil run() das Ergebnis des vorigen Glieds als Argument durchreicht.
+    // Sonst: Hashes ZUERST übernehmen und freigeben — readText() ist in Electron 44 asynchron; eine Meldung/Kopie, die während der awaits ankommt,
+    // gehört zum nächsten Löschen (Querfund Sachwert-Tresor v3.7 A-1).
+    if(mode!=='retry'){ for(const h of [owned,...ownedSel]) if(h) keep(h); owned=null; ownedSel=[]; }
+    const mine=[...pending]; if(!mine.length) return;
+    // CLIPBOARD und PRIMARY unabhängig voneinander, jeder Zugriff mit eigener Frist: ein hängender X11-Besitzer (eingefrorenes Programm) der einen
+    // blockiert die andere nicht (Runde 2 R2-1). CLIPBOARD gegen Kopie UND Markierungen: Klipper spiegelt Markierungen nicht zurück (gemessen), die Abwehr
+    // kostet nichts (A-4). PRIMARY gegen Markierungen UND die eigene Kopie: Klipper spiegelt Kopien (Einstellung „Auswahl und Zwischenablage
+    // synchronisieren“) auch mit KDE-Hinweis in PRIMARY (gemessen 03.10.2026, Tresor run-7 M-1 und am Pass-Gerät): sonst bliebe ein kopiertes PASSWORT
+    // per Mittelklick abrufbar. Gelöscht wird nur, was noch von uns stammt; fremde Kopien bleiben.
+    const one=async(buf)=>{ const cur=await within(()=>buf.readText(),LINK_MS); if(cur===LATE) return false;
+      if(cur&&mine.includes(sha(cur))) return (await within(()=>buf.clear(),LINK_MS))!==LATE;
+      return true; };
+    const [okC,okP]=await Promise.all([one(clipboard),one(clipboard.selection)]);
+    if(okC&&okP){ for(const h of mine) pending.delete(h); retryN=0; return; }
+    // Nicht fertig: die Hülle fasst selbst nach — erst je 1 s, nach 30 Versuchen alle 30 s weiter, solange etwas offen ist (N-3)
+    if(!retryTimer) retryTimer=setTimeout(()=>{ retryTimer=null; run(()=>clearOwned('retry')).catch(()=>{}); },retryN++<30?1000:30000);
   }
+  // Alle Zwischenablage-Schritte in EINER Kette, in IPC-Reihenfolge: ein write/selected kann sich nicht mehr in ein laufendes Löschen schieben,
+  // und das Beenden wartet das letzte Löschen ab (Querfund Sachwert-Tresor v3.7 R2-1 — clipboard.* ist in Electron 44 asynchron)
+  let clipQ=Promise.resolve();
+  const run=f=>(clipQ=clipQ.then(f,f));
+  let quitting=false, quitDone=false;
   ipcMain.handle('clip:write',async(e,text)=>{
     if(!fromApp(e)) throw new Error('denied');
     if(typeof text!=='string'||!text||text.length>CLIP_MAX) throw new Error('bad');
-    await clipboard.write([new ClipboardItem({'text/plain':new Blob([text],{type:'text/plain'}),[KDE_HINT]:new Blob(['secret'])})]);
-    owned=sha(text); return true;
+    if(quitting) throw new Error('quitting');   // landete sonst nach dem letzten Löschen (R2-3)
+    return run(async()=>{
+      const w=clipboard.write([new ClipboardItem({'text/plain':new Blob([text],{type:'text/plain'}),[KDE_HINT]:new Blob(['secret'])})]);
+      const r=await Promise.race([Promise.resolve(w).then(()=>true),new Promise(r=>setTimeout(()=>r(LATE),LINK_MS))]);
+      if(r!==LATE){ owned=sha(text); return true; }
+      // Zu spät: die App meldet „Manuell kopieren“ und setzt keine Frist — landet die Kopie doch noch, sofort wieder löschen (R2-2)
+      // Mehrfach nachfassen (sofort, nach 1 s, nach 3 s): Klipper spiegelt erst NACH dem Landen in PRIMARY (Nachprüfung N-2)
+      Promise.resolve(w).then(()=>{ const h=sha(text); for(const d of [0,1000,3000]) setTimeout(()=>{ keep(h); run(()=>clearOwned('retry')).catch(()=>{}); },d); },()=>{});
+      throw new Error('timeout');
+    });
   });
   ipcMain.handle('clip:selected',async(e,text)=>{   // App meldet markierten Text; gemerkt wird nur der Hash
     if(!fromApp(e)) throw new Error('denied');
-    if(typeof text!=='string'||text.length>CLIP_MAX) throw new Error('bad');
-    ownedSel=text?sha(text):null; return true;
+    if(typeof text!=='string'||text.length>SEL_MAX) throw new Error('bad');
+    if(!text) return true;   // leere Meldung verdrängt nichts
+    const h=sha(text); return run(()=>{ ownedSel=ownedSel.filter(x=>x!==h); ownedSel.push(h); if(ownedSel.length>SEL_RING) ownedSel.shift(); return true; });
   });
-  ipcMain.handle('clip:clear',async e=>{ if(!fromApp(e)) throw new Error('denied'); await clearOwned(); return true; });
+  ipcMain.handle('clip:clear',async e=>{ if(!fromApp(e)) throw new Error('denied'); await run(()=>clearOwned()); return true; });
 
   // Vollständig + atomar schreiben: desktop/atomic.js (eigenes Modul, damit es einzeln unter ulimit geprüft werden kann)
   // Temp-Reste nach einem Absturz entfernen — sie können nach einem Passphrase-Wechsel einen Alt-Stand halten
@@ -177,8 +221,11 @@ else {
     powerMonitor.on('lock-screen',lockApp);
   });
 
-  // Beim Beenden die eigene Kopie aus der Zwischenablage nehmen
-  let quitting=false;
-  app.on('before-quit',ev=>{ if(quitting||(!owned&&!ownedSel)) return; ev.preventDefault(); quitting=true; clearOwned().catch(()=>{}).finally(()=>app.quit()); });
+  // Beim Beenden die eigene Kopie aus der Zwischenablage nehmen. Höchstens LINK_MS auf die Kette warten (ein noch laufendes Schreiben/Löschen, R2-1 der
+  // v3.7-Runde), steht sie länger, direkt an ihr vorbei löschen (Release-Audit v1.19 R2-3) — zusammen höchstens etwa 5 s. Ein zweites app.quit()
+  // während des Wartens wird abgefangen (quitDone, A-3); clip:write ist ab hier abgewiesen.
+  app.on('before-quit',ev=>{ if(quitDone) return; ev.preventDefault(); if(quitting) return; quitting=true;
+    const cap=(p,ms)=>Promise.race([Promise.resolve(p).then(()=>true,()=>true),new Promise(r=>setTimeout(()=>r(false),ms))]);
+    cap(run(()=>clearOwned()),LINK_MS).then(done=>done?true:cap(clearOwned(),LINK_MS+500)).catch(()=>{}).finally(()=>{ quitDone=true; app.quit(); }); });
   app.on('window-all-closed',()=>app.quit());
 }

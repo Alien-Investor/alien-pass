@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.18';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.19';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -136,7 +136,7 @@ const I18N = {
   "help.h8":"Migrating from Google, Apple, Firefox, Proton Pass, KeePassXC, Bitwarden and others",
   "help.l8":"<li><strong>Proton Pass (recommended: PGP):</strong> in the web client or browser extension (the mobile apps cannot export) gear → Export → format <strong>PGP-encrypted</strong>, choose a passphrase. Move the ZIP unchanged to the phone (Syncthing, USB) and pick it in Alien Pass under Backup → Proton export. The passphrase is only used for decryption and is not stored.</li><li>Logins (incl. TOTP, further URLs and extra fields in the notes), notes, credit cards, aliases, Wi-Fi entries, identities and SSH keys (as notes) come over. Proton vaults become categories, pinned items become favourites. File attachments and the trash are not imported.</li><li><strong>Google Password Manager / Chrome:</strong> in Chrome: menu → Passwords and autofill → Google Password Manager → Settings → Export passwords (or on passwords.google.com under Settings). The CSV file ends up in the browser's Downloads folder.</li><li><strong>Apple Passwords:</strong> Mac only: Passwords app → File → Export All Passwords to File. One-time codes (TOTP) come along.</li><li><strong>Firefox:</strong> address about:logins → menu ⋯ → Export Passwords…. Firefox stores no titles — the hostname of the address becomes the title.</li><li><strong>KeePassXC:</strong> Database → Export → CSV file. Groups become categories.</li><li><strong>Bitwarden:</strong> web vault: Tools → Export → format .csv (extension: Settings → Vault → Export vault). Folders become categories.</li><li><strong>LastPass:</strong> web vault → Advanced Options → Export. Folders become categories, secure notes become notes.</li><li><strong>1Password:</strong> desktop app → File → Export (Windows: ⋯ menu in the sidebar → Export) → format CSV; contains logins only. The first tag becomes the category, favourites stay favourites.</li><li><strong>NordPass:</strong> Settings (gear) → Import and Export → Export items. Folders become categories; cards and identities are not imported.</li><li><strong>Other managers:</strong> any CSV with columns for title or name (or URL) and password is read; user, URL, notes, TOTP, folder and favourite are recognised by column name.</li><li><strong>If “Lock in background” is set to “immediately”</strong>, the Android app locks when the file picker opens (not on the desktop: the file dialog does not count as background). The chosen file is not lost: after unlocking, the import continues with exactly this file — for a .vault backup and the PGP export with the passphrase prompt.</li><li><strong>Delete the CSV afterwards</strong> — it contains all passwords in plaintext. The PGP export stays encrypted and may remain.</li>",
   "help.hDesk":"Desktop version (Linux)",
-  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background and on quit, but only if its own copy is still there. The same applies to text you select with the mouse in the app (on Linux instantly pasteable with a middle click); Ctrl+C and Ctrl+X in the app copy like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when the window is minimised or hidden (setting “Lock in background” — “background” here means minimised or hidden; switching to another window does not count, but it clears typed passphrases and PINs). On<strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
+  "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background, on lock and on quit, but only if its own copy is still there. The same applies to text you select in the app, with mouse or keyboard, including Tab into a filled password field (on Linux instantly pasteable with a middle click). Klipper can mirror every copy into this middle-click selection as well (setting “Keep the selection and clipboard the same”) — the app clears it there too. Selected text does not carry the KDE mark: if Klipper is set to keep the selection in its history, turn that off. Ctrl+C and Ctrl+X in the app copy like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when the window is minimised or hidden (setting “Lock in background” — “background” here means minimised or hidden; switching to another window does not count, but it clears typed passphrases and PINs). On <strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
   "help.h9":"Security in detail",
   "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests exactly two normal permissions, both for the fingerprint sensor: USE_BIOMETRIC and USE_FINGERPRINT (the latter only up to Android 8.1, brought in by the AndroidX biometric library). No internet, no storage, no contacts. Besides these the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing. It forbids screenshots and recents preview (FLAG_SECURE), excludes itself from cloud, adb and device-to-device backups (backup rules) and keeps its fields out of the Android autofill framework (since v1.13): another password manager set up as the autofill service no longer sees the passphrase fields and cannot offer to save them.</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory. With “immediately” the Android app also locks while the file picker is open — the chosen file (CSV, Proton, .vault) is not lost, the import continues after unlocking (for .vault and PGP with the passphrase prompt).</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, own AES block cipher checked against FIPS-197 vectors and WebCrypto in the test suite, integrity check); its keys are import-only and zeroed afterwards, the vault key never touches it.</li><li><strong>Limits:</strong> no autofill, no breach check. Fingerprint unlock is optional and honestly limited (see above). A passphrase cannot be recovered.</li>"
 };
@@ -995,7 +995,7 @@ const App = (function(){
   // Generator-Einstellungen: EIN Zustand für Generator-Tab und Formular-Panel (v1.4); nur Sitzung, nie im Tresor. Controls tragen data-gen=<key>.
   const GEN_DEFAULT={mode:'chars',len:20,wc:6,upper:true,lower:true,digits:true,symbols:true,noamb:false,sep:'-',cap:false,num:false};
   let GEN=Object.assign({},GEN_DEFAULT);
-  let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
+  let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, clipCopied=false, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
   let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
   let selMode=false, selIds=new Set(), shownIds=[];   // Mehrfachauswahl (v1.9): nur im RAM, Sperre räumt ab; shownIds = zuletzt gezeigte Zeilen (für „Alle“)
   const UNDO_MS=6000;   // so lange steht „Rückgängig“ nach dem Löschen im Toast
@@ -1218,8 +1218,10 @@ const App = (function(){
   // keepClip (v1.11): nur die Sofort-Sperre beim Verstecken (bgLock=0) setzt es — Kopiertes bleibt dann bis zum laufenden Zeitgeber stehen
   // (der native Pfad löscht auch im Hintergrund), sonst wäre Kopieren in eine andere App mit „sofort“ unmöglich (Gerätetest 26.09.2026).
   // Ohne Zeitgeber („nie“) und bei jeder anderen Sperre wird wie bisher sofort geleert. Der Schlüssel selbst geht in jedem Fall sofort weg.
+  // Stehen bleibt nur eine echte KOPIE (clipCopied) — eine bloße Markierung (Maus, Tab, Taste) startet die Frist auch, wird beim Sperren aber gelöscht
+  // (Querfund Alien Notes v1.7 R2-N1). `===true`: lock steht im App-Export, ein Event als Argument wäre sonst truthy.
   function lock(keepClip){
-    clearIdle(); stopTotp(); if(!(keepClip&&clipOwnedAt&&clipTimer)) clearClip();
+    clearIdle(); stopTotp(); if(!(keepClip===true&&clipCopied&&clipOwnedAt&&clipTimer)) clearClip();
     DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null; selMode=false; selIds=new Set(); shownIds=[];
     pendingUnlock=null; pendingSecret=null; pendingOtpauth=''; pendingProton=null;
     bioGen++; bioRearmDek=null; bioArmed=false; bioNeedsRearm=false;   // laufende Fingerabdruck-Vorgänge verfallen (Generation)
@@ -1253,7 +1255,7 @@ const App = (function(){
   let bgAway=false;
   function onHidden(){
     if(bgAway) return; bgAway=true;
-    hiddenAt=Date.now(); clearGateInputs(); if(DESK&&!DEK&&clipOwnedAt) clearClip();   // gesperrt: nur Gate-Markierungen können hier eigene sein
+    hiddenAt=Date.now(); clearGateInputs(); if(DESK&&!DEK&&clipOwnedAt&&!clipCopied) clearClip();   // gesperrt: Markierungen sofort weg; eine gesperrt kopierte Passphrase bleibt bis zur Frist (B-4)
     if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(true); }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen; Kopiertes bleibt bis zum Zeitgeber
   }
   function onShown(){
@@ -1270,7 +1272,9 @@ const App = (function(){
   document.addEventListener('visibilitychange',()=>{ if(document.hidden) onHidden(); else onShown(); });
   // 'blur' = Fensterwechsel (Alt-Tab): KEINE Sperre (feuert auch bei Systemdialogen), nur Gate-Hygiene — getippte PIN/Passphrase nie stehen
   // lassen (Audit run-8 #9). „Hintergrund“ im Sinn der Einstellung bleibt minimiert/versteckt, das Handbuch sagt es so.
-  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur') clearGateInputs(); else if(h) onHidden(); else onShown(); });
+  // Gesperrt und Fensterwechsel: eine bloße Markierung (Passphrase per Strg+A/Tab) sofort aus der Auswahl, eine echte Kopie bleibt zum Einfügen im anderen
+  // Fenster (Release-Audit v1.19 B-3, wie Sachwert-Tresor v3.7 B-3)
+  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur'){ clearGateInputs(); if(!DEK&&clipOwnedAt&&!clipCopied) clearClip(); } else if(h) onHidden(); else onShown(); });
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
   function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
@@ -1284,16 +1288,20 @@ const App = (function(){
     if(!clipOwnedAt) return; clipDue=true;
     const bg=document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus());
     if(bg&&!SC){ clipTimer=setTimeout(clearClip,1000); return; }     // Web-API braucht Fokus → vertagen; nativ (Android) darf ohne Fokus schreiben
-    if(!bg&&++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipDue=false; return; }   // Versuche nur im Vordergrund zählen (Audit run-1 #2)
-    const ok=()=>{ clipOwnedAt=0; clipDue=false; clipTries=0; clipDeadline=0; };
-    const retry=()=>{ if(!bg&&fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
+    if(!bg&&++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipCopied=false; clipDue=false; clipDeadline=0; return; }   // Versuche nur im Vordergrund zählen (Audit run-1 #2)
+    const ok=()=>{ clipOwnedAt=0; clipCopied=false; clipDue=false; clipTries=0; clipDeadline=0; };
+    // Desktop: nie fallbackCopy — dessen execCommand('copy') liefe durch den eigenen copy-Listener und kopierte ' ' über die Brücke (Toast, neue Frist);
+    // die Hülle fasst ohnehin selbst nach (Release-Audit v1.19 R2-A1). Nur neu planen.
+    const retry=()=>{ if(!DESK&&!bg&&fallbackCopy(' ')) ok(); else clipTimer=setTimeout(clearClip,1000); };
     let p=null; try{ p=SC?SC.clear():(navigator.clipboard&&navigator.clipboard.writeText(' ')); }catch(_){ p=null; }
     if(p&&p.then) p.then(ok,retry); else retry();
   }
   function copyText(text, whatKey){
     if(!text) return toast(tr('copy.empty'));
-    const what=tr(whatKey), s=settings().clipClear;
-    const done=()=>{ if(!DEK){ clipOwnedAt=Date.now(); clearClip(); return; } armClip(); toast(s>0?tr('copy.done',{what,s}):tr('copy.doneNoClear',{what})); };
+    const what=tr(whatKey), s=settings().clipClear, was=!!DEK;
+    // Sofort löschen nur, wenn WÄHREND des Schreibens gesperrt wurde. Gesperrt kopieren (Strg+C einer neuen Passphrase auf dem Einrichtungsbildschirm,
+    // nur am Desktop möglich) behält die Kopie mit Frist und Toast — vorher ging sie still verloren (Release-Audit v1.19 B-4, wie Sachwert-Tresor v3.7 B-1)
+    const done=()=>{ if(was&&!DEK){ clipOwnedAt=Date.now(); clearClip(); return; } armClip(); clipCopied=true; toast(s>0?tr('copy.done',{what,s}):tr('copy.doneNoClear',{what})); };
     const web=()=>{ let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(text); }catch(_){ p=null; }
       if(p&&p.then) p.then(done).catch(()=>{ fallbackCopy(text)?done():toast(tr('copy.manual')); });
       else fallbackCopy(text)?done():toast(tr('copy.manual')); };
@@ -1678,7 +1686,13 @@ const App = (function(){
       return String(g); };
     // Auch auf Sperr-/Einrichtungsbildschirm (DEK null): eine markierte Master-Passphrase läge sonst unbegrenzt in der Auswahl —
     // dort gilt die Standard-Frist, beim Verlassen des Bildschirms wird sofort gelöscht (leaveGate, Audit run-7 #2)
+    // Frist SYNCHRON vor der Meldung scharf machen: ein Klick auf „Jetzt sperren“ meldet per mouseup und sperrt im selben Klick — mit armClip erst in der
+    // IPC-Antwort fand lock() noch kein clipOwnedAt, und die Markierung lag bis zum Ablauf der Frist in PRIMARY (Querfund Alien Notes v1.7 B-N2). Die IPC ist
+    // geordnet (in der Hülle eine Kette): das clear() der Sperre kommt nach dieser Meldung an. Scheitert die Meldung, löscht der Zeitgeber nur eigene Hashes (harmlos).
+    // Nach der Antwort ZUSÄTZLICH nachschärfen: lief gerade ein Löschen (clipOwnedAt noch gesetzt, sync nichts zu tun), setzt dessen ok() die Frist
+    // danach auf 0 — die neue Markierung läge sonst ohne Frist in PRIMARY (Release-Audit v1.19 B-1; v1.18 armte nur in der Antwort, das hielt diesen Fall).
     const report=t=>{ if(!t) return;
+      if(!clipOwnedAt) armClip();
       let p=null; try{ p=DESK.clip.selected(t); }catch(_){ p=null; }
       if(p&&p.then) p.then(()=>{ if(!clipOwnedAt) armClip(); },()=>{}); };
     const onSel=()=>report(selText());
@@ -1688,7 +1702,7 @@ const App = (function(){
     // Strg+X / Shift+Entf ebenso — Chromium schriebe sonst selbst, ohne Hinweis und ohne Löschen (Audit run-7 #1). Danach die Markierung
     // im Feld entfernen: execCommand('delete') hält Rückgängig intakt, sonst setRangeText + input-Ereignis (Formular-Balken, Zustand)
     document.addEventListener('cut',ev=>{ const a=document.activeElement, t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel');
-      if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||a.readOnly||a.disabled) return;
+      if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||typeof a.selectionStart!=='number'||a.readOnly||a.disabled) return;   // Fokus auf Kästchen/Knopf: nur kopieren (setRangeText warf dort, Querfund Notes v1.7 B-N1)
       let done=false; try{ done=document.execCommand('delete'); }catch(_){}
       if(!done){ a.setRangeText('',a.selectionStart,a.selectionEnd,'end'); a.dispatchEvent(new Event('input',{bubbles:true})); } });
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&(ev.key||'').toLowerCase()==='a')) onSel(); });

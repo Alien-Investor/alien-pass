@@ -1,5 +1,28 @@
 # Changelog — Alien Pass
 
+## v1.19 — 2026-10-03
+
+Kleine Korrekturen an der Zwischenablage der Desktop-Fassung. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten;
+auf Android ändert sich am Verhalten nichts (nur die Versionsnummer).
+- **Desktop — kopiertes Passwort per Mittelklick:** Unter KDE kann Klipper jede Kopie zusätzlich in die Auswahl für den Mittelklick spiegeln
+  (Einstellung „Auswahl und Zwischenablage synchronisieren“, auf dem Testgerät der Fall). Die App löschte dort bisher nur, was man markiert hatte — ein kopiertes Passwort blieb nach Ablauf der Zeit, nach dem Sperren und nach dem Beenden
+  per Mittelklick einfügbar. Jetzt wird es auch dort gelöscht (nur, solange es noch von der App stammt).
+- **Desktop — Markierung nach einem Klick neben ein anderes Feld:** Stand in einem anderen Feld noch eine alte Markierung, konnte ein Klick
+  links neben oder knapp über dieses Feld die App dazu bringen, dessen Inhalt statt des markierten Passworts zu melden — das Passwort blieb dann
+  in der Mittelklick-Auswahl liegen. Die Hülle merkt sich jetzt die letzten acht Markierungen statt nur einer.
+- **Desktop — markieren und sofort sperren:** Wer ein Feld markierte und gleich danach auf „Jetzt sperren“ klickte, ließ die Markierung bis zum
+  Ablauf der Zeit in der Mittelklick-Auswahl. Jetzt löscht die Sperre sie sofort.
+- **Desktop — Sofort-Sperre beim Minimieren:** Steht „Sperren im Hintergrund“ auf „sofort“, bleibt wie seit v1.11 nur eine echte Kopie bis zum
+  Ablauf der Zeit stehen (zum Einfügen in eine andere App). Eine bloße Markierung, etwa nach Tab in das gefüllte Passwortfeld, wird jetzt beim
+  Sperren sofort gelöscht — außer es läuft gerade die Frist einer Kopie, dann gilt diese eine Frist für beides.
+- **Desktop — kleinere Härtungen:** Kopieren, Melden und Löschen laufen in der Hülle streng nacheinander, sodass eine Markierung, die während
+  eines Löschens ankommt, nicht mehr verloren geht; beim Beenden wird das letzte Löschen abgewartet (höchstens 3 Sekunden). Auch eine sehr
+  lange Markierung (etwa die ganze Eintragsliste) wird gemeldet und gelöscht. Strg+X mit Fokus auf einem Kästchen kopiert nur und wirft keinen
+  Fehler mehr.
+- **Desktop — gesperrt:** Eine auf dem Sperr- oder Einrichtungsbildschirm markierte Passphrase verschwindet jetzt auch beim Wechsel in ein
+  anderes Fenster sofort aus der Mittelklick-Auswahl. Wer dort mit Strg+C kopiert (etwa eine neue Passphrase zum Sichern), behält die Kopie
+  jetzt mit einer Frist von 30 Sekunden (gesperrt kennt die App die eigene Einstellung nicht), statt dass sie still sofort gelöscht wird; beim Entsperren wird sie gelöscht.
+
 ## v1.18 — 2026-10-03
 
 Kleine Verbesserungen an der Desktop-Fassung. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten.
