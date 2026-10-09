@@ -16,6 +16,7 @@ Verschlüsselung, Berechtigungen oder Daten.
   läuft gerade die Frist einer Kopie. Markierter Text in einem Eintrag bleibt bis zum Ablauf der Zeit per Mittelklick einfügbar.
 - **Desktop — Aegis-Abfrage:** Eine Kopie, die man beim Entsperren in der Abfrage des Aegis-Codes macht, bekommt jetzt immer die Vorgabe-Frist
   von 30 Sekunden — auch wenn in den Einstellungen eine andere Zeit oder „nur beim Sperren“ gewählt ist.
+- **Desktop — Electron 44.7.0** (vorher 44.5.1): enthält die seither nachgereichten Sicherheitskorrekturen aus Chromium und V8.
 
 ## v1.19 — 2026-10-03
 
