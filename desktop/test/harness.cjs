@@ -26,6 +26,7 @@ async function fresh(){
   R('kein Node im Renderer', await js(`typeof require==='undefined'&&typeof process==='undefined'&&typeof module==='undefined'`));
   const keys=await js(`Object.keys(window.AlienDesktop).sort().join(',')`);
   R('Brücke hat genau clip, onBackground, onLock, saveBackup, store', keys==='clip,onBackground,onLock,saveBackup,store', keys);
+  R('Scrollbalken im Neon-Look greift in der echten Hülle: (hover:hover) and (pointer:fine) trifft zu (Review v1.20 H-5)', await js(`matchMedia('(hover:hover) and (pointer:fine)').matches`));
   R('fetch nach außen scheitert', await js(`fetch('https://example.org/').then(()=>false,()=>true)`));
   R('window.open verweigert', await js(`window.open('https://example.org/')===null`));
   await js(`location.href='https://example.org/'`).catch(()=>{}); await sleep(600);
@@ -137,8 +138,13 @@ async function fresh(){
     for(let i=0;i<7;i++) await js(`AlienDesktop.clip.selected(${JSON.stringify('anderes-feld-'+i)})`);
     await js(`AlienDesktop.clip.clear()`);
     R('Hash-Ring: Markierung nach 7 fremden Meldungen trotzdem aus PRIMARY gelöscht', (await prim())==='', {prim:(await prim()).length});
-    await js(`AlienDesktop.clip.selected('')`); await clipboard.selection.writeText(P); await js(`AlienDesktop.clip.selected(${JSON.stringify(P)})`); await js(`AlienDesktop.clip.selected('')`); await js(`AlienDesktop.clip.clear()`);
-    R('Hash-Ring: leere Meldung verdrängt nichts', (await prim())==='', {prim:(await prim()).length});
+    await clipboard.selection.writeText(P); await js(`AlienDesktop.clip.selected(${JSON.stringify(P)})`);
+    // P, 7 fremde, dann eine leere: würde die leere gehasht, verdrängte sie als 9. Eintrag P (eine leere direkt nach P passte noch in den Ring und konnte
+    // nie rot werden; acht leere allein entdoppelt der Ring zu einem — Querfund Sachwert-Tresor Release-Audit v3.8 C-3)
+    for(let i=0;i<7;i++) await js(`AlienDesktop.clip.selected(${JSON.stringify('anderes-feld-'+i)})`);
+    await js(`AlienDesktop.clip.selected('')`);
+    await js(`AlienDesktop.clip.clear()`);
+    R('Hash-Ring: eine leere Meldung verdrängt nichts (P, 7 fremde, leer → P gelöscht)', (await prim())==='', {prim:(await prim()).length});
     await clipboard.selection.writeText(P); await js(`AlienDesktop.clip.selected(${JSON.stringify(P)})`);
     for(let i=0;i<8;i++) await js(`AlienDesktop.clip.selected(${JSON.stringify('anderes-feld-'+i)})`);
     await js(`AlienDesktop.clip.clear()`);
@@ -180,15 +186,19 @@ async function fresh(){
     await clipboard.clear(); await clipboard.selection.clear(); }
   // Kappung der offenen Hashes wirft die ÄLTESTEN (Nachprüfung N-1): zwei Zyklen mit hängendem PRIMARY-Lesen (je Kopie + 8 Markierungen = 18 Hashes),
   // danach erholt sich der Besitzer — die NEUESTE Kopie muss trotzdem aus PRIMARY verschwinden
-  { const sr=clipboard.selection.readText, P2='ap-harness-'+process.pid+'-zyklus2';
+  { let vorP2=false; const tK=Date.now(), sr=clipboard.selection.readText, P2='zyklus4-markierung-7';   // die zuletzt gemeldete Markierung — unter X11 liegt immer die letzte in PRIMARY; wirft die Kappung die NEUESTEN, fehlt genau sie
     clipboard.selection.readText=function(){ return new Promise(()=>{}); };
-    try{ for(const z of ['zyklus1','zyklus2']){ await js(`AlienDesktop.clip.write({text:${JSON.stringify('ap-harness-'+process.pid+'-'+z)}})`);
+    // 4 × (Kopie + 8 Markierungen) = 36 > 32: die Kappung greift wirklich (Querfund Notes v1.8 C-1)
+    try{ for(const z of ['zyklus1','zyklus2','zyklus3','zyklus4']){ await js(`AlienDesktop.clip.write({text:${JSON.stringify('ap-harness-'+process.pid+'-'+z)}})`);
         for(let i=0;i<8;i++) await js(`AlienDesktop.clip.selected(${JSON.stringify(z+'-markierung-'+i)})`);
-        await js(`AlienDesktop.clip.clear().catch(()=>0)`); } }
-    finally{ clipboard.selection.readText=sr; }
-    await clipboard.selection.writeText(P2);   // Spiegel der neuesten Kopie
+        await js(`AlienDesktop.clip.clear().catch(()=>0)`); }
+      await clipboard.selection.writeText(P2); vorP2=(await sr.call(clipboard.selection))===P2; }   // liegt schon WÄHREND der Hängephase in PRIMARY (sonst gab ein
+    finally{ clipboard.selection.readText=sr; }    // Nachfassen zwischen Erholung und Spiegel die Hashes korrekt frei, und der Test prüfte nichts — 04.10.2026 gemessen)
     let weg=false; for(let i=0;i<50&&!weg;i++){ await sleep(100); weg=(await prim())===''; }
-    R('Kappung der offenen Hashes wirft die ältesten: neueste Kopie nach Erholung aus PRIMARY', weg);
+    // Hat die lange Hängephase das Nachfassen schon in den 30-s-Takt gebracht (N-3, gewollt), löscht das nächste Löschen der App (Frist/Sperre) — auch das
+    // findet die neueste Kopie nur, wenn die Kappung die ÄLTESTEN geworfen hat
+    const perNachfassen=weg; if(!weg){ await js(`AlienDesktop.clip.clear()`); await sleep(200); weg=(await prim())===''; }
+    R('Kappung der offenen Hashes (36 > 32) wirft die ältesten: neueste Markierung nach Erholung aus PRIMARY', vorP2&&weg, {vorP2,ms:Date.now()-tK,perNachfassen});
     await clipboard.clear(); await clipboard.selection.clear(); }
   // Abgelehntes Lesen zählt wie Hängen (Nachprüfung N-5): einmal lehnt readText ab — die Hülle fasst nach, die Kopie verschwindet ohne neues clear der App
   { const M='ap-harness-'+process.pid+'-abgelehnt', orig=clipboard.readText; let einmal=true;
@@ -396,6 +406,14 @@ async function restart(){
     await js(`App.lockNow(); true`); await sleep(600);
     R('Klick links neben ein Feld mit alter Markierung (R2-N2): Passwort war in PRIMARY und ist nach dem Sperren weg', inP&&still&&(await prim())==='', {inP,still,prim:(await prim()).length});
     await clipboard.selection.clear(); }
+  // Entsperrt, Passphrase-Wechsel: neue Passphrase per Strg+A markiert, Fensterwechsel → Feld leer UND PRIMARY geräumt (Querfund Notes v1.8 B-1 in der echten Hülle, R2-A5)
+  { await unlock(); await js(`App.tab('settings'); true`); await sleep(300); const V='einst-blur-'+process.pid;
+    await js(`(()=>{ const p=document.getElementById('cp1'); p.value=${JSON.stringify(V)}; p.dispatchEvent(new Event('input',{bubbles:true})); p.scrollIntoView({block:'center'}); p.focus(); return true; })()`); await sleep(200);
+    win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['control']}); win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['control']}); await sleep(400);
+    const inP=(await prim())===V;
+    win.webContents.send('bg','blur'); await sleep(600);
+    R('entsperrt, Strg+A in der neuen Passphrase, Fensterwechsel: Feld leer und PRIMARY geräumt (B-1)', inP&&(await js(`document.getElementById('cp1').value===''`))&&(await prim())==='', {inP,prim:(await prim()).length});
+    await clipboard.selection.clear(); }
   // Sofort-Sperre (bgLock=0) beim Minimieren lässt nur eine echte Kopie bis zur Frist stehen, keine bloße Markierung (Querfund Notes v1.7 R2-N1)
   { await unlock(); await js(`App.setBgLock('0')`); await sleep(400);
     await js(`App.newEntry(); true`); await sleep(400);
@@ -418,9 +436,9 @@ async function restart(){
   await unlock();
   await js(`document.getElementById('cp1').value=''; App.tab('list')`).catch(()=>{}); await sleep(300);
 }
-// Beenden (Querfund Tresor v3.7 M-1 + R2-1): before-quit läuft immer über die Kette und löscht die eigene Kopie auch aus PRIMARY (Klipper-Spiegelung)
+// Beenden (Querfund Tresor v3.7 M-1 + R2-1): before-quit läuft über die Kette und löscht die eigene Kopie auch aus PRIMARY (Klipper-Spiegelung).
 // Variante 'quit': die Kopie ist beim Beenden noch UNTERWEGS (clipboard.write hängt 1 s) — v1.18 beendete dann sofort ohne Löschen (Hashes noch frei, R2-1);
-// zweimal app.quit (A-3). Variante 'quithang': das Lesen der Auswahl hängt für immer — Beenden spätestens nach dem 3-s-Deckel (A-2b).
+// zweimal app.quit (A-3). Variante 'quithang': zwei Schreibvorgänge hängen für immer VOR dem Löschen — Beenden spätestens nach ~2 s direkt (R2-3).
 // Variante 'quitslow' (Nachprüfung N-4): das PRIMARY-Lesen beim Beenden braucht 2,3 s — das Kettenglied läuft in seine Frist, der direkte Durchgang
 // muss die Hashes des laufenden Glieds mitnehmen und löschen
 async function quitSlow(){
@@ -431,8 +449,41 @@ async function quitSlow(){
   clipboard.selection.readText=function(...a){ if(einmal){ einmal=false; return new Promise(r=>setTimeout(()=>r(sr.apply(clipboard.selection,a)),2300)); } return sr.apply(this,a); };
   const t0=Date.now();
   app.on('will-quit',ev=>{ ev.preventDefault(); const ms=Date.now()-t0; (async()=>{ const c=await clipboard.readText(), p=await sr.call(clipboard.selection);
-    R('Beenden mit langsamem PRIMARY-Lesen: direkter Durchgang löscht auch die Hashes des laufenden Glieds', c!==M&&p==='', {ms,clip:c===M,prim:p.length});
+    R('Beenden mit langsamem PRIMARY-Lesen: direkter Durchgang löscht auch die Hashes des laufenden Glieds', !einmal&&ms>=1900&&c!==M&&p==='', {ms,clip:c===M,prim:p.length,langsam:!einmal});
     try{ await clipboard.clear(); }catch(_){} R('Schritt vollständig',true); app.exit(0); })(); });
+  app.quit();
+}
+// Variante 'quitreject' (Querfund Notes v1.8 A-1): das Glied läuft rechtzeitig durch, aber das PRIMARY-Lesen lehnt einmal ab — die Kopie steht
+// (Klipper-Spiegel) noch in PRIMARY; vorher galt das als erledigt, es gab keinen direkten Durchgang, und die Kopie überlebte das Beenden
+async function quitReject(){
+  R('Beenden: Sperrbildschirm', await until(visible('screen-lock'),15000));
+  const M='ap-harness-'+process.pid+'-quitreject';
+  await js(`AlienDesktop.clip.write({text:${JSON.stringify(M)}})`); await sleep(300); await clipboard.selection.writeText(M);
+  const vor=(await prim())===M;
+  const sr=clipboard.selection.readText; let einmal=true;
+  clipboard.selection.readText=function(...a){ if(einmal){ einmal=false; return Promise.reject(new Error('X11')); } return sr.apply(this,a); };
+  const t0=Date.now();
+  app.on('will-quit',ev=>{ ev.preventDefault(); const ms=Date.now()-t0; (async()=>{ const c=await clipboard.readText(), p=await sr.call(clipboard.selection);
+    R('Beenden mit einmal abgelehntem PRIMARY-Lesen: Kopie trotzdem aus CLIPBOARD und PRIMARY gelöscht', vor&&!einmal&&c!==M&&p==='', {vor,abgelehnt:!einmal,ms,clip:c===M,prim:p.length});
+    R('Beenden bleibt unter ~5 s', ms<5500, ms);
+    try{ await clipboard.clear(); }catch(_){} R('Schritt vollständig',true); app.exit(0); })(); });
+  app.quit();
+}
+// Variante 'quitlate' (Querfund Notes v1.8 R2-H2): clip:write hängt 2,5 s — die App bekommt nach 2 s die Ablehnung, gleich danach wird beendet; die Kopie landet
+// erst WÄHREND des Beendens (Klipper spiegelt 300 ms danach). Vorher stand sie noch nicht in `pending`, das Beenden war nach 1 ms fertig, der Spiegel blieb
+async function quitLate(){
+  R('Beenden: Sperrbildschirm', await until(visible('screen-lock'),15000));
+  const M='ap-harness-'+process.pid+'-quitlate', ow=clipboard.write; let gelandet=0;
+  clipboard.write=async function(...a){ await sleep(2500); const r=await ow.apply(this,a); gelandet=Date.now(); setTimeout(()=>{ clipboard.selection.writeText(M); },300); return r; };
+  const r=await js(`AlienDesktop.clip.write({text:${JSON.stringify(M)}}).then(()=>'ok',()=>'abgelehnt')`);
+  const t0=Date.now();
+  // Sofort bei will-quit prüfen, ohne zu warten: in echt endet der Prozess hier — eine Wartezeit im Test ließe die normalen Nachfass-Zeitgeber aufräumen
+  // und machte den Test gegen die Hülle ohne R2-H2-Fix grün. Vorbedingung: die Kopie ist bis zum Ende des Beendens gelandet (das Beenden hat auf sie gewartet)
+  // Vorbedingung auch: will-quit erst NACH dem nachgestellten Spiegel (Landung + 300 ms) — sonst wäre PRIMARY nur „noch leer“ (Notes-Nachprüfung N-1)
+  app.on('will-quit',ev=>{ ev.preventDefault(); const ms=Date.now()-t0, gel=gelandet>0&&Date.now()-gelandet>=400; (async()=>{ const c=await clipboard.readText(), p=await prim();
+    R('Beenden während ein spätes Schreiben noch unterwegs ist: auf die Kopie und ihren Spiegel gewartet, beide beim Prozessende aus CLIPBOARD und PRIMARY weg', r==='abgelehnt'&&gel&&c!==M&&p==='', {r,gel,nachLandung:gelandet?Date.now()-gelandet:0,ms,clip:c===M,prim:p.length});
+    R('Beenden bleibt unter ~5 s', ms<5500, ms);
+    clipboard.write=ow; try{ await clipboard.clear(); await clipboard.selection.clear(); }catch(_){} R('Schritt vollständig',true); app.exit(0); })(); });
   app.quit();
 }
 async function quitStep(hang){
@@ -440,18 +491,22 @@ async function quitStep(hang){
   const M='ap-harness-'+process.pid+'-quit';
   let drin=false, t0=0;
   if(hang){ await js(`AlienDesktop.clip.write({text:${JSON.stringify(M)}})`); await sleep(300); await clipboard.selection.writeText(M);
-    // zwei Schreibvorgänge, die nie fertig werden, stehen VOR dem Löschen in der Kette (je 2 s) — das Beenden darf darauf nicht warten (R2-3)
     clipboard.write=()=>new Promise(()=>{});
     js(`AlienDesktop.clip.write({text:'haengt-1'}).catch(()=>{}); AlienDesktop.clip.write({text:'haengt-2'}).catch(()=>{}); true`).catch(()=>{}); await sleep(200); }
   else { const ow=clipboard.write; clipboard.write=async function(...a){ drin=true; await sleep(1000); return ow.apply(this,a); };
     js(`AlienDesktop.clip.write({text:${JSON.stringify(M)}})`).catch(()=>{});
     for(let i=0;i<50&&!drin;i++) await sleep(20);
     await clipboard.selection.writeText(M); }   // Klipper-Spiegelung nachstellen
-  app.on('will-quit',ev=>{ ev.preventDefault(); const ms=Date.now()-t0; (async()=>{
+  // quithang: während des Beendens abtasten — der direkte Durchgang an der stehenden Kette vorbei muss nach ~2 s löschen, nicht erst das Kettenglied
+  // bei ~3,8 s (seit R2-H2 hält `lateN` das Beenden ohnehin bis zum Deckel offen, die Endprüfung allein trennt den Durchgang nicht mehr — Notes-Nachprüfung N-2)
+  let leerAb=0; const tast=hang?setInterval(async()=>{ if(leerAb||!t0) return; try{ if((await clipboard.readText())!==M&&(await prim())==='') leerAb=Date.now()-t0; }catch(_){} },50):null;
+  app.on('will-quit',ev=>{ ev.preventDefault(); const ms=Date.now()-t0; if(tast) clearInterval(tast); (async()=>{
     if(hang){ const c=await clipboard.readText(), s=await prim();
-      R('Beenden hinter einer stehenden Kette: nach höchstens ~2 s direkt gelöscht (CLIPBOARD + PRIMARY)', ms<3500&&c!==M&&s==='', {ms,clip:c===M,prim:s.length}); }
+      R('Beenden hinter einer stehenden Kette: direkter Durchgang löscht nach ~2 s (≤ 2,7 s), nicht erst das Kettenglied', leerAb>0&&leerAb<=2700, {leerAb});
+      // ≤ ~5 s statt ~2 s: die beiden nie landenden Schreibvorgänge zählen seit R2-H2 als „spät, noch nicht gelandet“, das Beenden wartet bis zum Deckel `end`
+      R('Beenden hinter einer stehenden Kette: direkt gelöscht (CLIPBOARD + PRIMARY), unter dem Deckel ~5 s', ms<5500&&c!==M&&s==='', {ms,clip:c===M,prim:s.length}); }
     else { const c=await clipboard.readText(), s=await prim();
-      R('Beenden während die Kopie noch geschrieben wird (zweimal quit): Kopie aus CLIPBOARD und PRIMARY gelöscht', drin&&c!==M&&s==='', {drin,clip:c===M,prim:s.length,ms}); }
+      R('Beenden während die Kopie noch geschrieben wird (zweimal quit): Kopie aus CLIPBOARD und PRIMARY gelöscht, auf das Schreiben gewartet (≥ 0,9 s)', drin&&ms>=900&&c!==M&&s==='', {drin,clip:c===M,prim:s.length,ms}); }
     try{ await clipboard.clear(); }catch(_){} R('Schritt vollständig',true); app.exit(0); })(); });
   t0=Date.now(); app.quit(); if(!hang){ await sleep(50); app.quit(); }
 }
@@ -497,6 +552,8 @@ app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
       else if(STEP==='background') await background();
       else if(STEP==='quit'||STEP==='quithang'){ await quitStep(STEP==='quithang'); return; }   // endet in will-quit (eigene Endmarke)
       else if(STEP==='quitslow'){ await quitSlow(); return; }
+      else if(STEP==='quitreject'){ await quitReject(); return; }
+      else if(STEP==='quitlate'){ await quitLate(); return; }
       else if(STEP==='hold'){ R('läuft',true); await sleep(Number(process.env.AP_HOLD||8000)); }
       else R('unbekannter Schritt '+STEP,false);   // vertippter Schrittname wäre sonst mit der Endmarke grün (C-9)
       if(STEP!=='hold') R('Schritt vollständig',true);   // verify-desktop verlangt die Endmarke (Querfund Notes v1.7 A-4)

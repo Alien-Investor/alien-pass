@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.19';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.20';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -32,7 +32,7 @@ const I18N = {
   "lock.unlock":"Unlock",
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
   "list.selTitle":"Select several entries","sel.all":"All","sel.none":"None","sel.trash":"Trash","sel.cat":"Category…","sel.cancel":"Cancel","dlg.cancel":"Cancel",
-  "help.pSel":"<strong>Several entries at once:</strong> the <strong>☑</strong> icon next to the <strong>+</strong> turns on multi-select — every row gets a checkbox, a tap on the row selects it. The bar at the bottom moves the selected entries to the trash (with one shared “Undo”), gives them a category or marks them as favourites. “All” only takes what is currently visible — search and category chips keep working. At most 200 entries to the trash at once, it holds no more. Locking, switching tabs or “Cancel” ends the selection.",
+  "help.pSel":"<strong>Several entries at once:</strong> the <strong>☑</strong> icon next to the <strong>+</strong> turns on multi-select — every row gets a checkbox, a tap on the row selects it. The bar at the bottom moves the selected entries to the trash (with one shared “Undo”), gives them a category (existing ones are right there to pick, or just type a new one) or marks them as favourites. “All” only takes what is currently visible — search and category chips keep working. At most 200 entries to the trash at once, it holds no more. Locking, switching tabs or “Cancel” ends the selection.",
   "help.hTrash":"Trash",
   "help.pTrash":"Deleted entries go to the trash for <strong>30 days</strong> \u2014 the icon right of the <strong>+</strong> in the search row; the number next to it says how much is in there. It shows only <strong>title, type and date of deletion</strong>: no reveal, no copy. If you need the content, restore the entry first \u2014 it comes back complete, with password, extra fields and category. <strong>The trash holds 200 entries</strong>; once it is full the next deletion destroys the oldest one immediately and for good, and the confirmation tells you which one. <strong>Honestly:</strong> while an entry sits in the trash it is also part of every backup of this device. To get rid of something right away use \u201CDelete permanently\u201D or \u201CEmpty trash\u201D \u2014 that cannot be undone. After 30 days the app clears it out on the next unlock; after that only the deletion marker remains, until a year after the deletion. <strong>The trash is device-local</strong> (since the September 2026 audit): a deletion travels to your other devices when merging, the <em>content</em> does not. So you can only restore on the device where you deleted. That is deliberate \u2014 otherwise a planted backup file could displace your entire trash. <strong>A device running version 1.4 or older</strong> empties the trash when merging: the entries stay deleted, they never come back.",
   "trash.title":"Trash",
@@ -276,7 +276,7 @@ const T = {
   // Rückfrage-Dialog (v1.9): je Frage der passende Knopf, nie nur „OK“
   "dlg.ok":{de:"OK",en:"OK"},"dlg.cancel":{de:"Abbrechen",en:"Cancel"},"dlg.useAnyway":{de:"Trotzdem verwenden",en:"Use anyway"},"dlg.tryAnyway":{de:"Trotzdem versuchen",en:"Try anyway"},
   "dlg.convert":{de:"Typ wechseln",en:"Change type"},"dlg.toTrash":{de:"In den Papierkorb",en:"Move to trash"},"dlg.deleteForever":{de:"Endgültig löschen",en:"Delete permanently"},
-  "dlg.disable":{de:"Deaktivieren",en:"Disable"},"dlg.discard":{de:"Verwerfen",en:"Discard"},"dlg.wipe":{de:"Tresor löschen",en:"Delete vault"},"dlg.catPh":{de:"Neue Kategorie (leer = ohne Kategorie)",en:"New category (empty = no category)"},
+  "dlg.disable":{de:"Deaktivieren",en:"Disable"},"dlg.discard":{de:"Verwerfen",en:"Discard"},"dlg.wipe":{de:"Tresor löschen",en:"Delete vault"},"dlg.catPh":{de:"Kategorie (leer = ohne)",en:"Category (empty = none)"},
   "toast.undo":{de:"Rückgängig",en:"Undo"},"toast.undoGone":{de:"Der Eintrag ist nicht mehr im Papierkorb.",en:"The entry is no longer in the trash."},
   // Mehrfachauswahl (v1.9)
   "sel.count":{de:"{n} ausgewählt",en:"{n} selected"},"sel.count1":{de:"1 ausgewählt",en:"1 selected"},"sel.fav":{de:"★ Favorit",en:"★ Favourite"},"sel.unfav":{de:"☆ Favorit weg",en:"☆ Unfavourite"},
@@ -995,7 +995,7 @@ const App = (function(){
   // Generator-Einstellungen: EIN Zustand für Generator-Tab und Formular-Panel (v1.4); nur Sitzung, nie im Tresor. Controls tragen data-gen=<key>.
   const GEN_DEFAULT={mode:'chars',len:20,wc:6,upper:true,lower:true,digits:true,symbols:true,noamb:false,sep:'-',cap:false,num:false};
   let GEN=Object.assign({},GEN_DEFAULT);
-  let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, clipCopied=false, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
+  let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, clipCopied=false, clipGateSel=false, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
   let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
   let selMode=false, selIds=new Set(), shownIds=[];   // Mehrfachauswahl (v1.9): nur im RAM, Sperre räumt ab; shownIds = zuletzt gezeigte Zeilen (für „Alle“)
   const UNDO_MS=6000;   // so lange steht „Rückgängig“ nach dem Löschen im Toast
@@ -1028,15 +1028,18 @@ const App = (function(){
      = Abbrechen; Tab pendelt zwischen den Knöpfen; clearRendered() schließt ihn beim Sperren mit false, und JEDER Aufrufer prüft nach dem await
      seinen Zustand neu (VAULT? Eintrag noch da? _busy?). Text nur per textContent (pre-line macht Absätze aus \n\n).
      opt.input={value,placeholder,max}: Dialog mit Eingabefeld (prompt()-Ersatz, Kategorie für die Mehrfachauswahl) — löst mit dem per line()
-     bereinigten Text oder null auf. Das Feld wird bei JEDEM Schließen geleert (Nutzerdaten), auch beim Sperren. ---------- */
+     bereinigten Text oder null auf. Das Feld wird bei JEDEM Schließen geleert (Nutzerdaten), auch beim Sperren.
+     input.cats (v1.20): das Feld wird zur Kategorie-Kombi wie #f-cat — ▾ rechts (nur wenn es Kategorien gibt) und die Liste aller Kategorien
+     gleich beim Öffnen offen; dialogClose() leert sie per closeMenus() (Kategorienamen sind entschlüsselte Nutzerdaten). ---------- */
   let dlgResolve=null, dlgPrev=null, dlgInput=null;
   function ask(msg, opt){ opt=opt||{}; if(dlgResolve) return Promise.resolve(opt.input?null:false);
     return new Promise(res=>{ dlgResolve=res; dlgPrev=document.activeElement; $('dlg-msg').textContent=msg; dlgInput=opt.input||null;
-      const inp=$('dlg-input'); inp.value=dlgInput?String(dlgInput.value||''):''; inp.placeholder=dlgInput&&dlgInput.placeholder?dlgInput.placeholder:''; inp.maxLength=dlgInput&&dlgInput.max?dlgInput.max:200; inp.classList.toggle('hidden',!dlgInput);
+      const inp=$('dlg-input'); inp.value=dlgInput?String(dlgInput.value||''):''; inp.placeholder=dlgInput&&dlgInput.placeholder?dlgInput.placeholder:''; inp.maxLength=dlgInput&&dlgInput.max?dlgInput.max:200; inp.classList.toggle('hidden',!dlgInput); $('dlg-combo').classList.toggle('hidden',!dlgInput);   // Rahmen mit: sonst +12 px Abstand in jeder Ja/Nein-Rückfrage (Review v1.20 N-1)
+      const catOn=!!(dlgInput&&dlgInput.cats&&cats().length); $('dlg-cat-btn').classList.toggle('hidden',!catOn);
       const b=$('dlg-ok'); b.textContent=tr(opt.ok||'dlg.ok'); b.classList.toggle('danger',!!opt.danger); $('dlg').classList.remove('hidden');
-      if(dlgInput){ inp.focus(); inp.select(); } else $('dlg-cancel').focus(); }); }
+      if(dlgInput){ inp.focus(); inp.select(); if(catOn) renderCatMenu(true,'dlg-input'); } else $('dlg-cancel').focus(); }); }
   function dialogClose(v){ const r=dlgResolve; if(!r) return; dlgResolve=null; const inp=$('dlg-input'), wasInput=dlgInput, max=wasInput&&wasInput.max?wasInput.max:200; dlgInput=null;
-    const text=wasInput&&v?line(inp.value,max):null; inp.value=''; inp.classList.add('hidden');
+    const text=wasInput&&v?line(inp.value,max):null; inp.value=''; inp.classList.add('hidden'); $('dlg-combo').classList.add('hidden'); $('dlg-cat-btn').classList.add('hidden'); closeMenus();
     $('dlg').classList.add('hidden'); $('dlg-msg').textContent=''; $('dlg-ok').classList.remove('danger');
     const f=dlgPrev; dlgPrev=null; if(f&&document.contains(f)&&typeof f.focus==='function'){ try{ f.focus(); }catch(_){} } r(wasInput?text:!!v); }
   function dialogOk(){ dialogClose(true); }
@@ -1044,7 +1047,8 @@ const App = (function(){
   function dialogOpen(){ return !!dlgResolve; }
   function dialogKey(ev){ if(!dlgResolve) return false;
     if(ev.key==='Escape'){ dialogCancel(); return true; }
-    if(ev.key==='Tab'){ const ring=[$('dlg-input'),$('dlg-cancel'),$('dlg-ok')].filter(n=>!n.classList.contains('hidden')); const i=ring.indexOf(document.activeElement); ring[(i+(ev.shiftKey?-1:1)+ring.length)%ring.length].focus(); return true; }
+    if(ev.key==='Tab'){ const menu=$('dlg-cat-menu'), opts=menu.classList.contains('hidden')?[]:[...menu.children];   // Feld → ▾ → Kategorien → Abbrechen → OK
+      const ring=[$('dlg-input'),$('dlg-cat-btn'),...opts,$('dlg-cancel'),$('dlg-ok')].filter(n=>!n.classList.contains('hidden')); const i=ring.indexOf(document.activeElement); ring[(i+(ev.shiftKey?-1:1)+ring.length)%ring.length].focus(); return true; }
     return false; }
   function err(id,msg){ const e=$(id); if(!msg){ e.classList.add('hidden'); e.textContent=''; return; } e.textContent=msg; e.classList.remove('hidden'); }
   function el(tag, cls, text){ const n=document.createElement(tag); if(cls) n.className=cls; if(text!=null) n.textContent=text; return n; }
@@ -1191,7 +1195,8 @@ const App = (function(){
     if(o&&Number.isInteger(o.f)&&o.f>0&&o.f<100000){ failCount=Math.max(failCount,o.f);
       if(Number.isFinite(o.u)&&o.u>n) lockedUntil=Math.max(lockedUntil,Math.min(o.u,n+30000)); } }catch(_){} }
   // Sperr-/Setup-/Import-Eingaben leeren und maskieren — beim Verstecken der App und nach jedem Fehlversuch
-  function clearGateInputs(){ ['lock-pass','lock-pin','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code','bio-pass','cp-cur','cp1','cp2','pin-new','pin-rep','pin-pass'].forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); maskInputs('#tab-settings'); maskInputs('#tab-backup'); err('lock-err'); pinMsg(''); bioMsg(''); }   // auch die Passphrase-Felder in den Einstellungen (Audit run-3); Fehlversuch-Hinweise ebenso (Audit run-8 #8)
+  const GATE_IDS=['lock-pass','lock-pin','setup-pass1','setup-pass2','import-pass','proton-pass','totp-code','bio-pass','cp-cur','cp1','cp2','pin-new','pin-rep','pin-pass'];
+  function clearGateInputs(){ GATE_IDS.forEach(id=>{ const n=$(id); if(n) n.value=''; }); maskInputs('#screen-lock'); maskInputs('#screen-setup'); maskInputs('#tab-settings'); maskInputs('#tab-backup'); err('lock-err'); pinMsg(''); bioMsg(''); }   // auch die Passphrase-Felder in den Einstellungen (Audit run-3); Fehlversuch-Hinweise ebenso (Audit run-8 #8)
   // data-showpass-Augen innerhalb eines Bereichs zurücksetzen (Feld wieder type=password)
   function maskInputs(scope){ document.querySelectorAll((scope||'')+' [data-showpass]').forEach(b=>setEye(b,false)); }
   // Auge im Passwortfeld (statt „anzeigen“-Kästchen): Knopf mit data-showpass=<Feld-ID>, Zustand in aria-pressed
@@ -1229,7 +1234,7 @@ const App = (function(){
   }
   // Nach dem Sperren darf nichts Entschlüsseltes im DOM oder in Formularfeldern bleiben
   function clearRendered(){
-    ['entry-list','health','bio-alert-list','bio-alert','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-menu','trash-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
+    ['entry-list','health','bio-alert-list','bio-alert','backup-hint','d-body','gen-out','gen-ent','f-meter','cp-meter','setup-meter','cat-chips','cat-menu','dlg-cat-menu','trash-list'].forEach(id=>{ const n=$(id); if(n) n.replaceChildren(); });
     ['d-title','d-meta','bk-msg','import-msg','csv-msg','proton-msg','about-line','totp-secret','trash-msg','trash-n'].forEach(id=>{ const n=$(id); if(n) n.textContent=''; });
     ['f-title','f-cat','f-user','f-email','f-pass','f-url','f-totp','f-notes','f-holder','f-number','f-expiry','f-cvv','f-pin','f-bholder','f-iban','f-bic','f-bank','f-bpin','search','import-pass','proton-pass','cp-cur','cp1','cp2','bio-pass','lock-pass','setup-pass1','setup-pass2','totp-code','totp-verify','vault-file','csv-file','proton-file','lock-pin','pin-new','pin-rep','pin-pass'].forEach(id=>{ const n=$(id); if(n) n.value=''; });
     $('f-fav').checked=false; $('f-nowarn').checked=false; { const bk=$('bio-keep'); if(bk) bk.checked=false; }   // „auch nach Neustart“ nie stehen lassen (ab Werk aus)
@@ -1274,13 +1279,19 @@ const App = (function(){
   // lassen (Audit run-8 #9). „Hintergrund“ im Sinn der Einstellung bleibt minimiert/versteckt, das Handbuch sagt es so.
   // Gesperrt und Fensterwechsel: eine bloße Markierung (Passphrase per Strg+A/Tab) sofort aus der Auswahl, eine echte Kopie bleibt zum Einfügen im anderen
   // Fenster (Release-Audit v1.19 B-3, wie Sachwert-Tresor v3.7 B-3)
-  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur'){ clearGateInputs(); if(!DEK&&clipOwnedAt&&!clipCopied) clearClip(); } else if(h) onHidden(); else onShown(); });
+  // Entsperrt ebenso, wenn die letzte Meldung aus einem dieser Felder kam (Passphrase-Wechsel/PIN in den Einstellungen, Import-Passphrase): clearGateInputs
+  // leert das Feld, die Markierung läge sonst bis zur Frist weiter in PRIMARY (Querfund Alien Notes v1.8 B-1). Eine Markierung in einem Eintragsfeld bleibt
+  // per Mittelklick nutzbar (Einfügen im Browser), bis ihre Frist abläuft.
+  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur'){ const g=clipGateSel; clearGateInputs(); if((!DEK||g)&&clipOwnedAt&&!clipCopied) clearClip(); } else if(h) onHidden(); else onShown(); });
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
   function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
   let clipDue=false, clipTries=0, clipDeadline=0;   // Löschen war fällig, konnte aber (Hintergrund/kein Fokus) noch nicht ausgeführt werden; clipDeadline = Wanduhr-Frist der Kopie (0 = keine)
   const CLIP_MAX_TRIES=600;          // ~10 min Wiederholung im Vordergrund, dann aufgeben (Android leert spätestens nach 1 h selbst)
-  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); clipDue=false; clipTries=0; const s=settings().clipClear; clipDeadline=s>0?clipOwnedAt+s*1000:0; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
+  // Gesperrt (auch in der Aegis-Wartestellung, wo settings() schon die eigene Einstellung kennt) gilt immer die Vorgabe — sonst lag bei clipClear 0 eine
+  // gesperrt gemachte Kopie ohne Frist, cancelTotp löscht nicht (Querfund Alien Notes v1.8 B-2). Entsperrt die eigene Einstellung.
+  const clipSecs=()=>(DEK?settings():SETTINGS_DEFAULT).clipClear;
+  function armClip(){ if(clipTimer){ clearTimeout(clipTimer); clipTimer=null; } clipOwnedAt=Date.now(); clipDue=false; clipTries=0; const s=clipSecs(); clipDeadline=s>0?clipOwnedAt+s*1000:0; if(s>0) clipTimer=setTimeout(clearClip, s*1000); }
   // Besitz erst aufgeben, wenn der Write bestätigt ist. Chromium lehnt writeText ohne Fokus ab (Document is not focused),
   // Android blockt Hintergrund-Writes → dann nur vormerken und beim Zurückkehren / nächsten Tick erneut versuchen.
   function clearClip(){
@@ -1289,6 +1300,8 @@ const App = (function(){
     const bg=document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus());
     if(bg&&!SC){ clipTimer=setTimeout(clearClip,1000); return; }     // Web-API braucht Fokus → vertagen; nativ (Android) darf ohne Fokus schreiben
     if(!bg&&++clipTries>CLIP_MAX_TRIES){ clipOwnedAt=0; clipCopied=false; clipDue=false; clipDeadline=0; return; }   // Versuche nur im Vordergrund zählen (Audit run-1 #2)
+    // clipGateSel NICHT hier zurücksetzen: lief ein Löschen, während eine neue Gate-Markierung gemeldet wurde, nähme dessen ok() ihr das Flag — wie B-1
+    // für die Frist (Querfund Alien Notes v1.8 R2-A1). Gelesen wird es nur mit clipOwnedAt; report setzt es je Meldung frisch, copyText auf false.
     const ok=()=>{ clipOwnedAt=0; clipCopied=false; clipDue=false; clipTries=0; clipDeadline=0; };
     // Desktop: nie fallbackCopy — dessen execCommand('copy') liefe durch den eigenen copy-Listener und kopierte ' ' über die Brücke (Toast, neue Frist);
     // die Hülle fasst ohnehin selbst nach (Release-Audit v1.19 R2-A1). Nur neu planen.
@@ -1298,10 +1311,10 @@ const App = (function(){
   }
   function copyText(text, whatKey){
     if(!text) return toast(tr('copy.empty'));
-    const what=tr(whatKey), s=settings().clipClear, was=!!DEK;
+    const what=tr(whatKey), s=clipSecs(), was=!!DEK;
     // Sofort löschen nur, wenn WÄHREND des Schreibens gesperrt wurde. Gesperrt kopieren (Strg+C einer neuen Passphrase auf dem Einrichtungsbildschirm,
     // nur am Desktop möglich) behält die Kopie mit Frist und Toast — vorher ging sie still verloren (Release-Audit v1.19 B-4, wie Sachwert-Tresor v3.7 B-1)
-    const done=()=>{ if(was&&!DEK){ clipOwnedAt=Date.now(); clearClip(); return; } armClip(); clipCopied=true; toast(s>0?tr('copy.done',{what,s}):tr('copy.doneNoClear',{what})); };
+    const done=()=>{ if(was&&!DEK){ clipOwnedAt=Date.now(); clearClip(); return; } armClip(); clipCopied=true; clipGateSel=false; toast(s>0?tr('copy.done',{what,s}):tr('copy.doneNoClear',{what})); };
     const web=()=>{ let p=null; try{ p=navigator.clipboard&&navigator.clipboard.writeText(text); }catch(_){ p=null; }
       if(p&&p.then) p.then(done).catch(()=>{ fallbackCopy(text)?done():toast(tr('copy.manual')); });
       else fallbackCopy(text)?done():toast(tr('copy.manual')); };
@@ -1366,19 +1379,24 @@ const App = (function(){
     if(!sel||!sel.classList.contains('combo-native')||!Array.from(sel.options).some(o=>o.value===value)||sel.value===value) return;
     sel.value=value; syncCombo(sel.id);
     sel.dispatchEvent(new Event('change',{bubbles:true})); }   // die bestehende change-Delegation übernimmt von hier
-  // --- Kategorie: freies Textfeld mit Vorschlägen ---
-  function renderCatMenu(all){ const menu=$('cat-menu'), inp=$('f-cat'); if(!menu||!inp) return false;
+  // --- Kategorie: freies Textfeld mit Vorschlägen — zwei feste Ziele (v1.20): Formular #f-cat/#cat-menu und das Eingabefeld des Dialogs
+  //     #dlg-input/#dlg-cat-menu (Mehrfachauswahl „Kategorie…“, nur solange ask() mit input.cats offen ist). Feste Zuordnung statt Nachschlagen
+  //     in einem Objekt (kein __proto__-Weg, Muster chooseOpt-Guard); jedes andere Ziel fällt aufs Formular zurück. ---
+  function catTarget(id){ if(id==='dlg-input') return dlgInput&&dlgInput.cats?{id,inp:$('dlg-input'),menu:$('dlg-cat-menu')}:null;
+    return {id:'f-cat',inp:$('f-cat'),menu:$('cat-menu')}; }
+  function renderCatMenu(all,id){ const t=catTarget(id); if(!t||!t.menu||!t.inp) return false; const menu=t.menu, inp=t.inp;
     menu.replaceChildren(); const q=all?'':(inp.value||'').trim().toLowerCase();
     const items=cats().filter(c=>!q||c.toLowerCase().includes(q));
     if(!items.length){ menu.classList.add('hidden'); return false; }
-    for(const c of items) menu.appendChild(comboOpt(c,'pickCat',c,c===inp.value.trim()));
+    for(const c of items) menu.appendChild(comboOpt(c,'pickCat',c,c===inp.value.trim(),t.id));
     menu.classList.remove('hidden'); return true; }
-  function openCatMenu(){ closeMenus(); renderCatMenu(); }
-  function toggleCatMenu(){ const menu=$('cat-menu'); const wasOpen=menu&&!menu.classList.contains('hidden');
+  function openCatMenu(id){ closeMenus(); renderCatMenu(false,id); }
+  function toggleCatMenu(id){ const t=catTarget(id), wasOpen=!!(t&&t.menu&&!t.menu.classList.contains('hidden'));
     closeMenus(); if(wasOpen) return;
-    renderCatMenu(true); }   // der Pfeil zeigt ALLE Kategorien, ohne das Getippte zu verwerfen
-  function catInput(){ if(!$('cat-menu')) return; renderCatMenu(); }
-  function pickCat(v){ const inp=$('f-cat'); if(inp) inp.value=v; closeMenus(); }
+    renderCatMenu(true,id); }   // der Pfeil zeigt ALLE Kategorien, ohne das Getippte zu verwerfen
+  function catInput(_v,elx){ renderCatMenu(false,elx&&elx.id); }
+  // Im Dialog danach Fokus auf OK: Enter übernimmt, und am Handy klappt die Tastatur nicht wieder über die Knöpfe
+  function pickCat(v,elx){ const t=catTarget(elx&&elx.dataset.sel); if(t&&t.inp) t.inp.value=v; closeMenus(); if(t&&t.id==='dlg-input') $('dlg-ok').focus(); }
   function renderChips(all){
     const box=$('cat-chips'); box.replaceChildren(); const cs=cats(); if(!cs.length){ catFilter=null; return; }
     const hasNone=all.some(e=>!e.cat);
@@ -1448,7 +1466,7 @@ const App = (function(){
     const snap=VAULT.entries.slice(); const r=bulkEdit(VAULT.entries, pick, {deleted:null}, nowIso()); if(!r.n) return toast(tr('toast.undoGone')); VAULT.entries=r.entries;
     persist().then(()=>{ if(!VAULT) return; renderTrash(); renderList(); toast(want.length>r.n?tr('toast.selRestoredPart',{n:r.n,t:want.length}):tr('toast.selRestored',{n:r.n})); }).catch(rollback(snap,r.entries)); }
   async function selCat(){ if(!VAULT||!selMode||!selIds.size) return; const n=selIds.size, picked=[...selIds].map(byId).filter(Boolean); const common=picked.length&&picked.every(e=>e.cat===picked[0].cat)?picked[0].cat:'';
-    const v=await ask(tr('confirm.selCat',{n}),{ok:'dlg.ok',input:{value:common,placeholder:tr('dlg.catPh'),max:CAPS.cat}}); if(v===null||!VAULT||!selMode) return; const to=line(v,CAPS.cat);
+    const v=await ask(tr('confirm.selCat',{n}),{ok:'dlg.ok',input:{value:common,placeholder:tr('dlg.catPh'),max:CAPS.cat,cats:true}}); if(v===null||!VAULT||!selMode) return; const to=line(v,CAPS.cat);
     const {ids,snap}=selSnapshot(); const r=bulkEdit(VAULT.entries, ids, {cat:to}, nowIso()); if(!r.n) return; VAULT.entries=r.entries; selCancel();
     persist().then(()=>{ if(!VAULT) return; renderList(); toast(to?tr(r.n===1?'toast.catSet1':'toast.catSet',{n:r.n,c:to}):tr(r.n===1?'toast.catCleared1':'toast.catCleared',{n:r.n})); }).catch(e=>{ rollback(snap,r.entries)(e); if(VAULT&&!(e&&e.locked)){ renderList(); toast(tr('err.saveFailed')); } }); }
   function selFav(on){ if(!VAULT||!selMode||!selIds.size) return; const fav=on!=='0'; const {ids,snap}=selSnapshot(); const r=bulkEdit(VAULT.entries, ids, {fav}, nowIso()); if(!r.n) return; VAULT.entries=r.entries; selCancel();
@@ -1672,8 +1690,9 @@ const App = (function(){
     // AUCH maskierte Felder (type=password) melden: Chromium legt ihre Markierung (Strg+A, Doppelklick, Maus) im KLARTEXT in die X11-Auswahl —
     // gemessen 23.09.2026 mit Electron 44 unter X11 (Audit run-8 #3 nahm das Gegenteil an; der Faktencheck widersprach, die Messung entschied).
     // Ohne Meldung könnte die Hülle die Auswahl nie aufräumen. Über die Brücke geht der Text nur zum Hashen (Hauptprozess salzt, kein Orakel).
-    const selText=()=>{ const a=document.activeElement;
-      if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') return a.value.substring(a.selectionStart,a.selectionEnd);
+    let selFrom=null;   // Feld, aus dem selText zuletzt gelesen hat (für clipGateSel, Querfund Notes v1.8 B-1)
+    const selText=()=>{ const a=document.activeElement; selFrom=null;
+      if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number'){ selFrom=a; return a.value.substring(a.selectionStart,a.selectionEnd); }
       // Liegt der Fokus nicht im Feld (Klick auf einen Knopf), liefert getSelection() für ein markiertes Passwortfeld dessen PUNKTE — als Meldung überschrieben
       // sie den Hash des echten Werts in PRIMARY, Sperren und Frist ließen ihn liegen (Gerätetest 03.10.2026). Chromium beschreibt diese Auswahl als LEERE Range
       // an der Stelle des Feldes (gemessen), String() liefert trotzdem die Punkte. Dann das Feld dort auflösen und seinen echten markierten Wert nehmen — so stimmt
@@ -1681,7 +1700,7 @@ const App = (function(){
       const g=window.getSelection(); if(!g||!g.rangeCount) return '';
       const r=g.getRangeAt(0);
       if(r.collapsed){ const n=r.startContainer&&r.startContainer.childNodes?r.startContainer.childNodes[r.startOffset]:null;
-        if(n&&(n.tagName==='INPUT'||n.tagName==='TEXTAREA')&&typeof n.selectionStart==='number'&&n.selectionStart!==n.selectionEnd) return n.value.substring(n.selectionStart,n.selectionEnd);
+        if(n&&(n.tagName==='INPUT'||n.tagName==='TEXTAREA')&&typeof n.selectionStart==='number'&&n.selectionStart!==n.selectionEnd){ selFrom=n; return n.value.substring(n.selectionStart,n.selectionEnd); }
         return ''; }
       return String(g); };
     // Auch auf Sperr-/Einrichtungsbildschirm (DEK null): eine markierte Master-Passphrase läge sonst unbegrenzt in der Auswahl —
@@ -1691,11 +1710,12 @@ const App = (function(){
     // geordnet (in der Hülle eine Kette): das clear() der Sperre kommt nach dieser Meldung an. Scheitert die Meldung, löscht der Zeitgeber nur eigene Hashes (harmlos).
     // Nach der Antwort ZUSÄTZLICH nachschärfen: lief gerade ein Löschen (clipOwnedAt noch gesetzt, sync nichts zu tun), setzt dessen ok() die Frist
     // danach auf 0 — die neue Markierung läge sonst ohne Frist in PRIMARY (Release-Audit v1.19 B-1; v1.18 armte nur in der Antwort, das hielt diesen Fall).
-    const report=t=>{ if(!t) return;
+    const report=(t,from)=>{ if(!t) return;
+      clipGateSel=!!(from&&GATE_IDS.includes(from.id));
       if(!clipOwnedAt) armClip();
       let p=null; try{ p=DESK.clip.selected(t); }catch(_){ p=null; }
       if(p&&p.then) p.then(()=>{ if(!clipOwnedAt) armClip(); },()=>{}); };
-    const onSel=()=>report(selText());
+    const onSel=()=>{ const t=selText(); report(t,selFrom); };
     document.addEventListener('mouseup',onSel);
     // Strg+C auf Markiertem: nicht Chromium kopieren lassen (ohne KDE-Hinweis, ohne Löschen → Klipper-Verlauf), sondern über die Brücke
     document.addEventListener('copy',ev=>{ const t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel'); });
@@ -1712,7 +1732,7 @@ const App = (function(){
     // Im Timer direkt vom Feld lesen (ein Feld behält seine Markierung nach dem Blur): wandert der Fokus vor dem Timer schon weiter, wird trotzdem gemeldet,
     // und der Timer des nächsten Feldes überschreibt den Hash in der richtigen Reihenfolge. Nur Textfelder (Kästchen/Regler haben kein selectionStart, Runde 3 N-1/N-2).
     document.addEventListener('focusin',ev=>{ const a=ev.target; if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||typeof a.selectionStart!=='number') return;
-      setTimeout(()=>{ try{ report(a.value.substring(a.selectionStart,a.selectionEnd)); }catch(_){} },0); });
+      setTimeout(()=>{ try{ report(a.value.substring(a.selectionStart,a.selectionEnd),a); }catch(_){} },0); });
     // Vor jeder Taste synchron (Capture, vor der Standardaktion): Weitertippen klappt die Markierung zusammen, PRIMARY behält sie aber — Blink zieht Eingaben
     // dem Timer vor, bei Auto-Type kam die Taste sonst vor der focusin-Meldung (Runde 3 N-1)
     document.addEventListener('keydown',onSel,true);
@@ -2091,7 +2111,9 @@ const App = (function(){
   function deskKey(ev){
     if(!DESK||!ev.ctrlKey||ev.altKey||ev.shiftKey||ev.metaKey) return false; const k=(ev.key||'').toLowerCase();
     if(k==='l'&&(DEK||pendingUnlock)){ lockNow(); return true; }
-    if(dlgResolve) return true;   // offene Rückfrage: kein Strg+N/F daran vorbei (nur Sperren)
+    // Offene Rückfrage: kein Strg+N/F daran vorbei; alle anderen Strg-Tasten (Einfügen, Alles markieren, Rückgängig, Wortsprung) wirken normal im
+    // Eingabefeld — vorher schluckte die Weiche jede, im Kategorie-Feld ging Strg+V nicht (Review v1.20 N-3)
+    if(dlgResolve) return k==='n'||k==='f';
     if(!DEK) return false;
     if(k==='f'){ closeHelp(); tab('list'); const q=$('search'); q.focus(); q.select(); return true; }
     if(k==='n'){ closeHelp(); newEntry(); return true; }

@@ -104,7 +104,10 @@ else {
       if(cur&&mine.includes(sha(cur))) return (await within(()=>buf.clear(),LINK_MS))!==LATE;
       return true; };
     const [okC,okP]=await Promise.all([one(clipboard),one(clipboard.selection)]);
-    if(okC&&okP){ for(const h of mine) pending.delete(h); retryN=0; return; }
+    // Alles bestätigt: einen geplanten Nachfass-Zeitgeber IMMER stoppen — sonst bekäme ein späterer Fehler nach einer langen Hängephase (Nachfassen schon
+    // im 30-s-Takt) erst nach bis zu 30 s das nächste Nachfassen statt nach 1 s (Querfund Alien Notes v1.8, Release-Audit run-6 Runde 1 Nachlauf + R2-H1). Ein Hash,
+    // der danach noch in `pending` steht, kam aus einem späten Schreiben und hängt sein eigenes Glied in die Kette, das bei Misserfolg selbst im 1-s-Takt neu plant.
+    if(okC&&okP){ for(const h of mine) pending.delete(h); retryN=0; if(retryTimer){ clearTimeout(retryTimer); retryTimer=null; } return; }
     // Nicht fertig: die Hülle fasst selbst nach — erst je 1 s, nach 30 Versuchen alle 30 s weiter, solange etwas offen ist (N-3)
     if(!retryTimer) retryTimer=setTimeout(()=>{ retryTimer=null; run(()=>clearOwned('retry')).catch(()=>{}); },retryN++<30?1000:30000);
   }
@@ -113,6 +116,9 @@ else {
   let clipQ=Promise.resolve();
   const run=f=>(clipQ=clipQ.then(f,f));
   let quitting=false, quitDone=false;
+  // späte Schreibvorgänge, die noch nicht gelandet sind / bis wann Klippers Spiegel einer gelandeten noch kommen kann (Querfund Notes v1.8 R2-H2; Landung + 3,2 s
+  // wie das Nachfassen bei 0/1/3 s, N-3). Monotone Uhr wie openOutside: ein Zurückstellen der Systemuhr verlängert das Beenden nicht (N-5)
+  let lateN=0, lateUntil=-Infinity;
   ipcMain.handle('clip:write',async(e,text)=>{
     if(!fromApp(e)) throw new Error('denied');
     if(typeof text!=='string'||!text||text.length>CLIP_MAX) throw new Error('bad');
@@ -123,7 +129,8 @@ else {
       if(r!==LATE){ owned=sha(text); return true; }
       // Zu spät: die App meldet „Manuell kopieren“ und setzt keine Frist — landet die Kopie doch noch, sofort wieder löschen (R2-2)
       // Mehrfach nachfassen (sofort, nach 1 s, nach 3 s): Klipper spiegelt erst NACH dem Landen in PRIMARY (Nachprüfung N-2)
-      Promise.resolve(w).then(()=>{ const h=sha(text); for(const d of [0,1000,3000]) setTimeout(()=>{ keep(h); run(()=>clearOwned('retry')).catch(()=>{}); },d); },()=>{});
+      lateN++;
+      Promise.resolve(w).then(()=>{ lateN--; lateUntil=performance.now()+3200; const h=sha(text); for(const d of [0,1000,3000]) setTimeout(()=>{ keep(h); run(()=>clearOwned('retry')).catch(()=>{}); },d); },()=>{ lateN--; });
       throw new Error('timeout');
     });
   });
@@ -223,9 +230,18 @@ else {
 
   // Beim Beenden die eigene Kopie aus der Zwischenablage nehmen. Höchstens LINK_MS auf die Kette warten (ein noch laufendes Schreiben/Löschen, R2-1 der
   // v3.7-Runde), steht sie länger, direkt an ihr vorbei löschen (Release-Audit v1.19 R2-3) — zusammen höchstens etwa 5 s. Ein zweites app.quit()
-  // während des Wartens wird abgefangen (quitDone, A-3); clip:write ist ab hier abgewiesen.
+  // während des Wartens wird abgefangen (quitDone, A-3); clip:write ist ab hier abgewiesen. Deckel `end` (monotone Uhr, N-5).
+  // Lief das Glied durch, hat aber nicht alles bestätigt (einmal abgelehntes Lesen/Löschen), fasst das Beenden direkt nach, solange `pending` nicht leer ist
+  // und Zeit bleibt — das Nachfassen per Zeitgeber käme nach dem Beenden nicht mehr, und Klippers Spiegel in PRIMARY überlebte es (Querfund Notes v1.8 A-1).
   app.on('before-quit',ev=>{ if(quitDone) return; ev.preventDefault(); if(quitting) return; quitting=true;
     const cap=(p,ms)=>Promise.race([Promise.resolve(p).then(()=>true,()=>true),new Promise(r=>setTimeout(()=>r(false),ms))]);
-    cap(run(()=>clearOwned()),LINK_MS).then(done=>done?true:cap(clearOwned(),LINK_MS+500)).catch(()=>{}).finally(()=>{ quitDone=true; app.quit(); }); });
+    const end=performance.now()+5000;
+    (async()=>{
+      if(!(await cap(run(()=>clearOwned()),LINK_MS))) await cap(clearOwned(),LINK_MS+500);
+      // … und auch, solange ein spätes Schreiben noch nicht gelandet ist oder sein Spiegel noch kommen kann (R2-H2: es stand noch nicht in `pending`)
+      while((pending.size||lateN||performance.now()<lateUntil)&&performance.now()<end-300){
+        if(pending.size) await cap(clearOwned('retry'),Math.min(LINK_MS+500,end-performance.now()));
+        if(pending.size||lateN||performance.now()<lateUntil) await new Promise(r=>setTimeout(r,150)); }
+    })().catch(()=>{}).finally(()=>{ quitDone=true; app.quit(); }); });
   app.on('window-all-closed',()=>app.quit());
 }

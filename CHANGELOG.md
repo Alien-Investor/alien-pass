@@ -1,5 +1,22 @@
 # Changelog — Alien Pass
 
+## v1.20 — 2026-10-09
+
+Komfort bei der Mehrfachauswahl und letzte Korrekturen an der Zwischenablage der Desktop-Fassung. Keine Änderung an Tresor-Format,
+Verschlüsselung, Berechtigungen oder Daten.
+- **Kategorie für mehrere Einträge:** Wer mit ☑ mehrere Einträge wählt und „Kategorie…“ tippt, sieht die vorhandenen Kategorien jetzt gleich
+  als Liste, wie beim Bearbeiten eines Eintrags. Ein Tipp trägt sie ein, Tippen filtert die Liste, der Pfeil ▾ rechts klappt die Liste mit allen
+  Kategorien auf und zu. Eine neue Kategorie lässt sich wie bisher einfach eintippen. Am Desktop wirken im Feld jetzt auch Strg+V, Strg+A und Strg+Z.
+- **Scrollbalken:** Der Neon-Balken gilt jetzt nur noch bei Maus oder Trackpad (Desktop). Auf Touch-Geräten gilt überall, auch in Menüs
+  und Dialogen, der schmale Balken des Systems.
+- **Desktop — Beenden:** Scheitert das letzte Löschen beim Beenden einmal (etwa weil ein anderes Programm die Zwischenablage kurz blockiert)
+  oder kommt eine Kopie erst während des Beendens an, fasst die App jetzt direkt nach — zusammen höchstens etwa 5 Sekunden.
+- **Desktop — Fensterwechsel:** Eine markierte Passphrase in den Einstellungen (Passphrase ändern, PIN) oder beim Import (Backup) verschwindet beim
+  Wechsel in ein anderes Fenster jetzt auch bei geöffnetem Tresor sofort aus der Mittelklick-Auswahl, so wie gesperrt schon seit v1.19 — außer es
+  läuft gerade die Frist einer Kopie. Markierter Text in einem Eintrag bleibt bis zum Ablauf der Zeit per Mittelklick einfügbar.
+- **Desktop — Aegis-Abfrage:** Eine Kopie, die man beim Entsperren in der Abfrage des Aegis-Codes macht, bekommt jetzt immer die Vorgabe-Frist
+  von 30 Sekunden — auch wenn in den Einstellungen eine andere Zeit oder „nur beim Sperren“ gewählt ist.
+
 ## v1.19 — 2026-10-03
 
 Kleine Korrekturen an der Zwischenablage der Desktop-Fassung. Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten;
@@ -16,12 +33,13 @@ auf Android ändert sich am Verhalten nichts (nur die Versionsnummer).
   Ablauf der Zeit stehen (zum Einfügen in eine andere App). Eine bloße Markierung, etwa nach Tab in das gefüllte Passwortfeld, wird jetzt beim
   Sperren sofort gelöscht — außer es läuft gerade die Frist einer Kopie, dann gilt diese eine Frist für beides.
 - **Desktop — kleinere Härtungen:** Kopieren, Melden und Löschen laufen in der Hülle streng nacheinander, sodass eine Markierung, die während
-  eines Löschens ankommt, nicht mehr verloren geht; beim Beenden wird das letzte Löschen abgewartet (höchstens 3 Sekunden). Auch eine sehr
+  eines Löschens ankommt, nicht mehr verloren geht; beim Beenden wird das letzte Löschen abgewartet (höchstens etwa 5 Sekunden). Auch eine sehr
   lange Markierung (etwa die ganze Eintragsliste) wird gemeldet und gelöscht. Strg+X mit Fokus auf einem Kästchen kopiert nur und wirft keinen
   Fehler mehr.
 - **Desktop — gesperrt:** Eine auf dem Sperr- oder Einrichtungsbildschirm markierte Passphrase verschwindet jetzt auch beim Wechsel in ein
   anderes Fenster sofort aus der Mittelklick-Auswahl. Wer dort mit Strg+C kopiert (etwa eine neue Passphrase zum Sichern), behält die Kopie
-  jetzt mit einer Frist von 30 Sekunden (gesperrt kennt die App die eigene Einstellung nicht), statt dass sie still sofort gelöscht wird; beim Entsperren wird sie gelöscht.
+  jetzt mit einer Frist von 30 Sekunden (gesperrt gilt die Vorgabe; zur Aegis-Abfrage siehe v1.20), statt dass sie still sofort gelöscht wird; beim Entsperren
+  und beim Abschluss der Einrichtung wird sie gelöscht — also vorher einfügen.
 
 ## v1.18 — 2026-10-03
 
