@@ -3,8 +3,8 @@
 ## v1.21 — 2026-10-10
 
 Sicherheitskorrektur für die Desktop-Fassung (Linux). Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten; auf Android
-ändert sich am Verhalten nichts (nur die Versionsnummer). Das Netz war nie beteiligt, die App hat weiterhin keinen Netzzugang: Betroffen war allein
-die Mittelklick-Auswahl, die unter X11 jedes laufende Programm lesen kann. Wer in Klipper Markierungen in den Verlauf übernehmen lässt (nicht die
+ändert sich am Verhalten nichts (nur die Versionsnummer). Das Netz war nie beteiligt, die App hat weiterhin keinen Netzzugang: Betroffen war die
+Mittelklick-Auswahl, die unter X11 jedes laufende Programm lesen kann. Wer in Klipper Markierungen in den Verlauf übernehmen lässt (nicht die
 Voreinstellung), sollte diesen Verlauf leeren.
 - **Desktop — Strg+A außerhalb eines Feldes:** Bei geöffnetem Tresor markierte Strg+A ohne Fokus in einem Textfeld (oder in einem leeren Textfeld) die
   ganze Seite, samt Eintragsliste, Benutzernamen, Notizen, TOTP-Code und einem gerade aufgedeckten Passwort. Unter Linux landet jede Markierung in der
