@@ -72,6 +72,11 @@ else {
   // Besitz-Hashes mit prozess-zufälligem Salz: der Hash darf nie ein Klartext-Orakel für kurze Texte (PIN) sein (Audit run-8 #3)
   const SALT=crypto.randomBytes(16);
   const sha=t=>crypto.createHash('sha256').update(SALT).update(String(t)).digest('hex');
+  // Markierungen AUSSERHALB von Feldern: die App meldet String(getSelection()), Chromium legt aber einen anderen Text in PRIMARY — U+FFFC für jeden Knopf,
+  // jedes Feld und Kästchen im Bereich, NBSP als Leerzeichen. Ohne Angleichen passte der Hash nie, und Frist und Sperre ließen z. B. nach Strg+A die ganze
+  // Seite samt aufgedecktem Passwort und TOTP-Code in PRIMARY (gemessen 10.10.2026 in der echten Hülle, Querfund Alien Notes v1.10, Release-Audit run-8 a2-1).
+  // Beide Seiten vor dem Hash angleichen: Meldung in clip:selected, gelesener Text in clearOwned. Messreihe Notes/Pass: sonst keine Abweichung.
+  const nsel=t=>String(t).replace(/\ufffc/g,'').replace(/\u00a0/g,' ');
   let owned=null;      // Hash des zuletzt von uns kopierten Texts — nie der Text selbst
   // Hashes der zuletzt in der App markierten Texte (X11-Auswahl, Mittelklick) — Klipper speichert sie nicht, aber jedes Programm liest sie.
   // Ein RING statt eines einzelnen Hashes (R2-N2, gemessen 03.10.2026): ein Klick links neben/knapp über ein Feld mit alter interner Markierung
@@ -100,8 +105,12 @@ else {
     // kostet nichts (A-4). PRIMARY gegen Markierungen UND die eigene Kopie: Klipper spiegelt Kopien (Einstellung „Auswahl und Zwischenablage
     // synchronisieren“) auch mit KDE-Hinweis in PRIMARY (gemessen 03.10.2026, Tresor run-7 M-1 und am Pass-Gerät): sonst bliebe ein kopiertes PASSWORT
     // per Mittelklick abrufbar. Gelöscht wird nur, was noch von uns stammt; fremde Kopien bleiben.
+    // Markierungs-Hashes sind über nsel() gebildet, die eigene Kopie über den Text selbst — darum beide Formen des gelesenen Texts prüfen (a2-1). Fremder
+    // Text, der sich von eigenem nur durch U+FFFC/NBSP unterscheidet, gilt damit als eigener (inhaltsgleich, unkritisch). Den zweiten Hash nur bilden, wenn
+    // nsel() etwas ändert (16 Mi Zeichen kosten sonst unnötig, run-11 a-4).
     const one=async(buf)=>{ const cur=await within(()=>buf.readText(),LINK_MS); if(cur===LATE) return false;
-      if(cur&&mine.includes(sha(cur))) return (await within(()=>buf.clear(),LINK_MS))!==LATE;
+      const n=cur?nsel(cur):cur;
+      if(cur&&(mine.includes(sha(cur))||(n!==cur&&mine.includes(sha(n))))) return (await within(()=>buf.clear(),LINK_MS))!==LATE;
       return true; };
     const [okC,okP]=await Promise.all([one(clipboard),one(clipboard.selection)]);
     // Alles bestätigt: einen geplanten Nachfass-Zeitgeber IMMER stoppen — sonst bekäme ein späterer Fehler nach einer langen Hängephase (Nachfassen schon
@@ -138,7 +147,10 @@ else {
     if(!fromApp(e)) throw new Error('denied');
     if(typeof text!=='string'||text.length>SEL_MAX) throw new Error('bad');
     if(!text) return true;   // leere Meldung verdrängt nichts
-    const h=sha(text); return run(()=>{ ownedSel=ownedSel.filter(x=>x!==h); ownedSel.push(h); if(ownedSel.length>SEL_RING) ownedSel.shift(); return true; });
+    // Angeglichen hashen (a2-1). Bleibt danach nichts übrig (der markierte Text bestand selbst nur aus U+FFFC — die App meldet Knöpfe/Felder nicht als
+    // U+FFFC), ist nichts Lesbares zu schützen — nichts merken; sha('') im Ring löschte sonst jede fremde Auswahl, die nur aus solchen Zeichen besteht (run-11 a-3)
+    const n=nsel(text); if(!n) return true;
+    const h=sha(n); return run(()=>{ ownedSel=ownedSel.filter(x=>x!==h); ownedSel.push(h); if(ownedSel.length>SEL_RING) ownedSel.shift(); return true; });
   });
   ipcMain.handle('clip:clear',async e=>{ if(!fromApp(e)) throw new Error('denied'); await run(()=>clearOwned()); return true; });
 

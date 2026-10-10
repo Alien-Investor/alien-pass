@@ -996,6 +996,8 @@ const App = (function(){
   const GEN_DEFAULT={mode:'chars',len:20,wc:6,upper:true,lower:true,digits:true,symbols:true,noamb:false,sep:'-',cap:false,num:false};
   let GEN=Object.assign({},GEN_DEFAULT);
   let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, clipCopied=false, clipGateSel=false, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
+  // Desktop: meldet die Markierung eines Feldes an die Hülle (gesetzt im Zwischenablage-Block, nur mit DESK) — für Strg+A in deskKey (Audit run-11 e-3)
+  let reportFieldSel=null;
   let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
   let selMode=false, selIds=new Set(), shownIds=[];   // Mehrfachauswahl (v1.9): nur im RAM, Sperre räumt ab; shownIds = zuletzt gezeigte Zeilen (für „Alle“)
   const UNDO_MS=6000;   // so lange steht „Rückgängig“ nach dem Löschen im Toast
@@ -1716,6 +1718,7 @@ const App = (function(){
       let p=null; try{ p=DESK.clip.selected(t); }catch(_){ p=null; }
       if(p&&p.then) p.then(()=>{ if(!clipOwnedAt) armClip(); },()=>{}); };
     const onSel=()=>{ const t=selText(); report(t,selFrom); };
+    reportFieldSel=a=>report(a.value.substring(a.selectionStart,a.selectionEnd),a);
     document.addEventListener('mouseup',onSel);
     // Strg+C auf Markiertem: nicht Chromium kopieren lassen (ohne KDE-Hinweis, ohne Löschen → Klipper-Verlauf), sondern über die Brücke
     document.addEventListener('copy',ev=>{ const t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel'); });
@@ -1725,7 +1728,9 @@ const App = (function(){
       if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||typeof a.selectionStart!=='number'||a.readOnly||a.disabled) return;   // Fokus auf Kästchen/Knopf: nur kopieren (setRangeText warf dort, Querfund Notes v1.7 B-N1)
       let done=false; try{ done=document.execCommand('delete'); }catch(_){}
       if(!done){ a.setRangeText('',a.selectionStart,a.selectionEnd,'end'); a.dispatchEvent(new Event('input',{bubbles:true})); } });
-    document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&(ev.key||'').toLowerCase()==='a')) onSel(); });
+    // Strg+A auch am Tastencode 65: bei nicht-lateinischer Belegung ist ev.key „ф“/„α“, Chromium markiert trotzdem — ohne Meldung lag z. B. eine per Strg+A
+    // markierte Passphrase ohne Frist in PRIMARY (Audit run-11 a-1/b-1)
+    document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&((ev.key||'').toLowerCase()==='a'||ev.keyCode===65))) onSel(); });
     // Fokus in ein Feld (Tab, focus()/select(), Rückkehr aus dem Dialog) kann dessen ganzen Inhalt markieren — Chromium legt ihn auch aus type=password in PRIMARY
     // (gemessen 03.10.2026, Release-Audit v1.18 B-1). Nach JEDER Fokusbewegung melden, nicht erst beim Loslassen von Tab: gehaltenes Tab wanderte sonst auf einen
     // Knopf weiter (keyup dort → nichts zu melden), und Weitertippen vor dem Loslassen hob die Markierung auf, bevor sie gemeldet war (Runde 2, R2-1).
@@ -2111,6 +2116,18 @@ const App = (function(){
   function deskKey(ev){
     if(!DESK||!ev.ctrlKey||ev.altKey||ev.shiftKey||ev.metaKey) return false; const k=(ev.key||'').toLowerCase();
     if(k==='l'&&(DEK||pendingUnlock)){ lockNow(); return true; }
+    // Strg+A übernimmt in der Hülle IMMER die App — Chromiums „Alles markieren“ läuft nie. Grund (Querfund Alien Notes v1.10, Release-Audit run-8 a2-1, gemessen
+    // 10.10.2026 in der echten Hülle): außerhalb eines Textfelds (Fokus nirgends, Knopf, Kästchen, Regler, Auswahlliste) markierte es die GANZE Seite — Liste,
+    // Benutzernamen, Notizen, TOTP-Code, ein aufgedecktes Passwort — und Chromium legt das in PRIMARY, lesbar für jedes X11-Programm; in einem LEEREN Textfeld
+    // ebenso (leeres Suchfeld bei aufgedecktem Passwort → 682 Zeichen, die App meldete nur die leere Feld-Auswahl). Chromium markiert dort, wo die AUSWAHL
+    // liegt, nicht wo der Fokus ist (Audit run-11 c-1) — darum keine Fallunterscheidung nach Chromiums Verhalten, sondern: immer sperren, und im GEFÜLLTEN
+    // Textfeld (auch Passwort- und Dialogfeld) markiert die App das Feld selbst per select() — im keydown, also im Eingabeereignis, das PRIMARY erreicht.
+    // Gilt auch gesperrt und bei offener Rückfrage. Erkannt am Tastencode 65 wie in Chromium, nicht nur am Zeichen (kyrillisch „ф“, griechisch „α“; a-1/b-1).
+    if(k==='a'||ev.keyCode===65){ const a=document.activeElement, feld=a&&((a.tagName==='INPUT'&&typeof a.selectionStart==='number')||a.tagName==='TEXTAREA');
+      // Sofort melden, nicht erst im keyup: wer Strg VOR dem A loslässt, schickt ein keyup ohne Strg — die per Strg+A markierte Passphrase lag sonst
+      // ungemeldet und ohne Frist in PRIMARY (Querfund Alien Notes v1.9 a-1, Audit run-11 e-3; das zweite Melden im keyup verdrängt nichts, gleicher Hash)
+      if(feld&&a.value.length>0){ a.select(); if(reportFieldSel) reportFieldSel(a); }
+      return true; }
     // Offene Rückfrage: kein Strg+N/F daran vorbei; alle anderen Strg-Tasten (Einfügen, Alles markieren, Rückgängig, Wortsprung) wirken normal im
     // Eingabefeld — vorher schluckte die Weiche jede, im Kategorie-Feld ging Strg+V nicht (Review v1.20 N-3)
     if(dlgResolve) return k==='n'||k==='f';
