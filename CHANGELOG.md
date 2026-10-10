@@ -1,5 +1,19 @@
 # Changelog — Alien Pass
 
+## v1.21 — 2026-10-10
+
+Sicherheitskorrektur für die Desktop-Fassung (Linux). Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten; auf Android
+ändert sich am Verhalten nichts (nur die Versionsnummer). Das Netz war nie beteiligt, die App hat weiterhin keinen Netzzugang: Betroffen war allein
+die Mittelklick-Auswahl, die unter X11 jedes laufende Programm lesen kann. Wer in Klipper Markierungen in den Verlauf übernehmen lässt (nicht die
+Voreinstellung), sollte diesen Verlauf leeren.
+- **Desktop — Strg+A außerhalb eines Feldes:** Bei geöffnetem Tresor markierte Strg+A ohne Fokus in einem Textfeld (oder in einem leeren Textfeld) die
+  ganze Seite, samt Eintragsliste, Benutzernamen, Notizen, TOTP-Code und einem gerade aufgedeckten Passwort. Unter Linux landet jede Markierung in der
+  Mittelklick-Auswahl, und genau diese Markierung löschte die App weder nach Ablauf der Zeit noch beim Sperren. Jetzt übernimmt die App Strg+A selbst:
+  In einem gefüllten Feld markiert Strg+A wie gewohnt dessen Inhalt, sonst nichts, auch bei nicht-lateinischer Tastaturbelegung. Auch diese Markierung
+  löscht die App nach Ablauf der Zeit und beim Sperren, selbst wenn man Strg vor dem A loslässt.
+- **Desktop — Markierung mit der Maus:** Reichte eine Markierung über Knöpfe oder Felder hinweg oder enthielt sie geschützte Leerzeichen, blieb sie
+  bisher ebenfalls stehen. Jetzt löscht die App auch sie nach Ablauf der Zeit und beim Sperren.
+
 ## v1.20 — 2026-10-09
 
 Komfort bei der Mehrfachauswahl und letzte Korrekturen an der Zwischenablage der Desktop-Fassung. Keine Änderung an Tresor-Format,

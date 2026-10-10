@@ -256,7 +256,8 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
     können die Markierung ignorieren. Die App löscht nur ihre eigene Kopie — nach der eingestellten Zeit, beim Sperren und beim Beenden.
     Das gilt auch für Strg+C, Strg+X und für Text, den du in der App markierst (unter Linux sofort per Mittelklick einfügbar) — auch aus einem
     verdeckten Passwortfeld, etwa nach Tab in das gefüllte Feld. Klipper kann jede Kopie zusätzlich in diese Auswahl spiegeln (Einstellung „Auswahl und Zwischenablage synchronisieren“);
-    die App löscht sie seit v1.19 auch dort. Markierter Text trägt die KDE-Markierung nicht: Wer in Klipper die Auswahl in den Verlauf übernehmen lässt, sollte das abschalten.
+    die App löscht sie seit v1.19 auch dort. Strg+A markiert seit v1.21 nur den Inhalt eines gefüllten Feldes, nie die ganze Seite.
+    Markierter Text trägt die KDE-Markierung nicht: Wer in Klipper die Auswahl in den Verlauf übernehmen lässt, sollte das abschalten.
   - **Grenzen:** Die App liefert ihre Browser-Engine (Electron 44) selbst mit — Sicherheits-Updates dafür kommen nur mit einer neuen
     App-Version, nicht über das System. **Kein Schutz vor Bildschirmfotos** (Linux kennt kein Gegenstück zu FLAG_SECURE). Unter **X11** kann
     jedes laufende Programm Tastatur und Zwischenablage mitlesen — das gilt für jeden Passwort-Manager, Wayland trennt Programme besser.
