@@ -176,19 +176,23 @@ else {
   });
 
   // Backup: Speichern-Dialog (im Flatpak über das Portal). null = abgebrochen → app.js setzt dann keinen Backup-Stempel.
+  // showOverwriteConfirmation: ein bestehendes Ziel nur nach Rückfrage (Electron fragt sonst nicht; v1.22, Querfund Alien Notes 1.12 run-10 b-5).
+  // Fehler gehen nur als Code an die Seite, nie mit Pfad — die Meldung stünde sonst in der Backup-Zeile (v1.22, Querfund Notes run-10 b-8).
   ipcMain.handle('backup:save',async(e,name,content)=>{
     if(!fromApp(e)) throw new Error('denied');
     if(typeof name!=='string'||!/^[\w.-]{1,80}\.vault$/.test(name)||typeof content!=='string'||!content||content.length>FILE_MAX) throw new Error('bad');
-    const r=await dialog.showSaveDialog(win,{defaultPath:name,filters:[{name:'Alien Pass Backup',extensions:['vault']}]});
+    const r=await dialog.showSaveDialog(win,{defaultPath:name,filters:[{name:'Alien Pass Backup',extensions:['vault']}],properties:['showOverwriteConfirmation']});
     if(r.canceled||!r.filePath) return null;
-    // Rückfall nur für ein NEUES Ziel (Portal ohne Temp-Datei daneben): ein bestehendes Backup nie direkt überschreiben (Audit run-6 #3)
-    try{ writeAtomic(r.filePath,content); }
-    catch(err){
-      if(fs.existsSync(r.filePath)) throw err;
-      const fd=fs.openSync(r.filePath,'wx',0o600);
-      try{ writeFull(fd,content); }catch(e2){ fs.closeSync(fd); try{ fs.unlinkSync(r.filePath); }catch(_){} throw e2; }
-      fs.closeSync(fd);
-    }
+    try{
+      // Rückfall nur für ein NEUES Ziel (Portal ohne Temp-Datei daneben): ein bestehendes Backup nie direkt überschreiben (Audit run-6 #3)
+      try{ writeAtomic(r.filePath,content); }
+      catch(err){
+        if(fs.existsSync(r.filePath)) throw err;
+        const fd=fs.openSync(r.filePath,'wx',0o600);
+        try{ writeFull(fd,content); }catch(e2){ fs.closeSync(fd); try{ fs.unlinkSync(r.filePath); }catch(_){} throw e2; }
+        fs.closeSync(fd);
+      }
+    }catch(err){ throw new Error(String(err&&err.code||'write')); }
     return path.basename(r.filePath);
   });
 

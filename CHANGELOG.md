@@ -1,5 +1,25 @@
 # Changelog — Alien Pass
 
+## v1.22 — 2026-10-15
+
+Pflege-Release mit Korrekturen aus den internen Prüfungen der Schwester-Apps. Keine Änderung an Tresor-Format, Verschlüsselung oder Daten; weiterhin
+keine Internet-Berechtigung (nur Fingerabdruck).
+- **Android — Kopieren über die Auswahlleiste:** Wer Text markiert und über die Leiste von Android kopiert oder ausschneidet (zum Beispiel ein
+  aufgedecktes Passwort oder den TOTP-Code), bekommt jetzt denselben Schutz wie mit den Kopier-Knöpfen: Der Inhalt ist als sensibel markiert und wird
+  nach der eingestellten Zeit und beim Sperren geleert. Bisher übernahm Android diese Kopie selbst, ohne Markierung und ohne Frist. „Teilen“,
+  „Websuche“ oder „Übersetzen“ in dieser Leiste geben den Text weiterhin direkt an eine andere App, ohne Zwischenablage; das Handbuch nennt diese Grenze.
+- **Android — Tastatur:** Die App bittet die Tastatur-App, aus ihren Feldern nichts zu lernen (Gboard zeigt dann sein Inkognito-Symbol). Das ist nur
+  eine Bitte: Nicht jede Tastatur hält sich daran, und mitlesen kann sie trotzdem.
+- **Import:** Sperrt die App, während ein Backup entschlüsselt wird, bereitet sie dessen Einträge nicht mehr auf.
+- **Sperren:** Die App leert dabei zusätzlich den letzten Treffer, den die Skript-Engine für Textsuchen aufbewahrt. Dort hätte ein geheimer Wert
+  stehen können; in Alien Pass ließ sich das nicht nachweisen, die Korrektur ist vorsorglich.
+- **Rückfrage-Dialog:** Strg+Z macht bei offener Rückfrage nichts mehr rückgängig (bisher traf es Getipptes im Eintrag dahinter). Wer im Dialog drückt
+  und erst über dem Hintergrund loslässt, bricht die Rückfrage nicht mehr ab. Die Beschriftungen für Bildschirmleser folgen jetzt der Sprache.
+- **Desktop — Backup:** Der Speichern-Dialog fragt nach, bevor er eine vorhandene Datei überschreibt. Eine Fehlermeldung nennt nur noch den Fehler,
+  nicht mehr den vollen Pfad. Die Zwischendatei beim Speichern trägt einen zufälligen Namen und folgt keinem symbolischen Link.
+- **Desktop — Tastatur:** Strg+L sperrt auch bei kyrillischer Tastaturbelegung. Den Suchtext, den Strg+F markiert, löscht die App jetzt auch aus der
+  Mittelklick-Auswahl, nach Ablauf der Zeit und beim Sperren.
+
 ## v1.21 — 2026-10-10
 
 Sicherheitskorrektur für die Desktop-Fassung (Linux). Keine Änderung an Tresor-Format, Verschlüsselung, Berechtigungen oder Daten; auf Android

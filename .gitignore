@@ -51,3 +51,6 @@ trailer/thumbs/
 
 # Desktop-Build (regenerierbar: Electron entpackt, app.asar, Flatpak-Bauordner)
 desktop/build/
+# gebaute Pakete (auch Mess-APKs) nie ins Repo (v1.22, wie Alien Notes 1.13 Release-Audit b)
+*.apk
+*.idsig

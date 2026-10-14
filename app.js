@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.21';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.22';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -31,7 +31,7 @@ const I18N = {
   
   "lock.unlock":"Unlock",
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
-  "list.selTitle":"Select several entries","sel.all":"All","sel.none":"None","sel.trash":"Trash","sel.cat":"Category…","sel.cancel":"Cancel","dlg.cancel":"Cancel",
+  "list.selTitle":"Select several entries","aria.help":"Help / manual","aria.cats":"Categories","sel.all":"All","sel.none":"None","sel.trash":"Trash","sel.cat":"Category…","sel.cancel":"Cancel","dlg.cancel":"Cancel",
   "help.pSel":"<strong>Several entries at once:</strong> the <strong>☑</strong> icon next to the <strong>+</strong> turns on multi-select — every row gets a checkbox, a tap on the row selects it. The bar at the bottom moves the selected entries to the trash (with one shared “Undo”), gives them a category (existing ones are right there to pick, or just type a new one) or marks them as favourites. “All” only takes what is currently visible — search and category chips keep working. At most 200 entries to the trash at once, it holds no more. Locking, switching tabs or “Cancel” ends the selection.",
   "help.hTrash":"Trash",
   "help.pTrash":"Deleted entries go to the trash for <strong>30 days</strong> \u2014 the icon right of the <strong>+</strong> in the search row; the number next to it says how much is in there. It shows only <strong>title, type and date of deletion</strong>: no reveal, no copy. If you need the content, restore the entry first \u2014 it comes back complete, with password, extra fields and category. <strong>The trash holds 200 entries</strong>; once it is full the next deletion destroys the oldest one immediately and for good, and the confirmation tells you which one. <strong>Honestly:</strong> while an entry sits in the trash it is also part of every backup of this device. To get rid of something right away use \u201CDelete permanently\u201D or \u201CEmpty trash\u201D \u2014 that cannot be undone. After 30 days the app clears it out on the next unlock; after that only the deletion marker remains, until a year after the deletion. <strong>The trash is device-local</strong> (since the September 2026 audit): a deletion travels to your other devices when merging, the <em>content</em> does not. So you can only restore on the device where you deleted. That is deliberate \u2014 otherwise a planted backup file could displace your entire trash. <strong>A device running version 1.4 or older</strong> empties the trash when merging: the entries stay deleted, they never come back.",
@@ -120,7 +120,7 @@ const I18N = {
   "help.h2":"First steps",
   "help.l2":"<li><strong>Choose a passphrase</strong> — at least 12 characters, better six dice words (the suggest button builds them from the EFF list). Write it down and store it safely.</li><li>The <strong>key derivation</strong> (Argon2id) benchmarks itself during setup; “Standard” suits current phones.</li><li>Create entries — four types: <strong>Login</strong> (user, optional e-mail, password, URL, TOTP), <strong>Note</strong> (encrypted text only), <strong>Card</strong> (holder, number, expiry, CVV, PIN) and <strong>Account</strong> (holder, IBAN, BIC, bank, PIN). Every entry can carry up to eight <strong>extra fields</strong> — freely named (app PIN, phone password, security question …) and always secret: shown in the detail view only on request, each with its own copy button. Nothing of that has to sit in the notes in plain text.</li><li><strong>Categories</strong> work like folders: type one freely in the form (suggestions from existing ones). The list filters via the chips at the top; a category disappears once no entry carries it.</li><li><strong>Changing the type</strong> later is possible, but the old type's fields (e.g. a login's password and TOTP) are deleted — the app asks first. A backup does not bring them back, because the newer change wins when merging.</li><li>Tap an entry → detail view with copy buttons. Passwords, card number, CVV and PINs are only revealed on request; IBAN and BIC are shown in plain (needed for transfers, printed on every invoice).</li><li><strong>Changing a password without risk:</strong> first save the new password as an extra field (e.g. “new”), then change it on the website and sign in once more. If that works, move the new one into the password field and delete the extra field. That way neither gets lost if the website does not accept the change.</li>",
   "help.h3":"Clipboard",
-  "help.l3":"<li>Copied passwords are cleared by the app after the chosen time (default 30 s), when you return to the app and when it locks. With “Lock in background: immediately” the app locks as soon as you switch away, but the copied item stays until the chosen time runs out, so you can still paste it into another app.</li><li>In the background the Android app keeps trying to clear until Android freezes it (usually after the second app switch); afterwards it catches up when you return. From Android 13 the system additionally clears the clipboard after about an hour — older Android versions do not.</li><li>The Android app flags copied content as <strong>sensitive</strong>: the system preview shown when copying hides the content (Android 13+). In a browser this protection does not exist.</li>",
+  "help.l3":"<li>Copied passwords are cleared by the app after the chosen time (default 30 s), when you return to the app and when it locks. With “Lock in background: immediately” the app locks as soon as you switch away, but the copied item stays until the chosen time runs out, so you can still paste it into another app.</li><li>In the background the Android app keeps trying to clear until Android freezes it (usually after the second app switch); afterwards it catches up when you return. From Android 13 the system additionally clears the clipboard after about an hour — older Android versions do not.</li><li>The Android app flags copied content as <strong>sensitive</strong>: the system preview shown when copying hides the content (Android 13+). In a browser this protection does not exist.</li><li class=\"no-desk\">In the Android app, this also applies to text you select and copy or cut via Android's selection bar. Entries such as “Share”, “Web search” or “Translate” in that bar hand the text straight to another app, without the clipboard. The app can neither flag it as sensitive nor take it back.</li>",
   "help.h4":"Generator",
   "help.l4":"<li><strong>Characters:</strong> 8–64 characters from selectable sets; “no l/1/I/O/0” avoids mix-ups when typing.</li><li><strong>Dice words</strong> (Diceware): words from the EFF Large Wordlist, ~12.9 bits per word. Six words ≈ 77 bits — memorable and strong.</li><li>All randomness comes from the system generator without modulo bias; entropy is shown in bits — in character mode the requirement “every chosen set appears at least once” is subtracted honestly (about 1 bit at 8 characters, negligible from 16).</li>",
   "help.h5":"TOTP (2FA codes)",
@@ -138,7 +138,7 @@ const I18N = {
   "help.hDesk":"Desktop version (Linux)",
   "help.lDesk":"<li><strong>No network — enforced by the system:</strong> the desktop app runs as a Flatpak without network permission; inside the sandbox there is no connection to the outside. On top of that the app itself blocks every connection. Check: <code>flatpak info --show-permissions org.alieninvestor.pass</code> — there is no <code>network</code>.</li><li><strong>Vault file:</strong> <code>~/.var/app/org.alieninvestor.pass/data/alien-pass/vault.aipv</code> — encrypted, readable only by you, rewritten completely on every change (never half-written). The app sees no other files: backup and import go through the system file dialog, which only grants the chosen file.</li><li><strong>Clipboard:</strong> copied items are marked as a password for KDE — Klipper keeps them out of its history. Other clipboard managers may ignore the mark. The app clears the clipboard after the set time, also in the background, on lock and on quit, but only if its own copy is still there. The same applies to text you select in the app, with mouse or keyboard, including Tab into a filled password field (on Linux instantly pasteable with a middle click). Klipper can mirror every copy into this middle-click selection as well (setting “Keep the selection and clipboard the same”) — the app clears it there too. Selected text does not carry the KDE mark: if Klipper is set to keep the selection in its history, turn that off. Ctrl+C and Ctrl+X in the app copy like the copy button.</li><li><strong>Syncing with the phone:</strong> on the phone “Create backup” into a Syncthing folder, on the desktop import it under Backup — and the other way round. See “Backup &amp; Sync”.</li><li><strong>Locking:</strong> after inactivity and when the window is minimised or hidden (setting “Lock in background” — “background” here means minimised or hidden; switching to another window does not count, but it clears typed passphrases and PINs). On <strong>screen lock and suspend the desktop app does not lock by itself</strong> — inside the Flatpak it is not told. So use the system lock and set a short inactivity lock; Ctrl+L locks immediately.</li><li><strong>Keyboard:</strong> Ctrl+F search, Ctrl+N new entry, Ctrl+L lock, Ctrl+A selects only the content of a filled-in field, Esc closes. From about 1000 pixels window width, list and entry sit side by side.</li><li><strong>Honest limits:</strong> the desktop app ships its own browser engine (Electron) — security updates for it only arrive with a new app version, not through the system. No protection against screenshots (Linux has no way to block them). Under X11 every running program can read keyboard and clipboard; this applies to every password manager, Wayland separates programs better. No fingerprint.</li>",
   "help.h9":"Security in detail",
-  "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests exactly two normal permissions, both for the fingerprint sensor: USE_BIOMETRIC and USE_FINGERPRINT (the latter only up to Android 8.1, brought in by the AndroidX biometric library). No internet, no storage, no contacts. Besides these the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing. It forbids screenshots and recents preview (FLAG_SECURE), excludes itself from cloud, adb and device-to-device backups (backup rules) and keeps its fields out of the Android autofill framework (since v1.13): another password manager set up as the autofill service no longer sees the passphrase fields and cannot offer to save them.</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory. With “immediately” the Android app also locks while the file picker is open — the chosen file (CSV, Proton, .vault) is not lost, the import continues after unlocking (for .vault and PGP with the passphrase prompt).</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, own AES block cipher checked against FIPS-197 vectors and WebCrypto in the test suite, integrity check); its keys are import-only and zeroed afterwards, the vault key never touches it.</li><li><strong>Limits:</strong> no autofill, no breach check. Fingerprint unlock is optional and honestly limited (see above). A passphrase cannot be recovered.</li>"
+  "help.l9":"<li><strong>Key derivation:</strong> Argon2id (default 64 MiB, 3 passes) from your passphrase — memory-hard, so expensive for GPU attacks on a stolen file.</li><li><strong>Encryption:</strong> AES-256-GCM (WebCrypto). A random data key encrypts the vault; the passphrase only wraps that key. The file header is authenticated too — tampering is detected.</li><li><strong>Device:</strong> the Android app requests exactly two normal permissions, both for the fingerprint sensor: USE_BIOMETRIC and USE_FINGERPRINT (the latter only up to Android 8.1, brought in by the AndroidX biometric library). No internet, no storage, no contacts. Besides these the APK only carries the AndroidX-generated signature permission DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which grants nothing. It forbids screenshots and recents preview (FLAG_SECURE), excludes itself from cloud, adb and device-to-device backups (backup rules) and keeps its fields out of the Android autofill framework (since v1.13): another password manager set up as the autofill service no longer sees the passphrase fields and cannot offer to save them.</li><li><strong>Locking:</strong> after inactivity, in the background after a chosen time (or immediately), and manually. Locking removes keys and all rendered data from memory. With “immediately” the Android app also locks while the file picker is open — the chosen file (CSV, Proton, .vault) is not lost, the import continues after unlocking (for .vault and PGP with the passphrase prompt).</li><li><strong>Third-party code:</strong> only the Argon2 library hash-wasm (MIT) and the EFF word list, both bundled and hash-checked in the build. No CDN, no tracker. The OpenPGP reader for Proton exports is our own, deliberately small code (symmetric only, own AES block cipher checked against FIPS-197 vectors and WebCrypto in the test suite, integrity check); its keys are import-only and zeroed afterwards, the vault key never touches it.</li><li><strong>Limits:</strong> no autofill, no breach check. Fingerprint unlock is optional and honestly limited (see above). A passphrase cannot be recovered.</li><li class=\"no-desk\"><strong>Keyboard:</strong> The keyboard app on your phone sees everything you type. The Android app asks it not to learn from what you type (Gboard then shows its incognito icon). This is only a request: not every keyboard honours it, and the keyboard still sees what you type. To be sure, use a keyboard without personalised learning or turn it off there.</li>"
 };
 const T = {
   "err.setupShort":{de:"Mindestens 12 Zeichen.",en:"At least 12 characters."},
@@ -333,9 +333,9 @@ let LANG = (_qsLang==='de'||_qsLang==='en') ? _qsLang
 const _i18nCache = new WeakMap();
 function tr(key, params){ const e=T[key]; const s=e?(e[LANG]!==undefined?e[LANG]:e.de):key; return params?s.replace(/\{(\w+)\}/g,(m,k)=>Object.prototype.hasOwnProperty.call(params,k)?String(params[k]):m):s; }
 function applyI18n(){
-  document.querySelectorAll('[data-i18n],[data-i18n-html],[data-i18n-ph],[data-i18n-title]').forEach(el=>{
+  document.querySelectorAll('[data-i18n],[data-i18n-html],[data-i18n-ph],[data-i18n-title],[data-i18n-aria]').forEach(el=>{
     let c=_i18nCache.get(el); if(!c){ c={}; _i18nCache.set(el,c); }
-    [['data-i18n','textContent'],['data-i18n-html','innerHTML'],['data-i18n-ph','placeholder'],['data-i18n-title','title']].forEach(([attr,prop])=>{
+    [['data-i18n','textContent'],['data-i18n-html','innerHTML'],['data-i18n-ph','placeholder'],['data-i18n-title','title'],['data-i18n-aria','ariaLabel']].forEach(([attr,prop])=>{   // ariaLabel = aria-label (v1.22, Review v1.20 H-6)
       const key=el.getAttribute(attr); if(!key) return;
       if(c[prop]===undefined) c[prop]=el[prop];
       const en=I18N[key];
@@ -1233,6 +1233,7 @@ const App = (function(){
     pendingUnlock=null; pendingSecret=null; pendingOtpauth=''; pendingProton=null;
     bioGen++; bioRearmDek=null; bioArmed=false; bioNeedsRearm=false;   // laufende Fingerabdruck-Vorgänge verfallen (Generation)
     clearRendered(); boot();
+    /(?:)/.exec('');   // RegExp.input/lastMatch/leftContext leeren: hielten nach der Sperre den letzten Treffer, z. B. die Passphrase aus der Stärke-Prüfung (v1.22, Querfund Sachwert-Tresor v3.10.1 Q-1, Vorlage Notes 1.12)
   }
   // Nach dem Sperren darf nichts Entschlüsseltes im DOM oder in Formularfeldern bleiben
   function clearRendered(){
@@ -1287,7 +1288,9 @@ const App = (function(){
   if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur'){ const g=clipGateSel; clearGateInputs(); if((!DEK||g)&&clipOwnedAt&&!clipCopied) clearClip(); } else if(h) onHidden(); else onShown(); });
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
-  function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); return document.execCommand('copy'); }catch(_){ return false; } finally{ if(ta){ ta.value=''; ta.remove(); } } }
+  // fbCopy (v1.22, wie Alien Notes 1.13): solange fallbackCopy läuft, löst ihr execCommand('copy') synchron ein eigenes copy-Ereignis aus — der copy-Listener lässt es durch
+  let fbCopy=false;
+  function fallbackCopy(text){ let ta=null; try{ ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); fbCopy=true; return document.execCommand('copy'); }catch(_){ return false; } finally{ fbCopy=false; if(ta){ ta.value=''; ta.remove(); } } }
   let clipDue=false, clipTries=0, clipDeadline=0;   // Löschen war fällig, konnte aber (Hintergrund/kein Fokus) noch nicht ausgeführt werden; clipDeadline = Wanduhr-Frist der Kopie (0 = keine)
   const CLIP_MAX_TRIES=600;          // ~10 min Wiederholung im Vordergrund, dann aufgeben (Android leert spätestens nach 1 h selbst)
   // Gesperrt (auch in der Aegis-Wartestellung, wo settings() schon die eigene Einstellung kennt) gilt immer die Vorgabe — sonst lag bei clipClear 0 eine
@@ -1686,25 +1689,51 @@ const App = (function(){
   const isNative = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
   const SC = (isNative && CAP.Plugins && CAP.Plugins.SecureClip) ? CAP.Plugins.SecureClip   // eigenes Mini-Plugin (patch-hardening.mjs)
            : (DESK && DESK.clip) || null;   // Desktop: Hauptprozess schreibt mit KDE-Hinweis (kein Klipper-Verlauf) und löscht auch ohne Fokus
+  // Markierten Text lesen (Strg+C/Strg+X, am Desktop auch für die X11-Auswahl unten, auf Android seit v1.22 für die Auswahlleiste).
+  // AUCH maskierte Felder (type=password) melden: Chromium legt ihre Markierung (Strg+A, Doppelklick, Maus) im KLARTEXT in die X11-Auswahl —
+  // gemessen 23.09.2026 mit Electron 44 unter X11 (Audit run-8 #3 nahm das Gegenteil an; der Faktencheck widersprach, die Messung entschied).
+  // Ohne Meldung könnte die Hülle die Auswahl nie aufräumen. Über die Brücke geht der Text nur zum Hashen (Hauptprozess salzt, kein Orakel).
+  let selFrom=null;   // Feld, aus dem selText zuletzt gelesen hat (für clipGateSel, Querfund Notes v1.8 B-1)
+  const selText=()=>{ const a=document.activeElement; selFrom=null;
+    if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number'){ selFrom=a; return a.value.substring(a.selectionStart,a.selectionEnd); }
+    // Liegt der Fokus nicht im Feld (Klick auf einen Knopf), liefert getSelection() für ein markiertes Passwortfeld dessen PUNKTE — als Meldung überschrieben
+    // sie den Hash des echten Werts in PRIMARY, Sperren und Frist ließen ihn liegen (Gerätetest 03.10.2026). Chromium beschreibt diese Auswahl als LEERE Range
+    // an der Stelle des Feldes (gemessen), String() liefert trotzdem die Punkte. Dann das Feld dort auflösen und seinen echten markierten Wert nehmen — so stimmt
+    // der Hash, und Strg+C/Strg+X laufen weiter über die Brücke statt über Chromium ohne KDE-Hinweis (Runde 4); sonst nichts.
+    const g=window.getSelection(); if(!g||!g.rangeCount) return '';
+    const r=g.getRangeAt(0);
+    // Android (v1.22, wie Alien Notes 1.13 a2): eine versteckte Feld-Markierung (Fokus schon auf einem Knopf) kopiert Chromium dort nicht — die App auch nicht
+    if(r.collapsed){ if(!DESK) return ''; const n=r.startContainer&&r.startContainer.childNodes?r.startContainer.childNodes[r.startOffset]:null;
+      if(n&&(n.tagName==='INPUT'||n.tagName==='TEXTAREA')&&typeof n.selectionStart==='number'&&n.selectionStart!==n.selectionEnd){ selFrom=n; return n.value.substring(n.selectionStart,n.selectionEnd); }
+      return ''; }
+    return String(g); };
+  // Kopieren und Ausschneiden laufen über die App statt über Chromium: am Desktop über die Brücke, auf Android seit v1.22 über SecureClip (sensibel markiert,
+  // Frist, Löschen beim Sperren). Dort lösen die Auswahlleiste („Kopieren“/„Ausschneiden“) und Strg+C/Strg+X an einer angesteckten Tastatur dasselbe copy/cut
+  // aus — ohne Abfangen lag die Kopie unmarkiert und ohne Frist in der Zwischenablage, auch ein aufgedecktes Passwort oder der TOTP-Code (in Pass gemessen v1.22,
+  // Vorlage Alien Notes 1.13 / Audit run-10 e2-8). „Teilen“, „Websuche“ und „Übersetzen“ in der Leiste gehen ohne Zwischenablage an eine andere App: benannte Grenze.
+  if((DESK&&DESK.clip&&typeof DESK.clip.selected==='function')||(isNative&&!DESK&&CAP.Plugins&&CAP.Plugins.SecureClip)){
+    // Android: bleibt der Fokus in einem Feld, während anderswo Text markiert ist, klappt Chromium die Feld-Markierung zusammen und kopiert die Seiten-Markierung —
+    // selText() liefert dann '' und die Kopie liefe unmarkiert an der App vorbei (Notes-Faktencheck v1.13 M4). Dann die Seiten-Markierung nehmen — AUCH wenn sie
+    // das Feld einschließt („Alle auswählen“, Griff über das Feld gezogen): Chromiums eigene Kopie nähme dann die Werte sichtbarer Felder mit, ein aufgedecktes
+    // Passwort im Klartext; String(g) enthält keine Feldwerte (Notes Release-Audit v1.13 a-1, in Pass als Test [4] von verify-v122).
+    const outSel=()=>{ const a=document.activeElement, g=window.getSelection(); if(DESK||!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||!g||!g.rangeCount) return '';
+      return g.getRangeAt(0).collapsed?'':String(g); };
+    // Android: String(getSelection()) folgt CSS text-transform (Etikett „PASSWORT“ statt „Passwort“) — für die Dauer des Lesens abschalten, wie Chromiums eigene
+    // Kopie (Notes Release-Audit v1.13 a-2). Am Desktop unverändert: dort hängt die PRIMARY-Meldung am selben Text, und Chromium legt die Großschrift auch so in
+    // PRIMARY (gemessen v1.22 in der Hülle, Hash passt).
+    const plainSel=f=>{ if(DESK) return f(); const h=document.documentElement; h.classList.add('copy-plain'); try{ return f(); } finally{ h.classList.remove('copy-plain'); } };
+    // Strg+C auf Markiertem: nicht Chromium kopieren lassen (ohne KDE-Hinweis, ohne Löschen → Klipper-Verlauf), sondern über die Brücke bzw. SecureClip
+    document.addEventListener('copy',ev=>{ if(fbCopy) return; const t=plainSel(()=>selText()||outSel()); selFrom=null; if(!t) return; ev.preventDefault(); copyText(t,'what.sel'); });
+    // Strg+X / Shift+Entf ebenso — Chromium schriebe sonst selbst, ohne Hinweis und ohne Löschen (Audit run-7 #1). Danach die Markierung
+    // im Feld entfernen: execCommand('delete') hält Rückgängig intakt, sonst setRangeText + input-Ereignis (Formular-Balken, Zustand)
+    document.addEventListener('cut',ev=>{ const a=document.activeElement, t=selText(); selFrom=null; if(!t) return; ev.preventDefault(); copyText(t,'what.sel');
+      if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||typeof a.selectionStart!=='number'||a.readOnly||a.disabled) return;   // Fokus auf Kästchen/Knopf: nur kopieren (setRangeText warf dort, Querfund Notes v1.7 B-N1)
+      let done=false; try{ done=document.execCommand('delete'); }catch(_){}
+      if(!done){ a.setRangeText('',a.selectionStart,a.selectionEnd,'end'); a.dispatchEvent(new Event('input',{bubbles:true})); } });
+  }
   // X11-Auswahl: mit der Maus Markiertes landet ohne Strg+C in der Auswahl (Mittelklick fügt ein). Am Desktop der Hülle melden
   // und mit der Kopier-Frist mitlöschen; läuft schon eine Frist, gilt diese (Gerätetest 22.09.2026).
   if(DESK&&DESK.clip&&typeof DESK.clip.selected==='function'){
-    // AUCH maskierte Felder (type=password) melden: Chromium legt ihre Markierung (Strg+A, Doppelklick, Maus) im KLARTEXT in die X11-Auswahl —
-    // gemessen 23.09.2026 mit Electron 44 unter X11 (Audit run-8 #3 nahm das Gegenteil an; der Faktencheck widersprach, die Messung entschied).
-    // Ohne Meldung könnte die Hülle die Auswahl nie aufräumen. Über die Brücke geht der Text nur zum Hashen (Hauptprozess salzt, kein Orakel).
-    let selFrom=null;   // Feld, aus dem selText zuletzt gelesen hat (für clipGateSel, Querfund Notes v1.8 B-1)
-    const selText=()=>{ const a=document.activeElement; selFrom=null;
-      if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number'){ selFrom=a; return a.value.substring(a.selectionStart,a.selectionEnd); }
-      // Liegt der Fokus nicht im Feld (Klick auf einen Knopf), liefert getSelection() für ein markiertes Passwortfeld dessen PUNKTE — als Meldung überschrieben
-      // sie den Hash des echten Werts in PRIMARY, Sperren und Frist ließen ihn liegen (Gerätetest 03.10.2026). Chromium beschreibt diese Auswahl als LEERE Range
-      // an der Stelle des Feldes (gemessen), String() liefert trotzdem die Punkte. Dann das Feld dort auflösen und seinen echten markierten Wert nehmen — so stimmt
-      // der Hash, und Strg+C/Strg+X laufen weiter über die Brücke statt über Chromium ohne KDE-Hinweis (Runde 4); sonst nichts.
-      const g=window.getSelection(); if(!g||!g.rangeCount) return '';
-      const r=g.getRangeAt(0);
-      if(r.collapsed){ const n=r.startContainer&&r.startContainer.childNodes?r.startContainer.childNodes[r.startOffset]:null;
-        if(n&&(n.tagName==='INPUT'||n.tagName==='TEXTAREA')&&typeof n.selectionStart==='number'&&n.selectionStart!==n.selectionEnd){ selFrom=n; return n.value.substring(n.selectionStart,n.selectionEnd); }
-        return ''; }
-      return String(g); };
     // Auch auf Sperr-/Einrichtungsbildschirm (DEK null): eine markierte Master-Passphrase läge sonst unbegrenzt in der Auswahl —
     // dort gilt die Standard-Frist, beim Verlassen des Bildschirms wird sofort gelöscht (leaveGate, Audit run-7 #2)
     // Frist SYNCHRON vor der Meldung scharf machen: ein Klick auf „Jetzt sperren“ meldet per mouseup und sperrt im selben Klick — mit armClip erst in der
@@ -1720,14 +1749,6 @@ const App = (function(){
     const onSel=()=>{ const t=selText(); report(t,selFrom); };
     reportFieldSel=a=>report(a.value.substring(a.selectionStart,a.selectionEnd),a);
     document.addEventListener('mouseup',onSel);
-    // Strg+C auf Markiertem: nicht Chromium kopieren lassen (ohne KDE-Hinweis, ohne Löschen → Klipper-Verlauf), sondern über die Brücke
-    document.addEventListener('copy',ev=>{ const t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel'); });
-    // Strg+X / Shift+Entf ebenso — Chromium schriebe sonst selbst, ohne Hinweis und ohne Löschen (Audit run-7 #1). Danach die Markierung
-    // im Feld entfernen: execCommand('delete') hält Rückgängig intakt, sonst setRangeText + input-Ereignis (Formular-Balken, Zustand)
-    document.addEventListener('cut',ev=>{ const a=document.activeElement, t=selText(); if(!t) return; ev.preventDefault(); copyText(t,'what.sel');
-      if(!a||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')||typeof a.selectionStart!=='number'||a.readOnly||a.disabled) return;   // Fokus auf Kästchen/Knopf: nur kopieren (setRangeText warf dort, Querfund Notes v1.7 B-N1)
-      let done=false; try{ done=document.execCommand('delete'); }catch(_){}
-      if(!done){ a.setRangeText('',a.selectionStart,a.selectionEnd,'end'); a.dispatchEvent(new Event('input',{bubbles:true})); } });
     // Strg+A auch am Tastencode 65: bei nicht-lateinischer Belegung ist ev.key „ф“/„α“, Chromium markiert trotzdem — ohne Meldung lag z. B. eine per Strg+A
     // markierte Passphrase ohne Frist in PRIMARY (Audit run-11 a-1/b-1)
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&((ev.key||'').toLowerCase()==='a'||ev.keyCode===65))) onSel(); });
@@ -1804,8 +1825,8 @@ const App = (function(){
     const btn=$('import-btn'), orig=btn.textContent; doImportVault._busy=true; btn.disabled=true; btn.textContent=tr('busy.decrypting');
     try{
       let incoming;
-      try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); incoming=sanitizeVault(obj).entries; }
-      catch(e){ $('import-pass').value=''; if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
+      try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); if(!VAULT||!DEK||pendingImport!==f) return; incoming=sanitizeVault(obj).entries; }   // Sitzung VOR dem Aufbereiten prüfen (v1.22, Querfund Alien Notes 1.12): gesperrt → die entschlüsselte Datei nicht mehr anfassen
+      catch(e){ if(pendingImport!==f) return; $('import-pass').value=''; if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
       if(!VAULT||!DEK||pendingImport!==f) return;                // während des Argon2-Laufs gesperrt (auch schnell wieder entsperrt: lock() nullt pendingImport) → abbrechen (Diff-Review v1.15)
       incoming=shapeIncoming(VAULT.entries, incoming);          // Papierkorb-Inhalt bleibt gerätelokal, fremde Marken verdrängen keine eigenen (Audit run-5)
       const before=VAULT.entries.slice(); const m=mergeEntries(VAULT.entries, incoming);
@@ -2112,10 +2133,13 @@ const App = (function(){
       if(!done&&(gen!==bioGen||!VAULT||!DEK)) toast(tr('pin.aborted')); }   // stiller Abbruch war verwirrend: geleerte Felder, Karte weiter „aus“ (Audit run-8, Härtung)
   }
   async function pinDisable(){ if(!VAULT||!PIN||!(await ask(tr('confirm.pinDisable'),{ok:'dlg.discard',danger:true}))) return; if(!VAULT||!PIN) return; pinDrop(); toast(tr('pin.off')); }
+  // Offene Rückfrage: Rückgängig/Wiederholen sperren (v1.22, Querfund Alien Notes v1.9 R2c-1, in Pass gemessen): Chromiums Rückgängig-Stapel gilt fürs ganze Dokument —
+  // Strg+Z (auch Kontextmenü oder Tastatur-App) machte sonst Getipptes im Formular HINTER dem modalen Dialog rückgängig. Gilt auch im Dialogfeld selbst.
+  document.addEventListener('beforeinput',ev=>{ if(dlgResolve&&(ev.inputType==='historyUndo'||ev.inputType==='historyRedo')) ev.preventDefault(); },true);
   // Desktop-Tastatur (KeePassXC-Gewohnheit): Strg+L sperren, Strg+F Suche, Strg+N neuer Eintrag. Nur in der Hülle, nur entsperrt.
   function deskKey(ev){
     if(!DESK||!ev.ctrlKey||ev.altKey||ev.shiftKey||ev.metaKey) return false; const k=(ev.key||'').toLowerCase();
-    if(k==='l'&&(DEK||pendingUnlock)){ lockNow(); return true; }
+    if((k==='l'||ev.keyCode===76)&&(DEK||pendingUnlock)){ lockNow(); return true; }   // auch am Tastencode 76: bei kyrillischer Belegung ist ev.key „д“ (v1.22, Querfund Sachwert-Tresor v3.10)
     // Strg+A übernimmt in der Hülle IMMER die App — Chromiums „Alles markieren“ läuft nie. Grund (Querfund Alien Notes v1.10, Release-Audit run-8 a2-1, gemessen
     // 10.10.2026 in der echten Hülle): außerhalb eines Textfelds (Fokus nirgends, Knopf, Kästchen, Regler, Auswahlliste) markierte es die GANZE Seite — Liste,
     // Benutzernamen, Notizen, TOTP-Code, ein aufgedecktes Passwort — und Chromium legt das in PRIMARY, lesbar für jedes X11-Programm; in einem LEEREN Textfeld
@@ -2132,7 +2156,8 @@ const App = (function(){
     // Eingabefeld — vorher schluckte die Weiche jede, im Kategorie-Feld ging Strg+V nicht (Review v1.20 N-3)
     if(dlgResolve) return k==='n'||k==='f';
     if(!DEK) return false;
-    if(k==='f'){ closeHelp(); tab('list'); const q=$('search'); q.focus(); q.select(); return true; }
+    // Suchfeld markieren UND melden: war es schon fokussiert, kommt kein focusin — der Suchtext lag ungemeldet in PRIMARY, auch nach der Sperre (v1.22, gemessen in der Hülle; Querfund Notes v1.9 R3a-2)
+    if(k==='f'){ closeHelp(); tab('list'); const q=$('search'); q.focus(); q.select(); if(reportFieldSel) reportFieldSel(q); return true; }
     if(k==='n'){ closeHelp(); newEntry(); return true; }
     return false;
   }
@@ -2235,7 +2260,9 @@ document.addEventListener('keydown',ev=>{
 });
 
 window.addEventListener('DOMContentLoaded',()=>{
-  const dg=document.getElementById('dlg'); if(dg) dg.addEventListener('click',ev=>{ if(ev.target===dg) App.dialogCancel(); });   // Tippen auf den Hintergrund = Abbrechen
+  // Tippen auf den Hintergrund = Abbrechen — nur, wenn auch das Drücken dort begann: im Dialog gedrückt und über dem Hintergrund losgelassen (Markieren im Feld,
+  // von einer Option gerutscht) landet der click auf #dlg und brach die Rückfrage ab (v1.22, Review v1.20 H-4)
+  const dg=document.getElementById('dlg'); if(dg){ let dgDown=null; dg.addEventListener('pointerdown',ev=>{ dgDown=ev.target; }); dg.addEventListener('click',ev=>{ const d=dgDown; dgDown=null; if(ev.target===dg&&d===dg) App.dialogCancel(); }); }
   const ok=window.crypto&&crypto.subtle&&typeof WebAssembly!=='undefined'&&window.hashwasm&&typeof hashwasm.argon2id==='function';
   if(!ok){ const c=document.querySelector('.container'); c.replaceChildren(); const d=document.createElement('div'); d.className='card warn'; d.textContent=tr('nocrypto'); c.appendChild(d); return; }
   const k=document.getElementById('setup-kdf'); if(k) k.addEventListener('change',App.kdfChanged);

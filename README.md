@@ -122,7 +122,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
 - **Detailansicht** mit Kopier-Buttons; Passwörter, Kartennummer, CVV und PINs erscheinen nur auf Anfrage (IBAN/BIC im Klartext — sie werden
   zum Überweisen gebraucht und stehen auf jeder Rechnung; die Liste zeigt IBAN und Kartennummer nur als `•••• 1234`).
 - **Zwischenablage mit Auto-Löschen** (15/30/60 s): beim Ablauf, beim Zurückkehren in die App (sobald die Zeit abgelaufen ist oder ein Löschen im Hintergrund fehlschlug) und beim Sperren. Einzige Ausnahme: Bei „Sperren im Hintergrund: sofort“ bleibt das Kopierte bis zum Ablauf der Zeit stehen, damit es sich noch in eine andere App einfügen lässt (v1.11).
-  In der Android-App wird Kopiertes als **sensibel** markiert — die System-Vorschau zeigt den Inhalt nicht (Android 13+).
+  In der Android-App wird Kopiertes als **sensibel** markiert — die System-Vorschau zeigt den Inhalt nicht (Android 13+). Seit v1.22 gilt beides auch für Text,
+  der über die Auswahlleiste von Android kopiert oder ausgeschnitten wird; „Teilen“, „Websuche“ und „Übersetzen“ in dieser Leiste geben den Text dagegen ohne
+  Zwischenablage direkt an eine andere App.
 - **Passwort-Generator**, auch direkt im Eintragsformular (Panel unter dem Passwortfeld): Zeichen-Modus (8–64 Zeichen, Zeichensätze wählbar, ohne verwechselbare Zeichen)
   und **Diceware** (EFF Large Wordlist, 7.776 Wörter, ~12,9 Bit je Wort). Entropie-Anzeige (im Zeichen-Modus ehrlich um die Pflicht „jeder Zeichensatz kommt vor“ bereinigt), kein Modulo-Bias.
 - **TOTP pro Eintrag** (RFC 6238; SHA-1/256/512, 6–8 Stellen, beliebige Periode) mit Restlaufzeit.
@@ -203,8 +205,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
 - **Sperre**: Schlüssel und alle Anzeigen werden aus dem Speicher entfernt; nach Fehlversuchen greift eine
   Wartezeit. **Kein Autofill** — und seit v1.13 auch kein fremdes: Die App nimmt ihre WebView vom Android-Autofill-Framework aus, ein anderer
   Passwort-Manager, der als Autofill-Dienst eingerichtet ist, sieht die Passphrase-Felder nicht und kann nicht anbieten, sie zu speichern.
-  Nativer Code beschränkt sich auf vier kleine, im Repo im Klartext einsehbare Stücke: FLAG_SECURE,
-  Backup-Ausschluss, ein Zwischenablage-Plugin und das Fingerabdruck-Plugin (alle als Quelltext in `patch-hardening.mjs`; der
+  Nativer Code beschränkt sich auf fünf kleine, im Repo im Klartext einsehbare Stücke: FLAG_SECURE,
+  Backup-Ausschluss, ein Zwischenablage-Plugin, das Fingerabdruck-Plugin und (seit v1.22) eine WebView-Unterklasse, die die Tastatur-App bittet, aus den
+  Feldern nichts zu lernen (alle als Quelltext in `patch-hardening.mjs`; der
   Vendor-Hash-Check steht in `build-www.sh`, ebenfalls Klartext).
 - **Fingerabdruck-Entsperren, ehrlich eingeordnet** (optional, nur Android-App): Der Datenschlüssel wird zusätzlich unter einem
   32-Byte-Zufallsschlüssel verpackt; den verwahrt der Android-Keystore, gebunden an eine starke Biometrie (Freigabe pro Nutzung mit
@@ -282,7 +285,8 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
     Pforten), alle Funde behoben — kein unabhängiges Audit.
 - **Grenzen, ehrlich benannt**: Im Hintergrund leert die Android-App die Zwischenablage nur, solange Android sie nicht eingefroren
   hat (meist nach dem zweiten App-Wechsel); danach erst beim Zurückkehren. Ab Android 13 leert das System nach etwa 1 h selbst, davor nicht.
-  Im Browser gibt es keine Maskierung der Clipboard-Vorschau. Passwort und 2FA im selben Tresor schwächen die Faktor-Trennung —
+  Im Browser gibt es keine Maskierung der Clipboard-Vorschau. Die Tastatur-App sieht alles, was man tippt; die Android-App bittet sie seit v1.22, daraus
+  nichts zu lernen (Gboard zeigt dann sein Inkognito-Symbol) — das ist nur eine Bitte, nicht jede Tastatur hält sich daran. Passwort und 2FA im selben Tresor schwächen die Faktor-Trennung —
   kritische Konten besser mit Aegis absichern.
 
 ## Open Source & selbst prüfen

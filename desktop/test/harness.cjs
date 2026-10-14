@@ -2,10 +2,12 @@
 // Prüfprogramm für die echte Hülle: lädt main.js wie die App und prüft von innen (keine Fernsteuerung von außen —
 // die Hülle verweigert --remote-debugging-*, und die Fuses sperren --inspect). Aufruf über verify-desktop.mjs.
 // Gibt je Prüfung eine Zeile "R <json>" aus, nie Tresor- oder Zwischenablage-Inhalte.
-const {app,BrowserWindow,Menu,session,clipboard,ClipboardItem,shell}=require('electron');
+const {app,BrowserWindow,Menu,session,clipboard,ClipboardItem,shell,dialog}=require('electron');
 const path=require('path'); const fs=require('fs'); const net=require('net'); const dgram=require('dgram');
 require('./main.js');
 const opened=[]; shell.openExternal=async u=>{ opened.push(u); };   // nie wirklich den Browser öffnen, nur mitschreiben
+// Speichern-Dialog nie wirklich öffnen: Aufrufe mitschreiben, Antwort aus dlgNext (sonst „abgebrochen“) — Schritt sichern (v1.22, wie Alien Notes v1.12)
+let dlgNext=null; const dlgCalls=[]; dialog.showSaveDialog=async(_w,o)=>{ dlgCalls.push(o); const n=dlgNext; dlgNext=null; return n||{canceled:true}; };
 
 const STEP=process.env.AP_STEP, PP=process.env.AP_PP||'';
 const KDE_HINT='electron application/osclipboard;format="x-kde-passwordManagerHint"';
@@ -660,6 +662,89 @@ async function markierung(){
     await nichts('Gesperrt, Strg+A ohne Feld-Fokus: gesperrt, nichts markiert (a2-1)', nirgends, {nirgends}); }
   await clipboard.selection.clear();
 }
+// v1.22 (Plan alien-pass-v122.md): Messungen in der echten Hülle — Markierung endet am Anfang des nächsten Blocks (nsel-trim, Querfund Tresor v3.10),
+// Großschrift (text-transform) in Markierung und PRIMARY (Querfund Notes 1.13), Strg+Z holt eine überschriebene Markierung zurück (Notes v1.9 a2-1),
+// Strg+F im fokussierten Suchfeld (R3a-2). Je Fall: Marke in PRIMARY, Geste, Vergleich Markierung/PRIMARY, Löschen über die Brücke → PRIMARY leer?
+async function m122(){
+  const wc=win.webContents, V='m122-geheim-'+process.pid;
+  const ensureFocus=async()=>{ if(!win.isFocused()){ win.focus(); for(let i=0;i<30&&!win.isFocused();i++) await sleep(100); await sleep(200); } return win.isFocused(); };
+  const mclick=async(p,n=1)=>{ for(let i=1;i<=n;i++){ wc.sendInputEvent({type:'mouseDown',x:p.x,y:p.y,button:'left',clickCount:i}); wc.sendInputEvent({type:'mouseUp',x:p.x,y:p.y,button:'left',clickCount:i}); } await sleep(500); };
+  const at=sel=>js(`(()=>{const n=document.querySelector(${JSON.stringify(sel)}); if(!n) return null; const b=n.getBoundingClientRect(); return {x:Math.round(b.x+Math.min(b.width/2,30)),y:Math.round(b.y+b.height/2),l:Math.round(b.left),t:Math.round(b.top),b:Math.round(b.bottom),r:Math.round(b.right)};})()`);
+  const atText=(root,needle,off=1)=>js(`(()=>{ const w=document.createTreeWalker(document.querySelector(${JSON.stringify(root)}),NodeFilter.SHOW_TEXT); let n;
+    while((n=w.nextNode())){ const i=n.data.indexOf(${JSON.stringify(needle)}); if(i>=0){ const r=document.createRange(); r.setStart(n,i+${off}); r.setEnd(n,i+${off}+1); const b=r.getBoundingClientRect(); return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)}; } } return null; })()`);
+  const drag=async(p1,p2)=>{ await ensureFocus(); wc.sendInputEvent({type:'mouseDown',x:p1.x,y:p1.y,button:'left',clickCount:1});
+    for(let i=1;i<=12;i++){ wc.sendInputEvent({type:'mouseMove',x:Math.round(p1.x+(p2.x-p1.x)*i/12),y:Math.round(p1.y+(p2.y-p1.y)*i/12),button:'left',modifiers:['leftButtonDown']}); await sleep(30); }
+    wc.sendInputEvent({type:'mouseUp',x:p2.x,y:p2.y,button:'left',clickCount:1}); await sleep(500); };
+  const key=(k,mods=[])=>{ wc.sendInputEvent({type:'keyDown',keyCode:k,modifiers:mods}); if(k.length===1&&!mods.includes('control')) wc.sendInputEvent({type:'char',keyCode:k,modifiers:mods}); wc.sendInputEvent({type:'keyUp',keyCode:k,modifiers:mods}); };
+  const type=async s=>{ for(const ch of s){ key(ch); await sleep(15); } await sleep(150); };
+  const sel=()=>js(`String(getSelection())`);
+  const leer=async(ms=3000)=>{ const t0=Date.now(); let ok=false; while(Date.now()-t0<ms&&!(ok=(await prim())==='')) await sleep(100); return ok; };
+  const clear=async()=>{ await js('AlienDesktop.clip.clear()'); return leer(); };
+  const neutral=async()=>{ await js(`getSelection().removeAllRanges(); document.activeElement&&document.activeElement.blur&&document.activeElement.blur(); true`); };
+  let nr=0; const marke=async()=>{ const M='m122-vorher-'+(++nr)+'-'+process.pid; await clipboard.selection.writeText(M); return M; };
+  // Fall: Geste ausführen, dann vergleichen und über die Brücke löschen. ok = PRIMARY danach leer (Messwerte in info)
+  const fall=async(titel,geste)=>{ await neutral(); const M=await marke(); const vorb=await geste(); const P=await prim(), S=await sel();
+    const info={vorb,primNeu:P!==M,gleich:P===S,selLen:S.length,primLen:P.length,selEnde:JSON.stringify(S.slice(-3)),primEnde:JSON.stringify(P.slice(-3)),grossSel:/[A-ZÄÖÜ]{5}/.test(S),grossPrim:/[A-ZÄÖÜ]{5}/.test(P)};
+    info.weg=P===M?null:await clear(); R(titel, info.weg===true, info); };
+  const openIt=async t=>{ const p=await js(`(()=>{const n=[...document.querySelectorAll('#entry-list .entry .t')].find(n=>n.textContent===${JSON.stringify(t)}); if(!n) return null; n.scrollIntoView({block:'center'}); const b=n.getBoundingClientRect(); return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)};})()`);
+    if(!p) return false; await ensureFocus(); await mclick(p); return until(`${visible('detail-overlay')}&&!!document.getElementById('d-notes')`,5000); };
+  R('m122: Sperrbildschirm', await until(visible('screen-lock'),15000));
+  await ensureFocus(); await fill('lock-pass',PP); await click('#unlock-btn'); R('m122: entsperrt', await until(visible('screen-app')));
+  await click('button[data-action="newEntry"]'); await sleep(300);
+  await fill('f-title','Messung'); await fill('f-user','mess-nutzer-1'); await fill('f-pass',V); await fill('f-url','beispiel.example'); await fill('f-notes','Zeile eins\n\nZeile zwei'); await click('#add-btn');
+  R('m122: Eintrag gespeichert', await until(`[...document.querySelectorAll('#entry-list .entry .t')].some(n=>n.textContent==='Messung')`,10000));
+  R('m122: Detail offen', await openIt('Messung'));
+  await mclick(await at('#d-reveal-pass')); R('m122: Passwort aufgedeckt', await js(`document.getElementById('d-pass').textContent===${JSON.stringify(V)}`));
+  // (9) nsel-trim: Ziehen aus einem Wert in die Lücke vor dem nächsten Block bzw. an dessen Anfang
+  const boxes=await js(`[...document.querySelectorAll('#d-body .kv')].map(k=>{ const b=k.getBoundingClientRect(); return {l:Math.round(b.left),t:Math.round(b.top),b:Math.round(b.bottom),r:Math.round(b.right),k:(k.querySelector('.k')||{}).textContent}; })`);
+  R('m122: Blöcke im Detail', boxes.length>=3, boxes.map(b=>b.k+':'+b.t+'-'+b.b));
+  const pU=await atText('#d-body','mess-nutzer-1',2);
+  for(let i=0;i+1<boxes.length&&i<4;i++){ const a=boxes[i], z=boxes[i+1], gap=Math.max(1,z.t-a.b);
+    for(const [wo,p2] of [['Lücke',{x:a.l+8,y:a.b+Math.floor(gap/2)}],['Anfang nächster Block',{x:z.l+1,y:z.t+2}],['links neben nächstem Block',{x:Math.max(1,z.l-4),y:z.t+6}]]){
+      const start=i===0?pU:{x:a.l+12,y:Math.round((a.t+a.b)/2)};
+      await fall('nsel: Ziehen aus „'+a.k+'“ bis '+wo+' (y '+p2.y+')', async()=>{ await drag(start,p2); return true; }); } }
+  // (18b) Großschrift: Etikett (CSS uppercase) bis in den Wert, Dreifachklick aufs Etikett
+  { const lab=await atText('#d-body','Passwort',1)||await at('#d-body .kv .k'); const val=await atText('#d-pass',V.slice(0,6),3);
+    await fall('Großschrift: Ziehen vom Etikett „Passwort“ in das aufgedeckte Passwort', async()=>{ if(!lab||!val) return false; await drag(lab,val); return true; });
+    await fall('Großschrift: Dreifachklick auf ein Etikett', async()=>{ const p=await at('#d-body .kv .k'); if(!p) return false; await ensureFocus(); await mclick(p,3); return true; }); }
+  // (18a) Fokus im Suchfeld, dann mit der Maus über Listentext ziehen
+  { await js(`App.closeDetail(); true`); await sleep(200);
+    await fall('Fokus im Suchfeld, Ziehen über die Liste', async()=>{ const s=await at('#search'); await mclick(s); const t=await atText('#entry-list','Messung',0), u=await atText('#entry-list','Messung',6);
+      if(!t||!u) return false; await drag(t,u); return {fokus:await js(`document.activeElement.id||document.activeElement.tagName`)}; }); }
+  // (15) Strg+F im schon fokussierten Suchfeld
+  { await fall('Strg+F im fokussierten Suchfeld mit Text', async()=>{ const s=await at('#search'); await mclick(s); await type('Mes'); await clipboard.selection.writeText('m122-vor-strgf-'+process.pid);
+      key('F',['control']); await sleep(400); return {fokus:await js(`document.activeElement.id`), wert:await js(`document.getElementById('search').value`)}; });
+    await fill('search',''); await js(`App.renderList(); true`); }
+  // (12) a2-1: Markierung im Feld (gemeldet), Frist abgelaufen (Brücke löscht), überschreiben, Strg+Z holt sie zurück
+  for(const f of ['f-notes','f-pass']){
+    await click('button[data-action="newEntry"]'); await sleep(400);
+    await fall('Strg+Z holt überschriebene Markierung zurück ('+f+')', async()=>{ const p=await at('#'+f); await mclick(p); await type(f==='f-pass'?'geheim-defgh':'abc-defgh');
+      for(let i=0;i<5;i++){ key('Left',['shift']); await sleep(40); } await sleep(300); const vor=await prim(); const weg1=await clear();
+      await type('X'); await sleep(200); key('Z',['control']); await sleep(500);
+      return {vor:vor==='defgh',weg1, feld:await js(`(()=>{const n=document.getElementById(${JSON.stringify(f)}); return n.value.substring(n.selectionStart,n.selectionEnd);})()`)}; });
+    await click('button[data-action="cancelEdit"]'); await sleep(300); }
+  await clipboard.selection.clear();
+}
+// v1.22: Backup über den Speichern-Dialog (Querfunde Alien Notes 1.12 run-10 b-5/b-8, atomic.js wie Notes 1.13): Rückfrage beim Überschreiben verlangt,
+// neu und überschreibend mit Rechten 600 und ohne Temp-Reste, Fehler nur mit Code (ohne Pfad), Abbruch ohne Meldung
+async function sichern(){
+  const dir=path.join(path.dirname(DATA),'sichern-'+process.pid); fs.rmSync(dir,{recursive:true,force:true}); fs.mkdirSync(dir,{recursive:true});
+  const msg=()=>js(`document.getElementById('bk-msg').textContent`);
+  const exp=async()=>{ await js(`App.exportVault(); true`); await sleep(900); };
+  R('Sichern: Sperrbildschirm', await until(visible('screen-lock'),15000));
+  await fill('lock-pass',PP); await click('#unlock-btn'); R('Sichern: entsperrt', await until(visible('screen-app')));
+  const ziel=path.join(dir,'b1.vault'); dlgNext={canceled:false,filePath:ziel}; dlgCalls.length=0; await exp();
+  { const o=dlgCalls[0]||{}, da=fs.existsSync(ziel), m=da?(fs.statSync(ziel).mode&0o777):0;
+    R('Sichern neu: ein Dialog, Überschreiben nur nach Rückfrage (showOverwriteConfirmation), Filter .vault', dlgCalls.length===1&&Array.isArray(o.properties)&&o.properties.includes('showOverwriteConfirmation')&&JSON.stringify(o.filters)==='[{"name":"Alien Pass Backup","extensions":["vault"]}]', {n:dlgCalls.length,props:o.properties,filters:o.filters});
+    R('Sichern neu: Datei da, Rechte 600, Meldung nennt nur den Dateinamen', da&&m===0o600&&/b1\.vault/.test(await msg())&&!(await msg()).includes(dir), {da,m:m.toString(8)}); }
+  { const vor=fs.readFileSync(ziel,'utf8'); fs.writeFileSync(ziel,'alt'); fs.chmodSync(ziel,0o644); dlgNext={canceled:false,filePath:ziel}; await exp();
+    const jetzt=fs.readFileSync(ziel,'utf8'), m=fs.statSync(ziel).mode&0o777, rest=fs.readdirSync(dir).filter(n=>n!=='b1.vault');
+    R('Sichern überschreibend: neuer Inhalt, Rechte 600, keine Temp-Reste', jetzt!=='alt'&&jetzt.length>100&&vor.length>100&&m===0o600&&rest.length===0, {m:m.toString(8),rest}); }
+  { dlgNext={canceled:false,filePath:path.join(dir,'fehlt','x.vault')}; await exp(); const t=await msg();
+    R('Sichern Schreibfehler: Meldung mit Code, ohne Pfad', /ENOENT/.test(t)&&!t.includes(dir)&&!t.includes('fehlt'), t.replace(dir,'<DIR>')); }
+  { await js(`document.getElementById('bk-msg').textContent='x'; true`); dlgNext=null; await exp(); R('Sichern abgebrochen: keine Meldung', (await msg())===''); }
+  fs.rmSync(dir,{recursive:true,force:true});
+}
 async function unreadable(){
   R('Lesefehler: keine Einrichtung', await until(visible('screen-lock'),15000)&&!(await js(visible('screen-setup'))));
   R('Lesefehler: Meldung', /nicht lesbar|not readable/.test(await js(`document.getElementById('lock-err').textContent`)));
@@ -674,6 +759,8 @@ app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
       if(STEP==='fresh') await fresh(); else if(STEP==='restart') await restart(); else if(STEP==='unreadable') await unreadable();
       else if(STEP==='background') await background();
       else if(STEP==='markierung') await markierung();
+      else if(STEP==='m122') await m122();
+      else if(STEP==='sichern') await sichern();
       else if(STEP==='quit'||STEP==='quithang'){ await quitStep(STEP==='quithang'); return; }   // endet in will-quit (eigene Endmarke)
       else if(STEP==='quitslow'){ await quitSlow(); return; }
       else if(STEP==='quitreject'){ await quitReject(); return; }
