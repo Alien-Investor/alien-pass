@@ -685,9 +685,11 @@ async function m122(){
   // Fall: Geste ausführen, dann vergleichen und über die Brücke löschen. ok = PRIMARY danach leer (Messwerte in info)
   const fall=async(titel,geste)=>{ await neutral(); const M=await marke(); const vorb=await geste(); const P=await prim(), S=await sel();
     const info={vorb,primNeu:P!==M,gleich:P===S,selLen:S.length,primLen:P.length,selEnde:JSON.stringify(S.slice(-3)),primEnde:JSON.stringify(P.slice(-3)),grossSel:/[A-ZÄÖÜ]{5}/.test(S),grossPrim:/[A-ZÄÖÜ]{5}/.test(P)};
+    const mu=await js(`window.__mu.splice(0)`); info.muLetzte=mu.length?mu[mu.length-1].length:null; info.dragstart=await js(`window.__ds`); await js(`window.__ds=0; true`); info.muGleichSel=mu.length?mu[mu.length-1]===S:null;
     info.weg=P===M?null:await clear(); R(titel, info.weg===true, info); };
   const openIt=async t=>{ const p=await js(`(()=>{const n=[...document.querySelectorAll('#entry-list .entry .t')].find(n=>n.textContent===${JSON.stringify(t)}); if(!n) return null; n.scrollIntoView({block:'center'}); const b=n.getBoundingClientRect(); return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)};})()`);
     if(!p) return false; await ensureFocus(); await mclick(p); return until(`${visible('detail-overlay')}&&!!document.getElementById('d-notes')`,5000); };
+  await js(`window.__mu=[]; window.__ds=0; document.addEventListener('mouseup',()=>{ window.__mu.push(String(getSelection())); },true); document.addEventListener('dragstart',()=>{ window.__ds++; },true); true`);
   R('m122: Sperrbildschirm', await until(visible('screen-lock'),15000));
   await ensureFocus(); await fill('lock-pass',PP); await click('#unlock-btn'); R('m122: entsperrt', await until(visible('screen-app')));
   await click('button[data-action="newEntry"]'); await sleep(300);
@@ -703,6 +705,11 @@ async function m122(){
     for(const [wo,p2] of [['Lücke',{x:a.l+8,y:a.b+Math.floor(gap/2)}],['Anfang nächster Block',{x:z.l+1,y:z.t+2}],['links neben nächstem Block',{x:Math.max(1,z.l-4),y:z.t+6}]]){
       const start=i===0?pU:{x:a.l+12,y:Math.round((a.t+a.b)/2)};
       await fall('nsel: Ziehen aus „'+a.k+'“ bis '+wo+' (y '+p2.y+')', async()=>{ await drag(start,p2); return true; }); } }
+  // (9b) Tresor-Form (run-12 c-2): Ende am ANFANG eines Absatzes hinter einem Rand — Notizen → #d-meta
+  { await js(`document.getElementById('d-meta').scrollIntoView({block:'center'}); true`); await sleep(300);
+    const m=await at('#d-meta'), pz=await atText('#d-notes','zwei',1);
+    for(const [wo,p2] of [['Anfang #d-meta',{x:m.l+1,y:m.t+2}],['Rand über #d-meta',{x:m.l+4,y:m.t-6}],['links neben #d-meta',{x:Math.max(1,m.l-4),y:m.t+4}]])
+      await fall('nsel (Tresor-Form): Ziehen aus den Notizen bis '+wo, async()=>{ if(!pz||!m) return false; await drag(pz,p2); return true; }); }
   // (18b) Großschrift: Etikett (CSS uppercase) bis in den Wert, Dreifachklick aufs Etikett
   { const lab=await atText('#d-body','Passwort',1)||await at('#d-body .kv .k'); const val=await atText('#d-pass',V.slice(0,6),3);
     await fall('Großschrift: Ziehen vom Etikett „Passwort“ in das aufgedeckte Passwort', async()=>{ if(!lab||!val) return false; await drag(lab,val); return true; });
@@ -718,11 +725,21 @@ async function m122(){
   // (12) a2-1: Markierung im Feld (gemeldet), Frist abgelaufen (Brücke löscht), überschreiben, Strg+Z holt sie zurück
   for(const f of ['f-notes','f-pass']){
     await click('button[data-action="newEntry"]'); await sleep(400);
-    await fall('Strg+Z holt überschriebene Markierung zurück ('+f+')', async()=>{ const p=await at('#'+f); await mclick(p); await type(f==='f-pass'?'geheim-defgh':'abc-defgh');
-      for(let i=0;i<5;i++){ key('Left',['shift']); await sleep(40); } await sleep(300); const vor=await prim(); const weg1=await clear();
-      await type('X'); await sleep(200); key('Z',['control']); await sleep(500);
-      return {vor:vor==='defgh',weg1, feld:await js(`(()=>{const n=document.getElementById(${JSON.stringify(f)}); return n.value.substring(n.selectionStart,n.selectionEnd);})()`)}; });
+    await fall('Strg+Z NACH Ablauf der Frist holt überschriebene Markierung zurück ('+f+') — gemeldet, gelöscht (run-12 c-1)', async()=>{ await js(`document.getElementById(${JSON.stringify(f)}).scrollIntoView({block:'center'}); true`); await sleep(200); const p=await at('#'+f); await mclick(p); await type(f==='f-pass'?'geheim-defgh':'abc-defgh');
+      const nachTippen={akt:await js(`document.activeElement.id`),wert:await js(`document.getElementById(${JSON.stringify(f)}).value.length`)};
+      for(let i=0;i<5;i++){ key('Left',['shift']); await sleep(40); } await sleep(300); const vor=await prim();
+      await type('X'); await sleep(200); const weg1=await clear(); key('Z',['control']); await sleep(500);
+      return {nachTippen,vor:vor==='defgh',weg1, feld:await js(`(()=>{const n=document.getElementById(${JSON.stringify(f)}); return n.value.substring(n.selectionStart,n.selectionEnd);})()`)}; });
     await click('button[data-action="cancelEdit"]'); await sleep(300); }
+  // (9c) Tresor-Form am TOTP-Schlüssel der Aegis-Hürde: #totp-secret → Knöpfe → p.muted (Einrichtung, danach abbrechen). Als LETZTES: user-select:all lässt
+  // Chromium beim Ziehen ein Ziehen-und-Ablegen starten (kein mouseup) — danach nimmt die Seite im Test keine Klicks mehr an
+  { await js(`App.tab('settings'); true`); await sleep(300); await click('[data-action="totpStart"]'); await sleep(500);
+    await js(`document.getElementById('totp-secret').scrollIntoView({block:'center'}); true`); await sleep(300);
+    const sec=await js(`document.getElementById('totp-secret').textContent.slice(2,6)`), ps=sec?await atText('#totp-secret',sec,1):null;
+    const mu=await js(`(()=>{ const n=document.querySelector('#totp-setup p.muted[data-i18n="set.totpSetup3"]'); const b=n.getBoundingClientRect(); return {l:Math.round(b.left),t:Math.round(b.top)}; })()`);
+    for(const [wo,p2] of [['Anfang p.muted',{x:mu.l+1,y:mu.t+2}],['Rand über p.muted',{x:mu.l+4,y:mu.t-6}]])
+      await fall('nsel (Tresor-Form): Ziehen aus dem TOTP-Schlüssel bis '+wo, async()=>{ if(!ps) return false; await drag(ps,p2); return true; });
+    await js(`App.totpCancel(); App.tab('list'); true`); await sleep(300); }
   await clipboard.selection.clear();
 }
 // v1.22: Backup über den Speichern-Dialog (Querfunde Alien Notes 1.12 run-10 b-5/b-8, atomic.js wie Notes 1.13): Rückfrage beim Überschreiben verlangt,
@@ -735,7 +752,7 @@ async function sichern(){
   await fill('lock-pass',PP); await click('#unlock-btn'); R('Sichern: entsperrt', await until(visible('screen-app')));
   const ziel=path.join(dir,'b1.vault'); dlgNext={canceled:false,filePath:ziel}; dlgCalls.length=0; await exp();
   { const o=dlgCalls[0]||{}, da=fs.existsSync(ziel), m=da?(fs.statSync(ziel).mode&0o777):0;
-    R('Sichern neu: ein Dialog, Überschreiben nur nach Rückfrage (showOverwriteConfirmation), Filter .vault', dlgCalls.length===1&&Array.isArray(o.properties)&&o.properties.includes('showOverwriteConfirmation')&&JSON.stringify(o.filters)==='[{"name":"Alien Pass Backup","extensions":["vault"]}]', {n:dlgCalls.length,props:o.properties,filters:o.filters});
+    R('Sichern neu: ein Dialog, Option showOverwriteConfirmation übergeben (ob gefragt wird: Portal, Gerätetest), Filter .vault', dlgCalls.length===1&&Array.isArray(o.properties)&&o.properties.includes('showOverwriteConfirmation')&&JSON.stringify(o.filters)==='[{"name":"Alien Pass Backup","extensions":["vault"]}]', {n:dlgCalls.length,props:o.properties,filters:o.filters});
     R('Sichern neu: Datei da, Rechte 600, Meldung nennt nur den Dateinamen', da&&m===0o600&&/b1\.vault/.test(await msg())&&!(await msg()).includes(dir), {da,m:m.toString(8)}); }
   { const vor=fs.readFileSync(ziel,'utf8'); fs.writeFileSync(ziel,'alt'); fs.chmodSync(ziel,0o644); dlgNext={canceled:false,filePath:ziel}; await exp();
     const jetzt=fs.readFileSync(ziel,'utf8'), m=fs.statSync(ziel).mode&0o777, rest=fs.readdirSync(dir).filter(n=>n!=='b1.vault');

@@ -10,15 +10,16 @@ keine Internet-Berechtigung (nur Fingerabdruck).
   „Websuche“ oder „Übersetzen“ in dieser Leiste geben den Text weiterhin direkt an eine andere App, ohne Zwischenablage; das Handbuch nennt diese Grenze.
 - **Android — Tastatur:** Die App bittet die Tastatur-App, aus ihren Feldern nichts zu lernen (Gboard zeigt dann sein Inkognito-Symbol). Das ist nur
   eine Bitte: Nicht jede Tastatur hält sich daran, und mitlesen kann sie trotzdem.
-- **Import:** Sperrt die App, während ein Backup entschlüsselt wird, bereitet sie dessen Einträge nicht mehr auf.
-- **Sperren:** Die App leert dabei zusätzlich den letzten Treffer, den die Skript-Engine für Textsuchen aufbewahrt. Dort hätte ein geheimer Wert
+- **Import:** Sperrt die App, während ein Backup oder ein Proton-Export entschlüsselt wird, bereitet sie dessen Einträge nicht mehr auf.
+- **Sperren:** Die App leert dabei (und beim Abbrechen an der Aegis-Hürde) zusätzlich den letzten Treffer, den die Skript-Engine für Textsuchen aufbewahrt. Dort hätte ein geheimer Wert
   stehen können; in Alien Pass ließ sich das nicht nachweisen, die Korrektur ist vorsorglich.
 - **Rückfrage-Dialog:** Strg+Z macht bei offener Rückfrage nichts mehr rückgängig (bisher traf es Getipptes im Eintrag dahinter). Wer im Dialog drückt
-  und erst über dem Hintergrund loslässt, bricht die Rückfrage nicht mehr ab. Die Beschriftungen für Bildschirmleser folgen jetzt der Sprache.
+  und erst über dem Hintergrund loslässt, bricht die Rückfrage nicht mehr ab. Die Beschriftungen für Bildschirmleser und einige Tooltips folgen jetzt der Sprache.
 - **Desktop — Backup:** Der Speichern-Dialog fragt nach, bevor er eine vorhandene Datei überschreibt. Eine Fehlermeldung nennt nur noch den Fehler,
   nicht mehr den vollen Pfad. Die Zwischendatei beim Speichern trägt einen zufälligen Namen und folgt keinem symbolischen Link.
-- **Desktop — Tastatur:** Strg+L sperrt auch bei kyrillischer Tastaturbelegung. Den Suchtext, den Strg+F markiert, löscht die App jetzt auch aus der
-  Mittelklick-Auswahl, nach Ablauf der Zeit und beim Sperren.
+- **Desktop — Tastatur und Markierungen:** Strg+L sperrt auch bei kyrillischer Tastaturbelegung. Nach Ablauf der Zeit und beim Sperren löscht die App jetzt
+  auch diese Markierungen aus der Mittelklick-Auswahl: den Suchtext, den Strg+F markiert; eine überschriebene Markierung, die Strg+Z in einem Feld
+  zurückholt; den Aegis-Schlüssel beim Einrichten, wenn man ihn mit der Maus zieht.
 
 ## v1.21 — 2026-10-10
 

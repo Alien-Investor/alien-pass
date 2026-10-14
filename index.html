@@ -73,7 +73,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .card p,.card li,.card code,.help-inner p,.help-inner li,.help-inner code{overflow-wrap:break-word;}
 .card h2{font-family:'Orbitron',sans-serif;font-size:.85rem;letter-spacing:2px;text-transform:uppercase;color:var(--neon);margin-bottom:14px;font-weight:700;}
 label{display:block;font-size:.72rem;letter-spacing:1px;color:var(--text-mid);margin:10px 0 4px;text-transform:uppercase;}
-html.copy-plain *{text-transform:none!important;}   /* nur während des Lesens einer Markierung zum Kopieren (Android, v1.22 wie Alien Notes 1.13 a-2) */
+/* .copy-plain: nur während des Lesens einer Markierung (Android, am gemeinsamen Elternelement) */ .copy-plain,.copy-plain *{text-transform:none!important;}   /* nur während des Lesens einer Markierung zum Kopieren (Android, v1.22 wie Alien Notes 1.13 a-2) */
 label.chk{display:flex;gap:6px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-size:.8rem;}
 label.chk input{width:auto;}
 input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:none;width:18px;height:18px;padding:0;margin:0;border:1px solid var(--neon-mid);border-radius:3px;background:rgba(0,0,0,.4) center/14px 14px no-repeat;cursor:pointer;transition:background-color .15s,box-shadow .15s;}
@@ -279,7 +279,7 @@ html.desk .no-desk{display:none;}
 <div class="container">
   <div class="app-head">
     <div class="header-glow"></div>
-    <button class="help-btn" data-action="openHelp" title="Handbuch" aria-label="Hilfe / Handbuch" data-i18n-aria="aria.help">?</button>
+    <button class="help-btn" data-action="openHelp" title="Handbuch" data-i18n-title="help.title" aria-label="Hilfe / Handbuch" data-i18n-aria="aria.help">?</button>
     <button class="lang-btn" id="lang-btn" data-action="toggleLang" title="Sprache / Language">DE</button>
     <div class="logo">Alien Pass</div>
     <div class="tagline" data-i18n="tagline">Passwörter · lokal &amp; verschlüsselt · offline</div>
@@ -363,7 +363,7 @@ html.desk .no-desk{display:none;}
       <div class="card">
         <div class="search-row">
           <input id="search" type="search" placeholder="Suchen (Titel, Nutzer, URL)…" data-i18n-ph="list.search" data-input="renderList" autocomplete="off" autocapitalize="none" spellcheck="false">
-          <button class="btn sm" data-action="newEntry" title="Neuer Eintrag">+</button>
+          <button class="btn sm" data-action="newEntry" title="Neuer Eintrag" data-i18n-title="list.newTitle">+</button>
           <button id="sel-btn" class="btn sm icon ghost" data-action="selStart" title="Mehrere Einträge auswählen" data-i18n-title="list.selTitle" aria-label="Mehrere Einträge auswählen" data-i18n-aria="list.selTitle">☑</button>
           <button id="trash-btn" class="btn sm icon ghost" data-action="openTrash" title="Papierkorb" aria-label="Papierkorb"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.6 7l.8 12a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9L17.4 7"/><path d="M10 11v6"/><path d="M14 11v6"/></svg><span id="trash-n"></span></button>
         </div>
@@ -418,7 +418,7 @@ html.desk .no-desk{display:none;}
           <label data-i18n="f.pass">Passwort</label>
           <div style="display:flex;gap:8px">
             <input id="f-pass" type="password" maxlength="1000" autocomplete="off" autocapitalize="none" spellcheck="false" data-input="meterForm">
-            <button class="btn sm ghost" data-action="genIntoForm" title="Generieren" data-i18n="f.gen">Generieren</button>
+            <button class="btn sm ghost" data-action="genIntoForm" title="Generieren" data-i18n-title="f.gen" data-i18n="f.gen">Generieren</button>
           </div>
           <div id="fg-panel" class="fg-panel hidden">
             <div class="seg">

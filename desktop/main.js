@@ -184,7 +184,8 @@ else {
     const r=await dialog.showSaveDialog(win,{defaultPath:name,filters:[{name:'Alien Pass Backup',extensions:['vault']}],properties:['showOverwriteConfirmation']});
     if(r.canceled||!r.filePath) return null;
     try{
-      // Rückfall nur für ein NEUES Ziel (Portal ohne Temp-Datei daneben): ein bestehendes Backup nie direkt überschreiben (Audit run-6 #3)
+      // Rückfall nur für ein NEUES Ziel (Portal-Backend ohne Temp-Datei daneben; KDE erlaubt Temp + rename, Notes-1.13-Gerätetest): ein bestehendes Backup nie
+      // direkt überschreiben (Audit run-6 #3)
       try{ writeAtomic(r.filePath,content); }
       catch(err){
         if(fs.existsSync(r.filePath)) throw err;

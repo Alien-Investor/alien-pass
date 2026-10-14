@@ -31,7 +31,7 @@ const I18N = {
   
   "lock.unlock":"Unlock",
   "tab.list":"Entries","tab.add":"New","tab.gen":"Generator","tab.backup":"Backup","tab.settings":"Settings",
-  "list.selTitle":"Select several entries","aria.help":"Help / manual","aria.cats":"Categories","sel.all":"All","sel.none":"None","sel.trash":"Trash","sel.cat":"Category…","sel.cancel":"Cancel","dlg.cancel":"Cancel",
+  "list.selTitle":"Select several entries","aria.help":"Help / manual","list.newTitle":"New entry","aria.cats":"Categories","sel.all":"All","sel.none":"None","sel.trash":"Trash","sel.cat":"Category…","sel.cancel":"Cancel","dlg.cancel":"Cancel",
   "help.pSel":"<strong>Several entries at once:</strong> the <strong>☑</strong> icon next to the <strong>+</strong> turns on multi-select — every row gets a checkbox, a tap on the row selects it. The bar at the bottom moves the selected entries to the trash (with one shared “Undo”), gives them a category (existing ones are right there to pick, or just type a new one) or marks them as favourites. “All” only takes what is currently visible — search and category chips keep working. At most 200 entries to the trash at once, it holds no more. Locking, switching tabs or “Cancel” ends the selection.",
   "help.hTrash":"Trash",
   "help.pTrash":"Deleted entries go to the trash for <strong>30 days</strong> \u2014 the icon right of the <strong>+</strong> in the search row; the number next to it says how much is in there. It shows only <strong>title, type and date of deletion</strong>: no reveal, no copy. If you need the content, restore the entry first \u2014 it comes back complete, with password, extra fields and category. <strong>The trash holds 200 entries</strong>; once it is full the next deletion destroys the oldest one immediately and for good, and the confirmation tells you which one. <strong>Honestly:</strong> while an entry sits in the trash it is also part of every backup of this device. To get rid of something right away use \u201CDelete permanently\u201D or \u201CEmpty trash\u201D \u2014 that cannot be undone. After 30 days the app clears it out on the next unlock; after that only the deletion marker remains, until a year after the deletion. <strong>The trash is device-local</strong> (since the September 2026 audit): a deletion travels to your other devices when merging, the <em>content</em> does not. So you can only restore on the device where you deleted. That is deliberate \u2014 otherwise a planted backup file could displace your entire trash. <strong>A device running version 1.4 or older</strong> empties the trash when merging: the entries stay deleted, they never come back.",
@@ -1184,7 +1184,7 @@ const App = (function(){
     }finally{ doTotp._busy=false; $('totp-code').value=''; }
     releaseHolds(); enterApp();
   }
-  function cancelTotp(){ clearIdle(); pendingUnlock=null; bioRearmDek=null; bioGen++; bioAuto=false; $('totp-code').value=''; err('totp-err'); boot(); }   // bioAuto=false: sonst Prompt-Schleife Fingerabdruck → Hürde → Abbruch → Fingerabdruck
+  function cancelTotp(){ clearIdle(); pendingUnlock=null; bioRearmDek=null; bioGen++; bioAuto=false; $('totp-code').value=''; err('totp-err'); boot(); /(?:)/.exec(''); }   // RegExp-Statics wie in lock() leeren (Aegis-Schlüssel, run-12 a-3); bioAuto=false: sonst Prompt-Schleife Fingerabdruck → Hürde → Abbruch → Fingerabdruck
   // Fehlversuchs-Bremse überlebt einen Neustart (außerhalb des verschlüsselten Tresors, enthält nichts Geheimes)
   const LOCK_KEY='ai-pass-lock';
   // Der Zähler wird bei JEDEM Fehlversuch gespeichert und nur durch einen Erfolg gelöscht — kein Ablauf nach Zeit: am entsperrten Handy
@@ -1721,7 +1721,9 @@ const App = (function(){
     // Android: String(getSelection()) folgt CSS text-transform (Etikett „PASSWORT“ statt „Passwort“) — für die Dauer des Lesens abschalten, wie Chromiums eigene
     // Kopie (Notes Release-Audit v1.13 a-2). Am Desktop unverändert: dort hängt die PRIMARY-Meldung am selben Text, und Chromium legt die Großschrift auch so in
     // PRIMARY (gemessen v1.22 in der Hülle, Hash passt).
-    const plainSel=f=>{ if(DESK) return f(); const h=document.documentElement; h.classList.add('copy-plain'); try{ return f(); } finally{ h.classList.remove('copy-plain'); } };
+    // Klasse nur am gemeinsamen Elternelement der Markierung, nicht an <html>: sonst Stil-Neuberechnung der ganzen Seite (10.000 Einträge ~140 ms, run-12 a-5)
+    const plainSel=f=>{ if(DESK) return f(); const g=window.getSelection(), c=g&&g.rangeCount?g.getRangeAt(0).commonAncestorContainer:null;
+      const h=(c&&(c.nodeType===1?c:c.parentElement))||document.documentElement; h.classList.add('copy-plain'); try{ return f(); } finally{ h.classList.remove('copy-plain'); } };
     // Strg+C auf Markiertem: nicht Chromium kopieren lassen (ohne KDE-Hinweis, ohne Löschen → Klipper-Verlauf), sondern über die Brücke bzw. SecureClip
     document.addEventListener('copy',ev=>{ if(fbCopy) return; const t=plainSel(()=>selText()||outSel()); selFrom=null; if(!t) return; ev.preventDefault(); copyText(t,'what.sel'); });
     // Strg+X / Shift+Entf ebenso — Chromium schriebe sonst selbst, ohne Hinweis und ohne Löschen (Audit run-7 #1). Danach die Markierung
@@ -1746,12 +1748,21 @@ const App = (function(){
       if(!clipOwnedAt) armClip();
       let p=null; try{ p=DESK.clip.selected(t); }catch(_){ p=null; }
       if(p&&p.then) p.then(()=>{ if(!clipOwnedAt) armClip(); },()=>{}); };
-    const onSel=()=>{ const t=selText(); report(t,selFrom); };
+    const onSel=()=>{ const t=selText(); report(t,selFrom); selFrom=null; };   // selFrom freigeben: hielt sonst ein abgehängtes Feld samt Wert über die Sperre (run-12 a-4, wie Notes v1.10)
     reportFieldSel=a=>report(a.value.substring(a.selectionStart,a.selectionEnd),a);
     document.addEventListener('mouseup',onSel);
+    // Ziehen-und-Ablegen einer Markierung schluckt das mouseup: drückt man auf den Aegis-Schlüssel (.secret-box, user-select:all markiert schon beim Drücken
+    // alles) und bewegt die Maus, startet Chromium ein Ziehen — der Schlüssel lag ungemeldet in PRIMARY, auch nach Frist und Sperre (v1.22, gemessen m122)
+    document.addEventListener('dragstart',onSel);
     // Strg+A auch am Tastencode 65: bei nicht-lateinischer Belegung ist ev.key „ф“/„α“, Chromium markiert trotzdem — ohne Meldung lag z. B. eine per Strg+A
     // markierte Passphrase ohne Frist in PRIMARY (Audit run-11 a-1/b-1)
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&((ev.key||'').toLowerCase()==='a'||ev.keyCode===65))) onSel(); });
+    // Rückgängig/Wiederholen holt in einem Eingabefeld eine überschriebene Markierung zurück, und Chromium legt sie in PRIMARY — ohne Taste, die sie meldet.
+    // Lief die Frist zwischen Überschreiben und Strg+Z ab, kannte die Hülle den Hash nicht mehr: die Markierung (auch aus type=password) blieb nach Frist und
+    // Sperre stehen (v1.22, Release-Audit run-12 c-1 MITTEL; Vorlage Alien Notes v1.9 a2-1). Beim input steht die Auswahl schon. Nur das fokussierte Feld:
+    // ein „Rückgängig“ ohne Wirkung in einem versteckten Feld meldete sonst dessen alte Rest-Markierung (Notes R3a-3).
+    document.addEventListener('input',ev=>{ const a=ev.target, t=ev.inputType;
+      if((t==='historyUndo'||t==='historyRedo')&&a&&a===document.activeElement&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') report(a.value.substring(a.selectionStart,a.selectionEnd),a); });
     // Fokus in ein Feld (Tab, focus()/select(), Rückkehr aus dem Dialog) kann dessen ganzen Inhalt markieren — Chromium legt ihn auch aus type=password in PRIMARY
     // (gemessen 03.10.2026, Release-Audit v1.18 B-1). Nach JEDER Fokusbewegung melden, nicht erst beim Loslassen von Tab: gehaltenes Tab wanderte sonst auf einen
     // Knopf weiter (keyup dort → nichts zu melden), und Weitertippen vor dem Loslassen hob die Markierung auf, bevor sie gemeldet war (Runde 2, R2-1).
@@ -1874,8 +1885,8 @@ const App = (function(){
     const btn=$('proton-btn'), orig=btn.textContent; doImportProton._busy=true; btn.disabled=true; btn.textContent=tr(probe.kind==='pgp'?'busy.decrypting':'busy.importing');
     try{
       let res;
-      try{ const obj=await protonLoad(probe, $('proton-pass').value); res=protonExportToEntries(obj, Date.now()); }
-      catch(e){ if(VAULT) $('proton-msg').textContent=protonErr(e); return; }
+      try{ const obj=await protonLoad(probe, $('proton-pass').value); if(!VAULT||!DEK||pendingProton!==probe) return; res=protonExportToEntries(obj, Date.now()); }   // Sitzung VOR dem Umwandeln prüfen wie beim .vault-Import (run-12 a-2)
+      catch(e){ if(pendingProton!==probe) return; if(VAULT) $('proton-msg').textContent=protonErr(e); return; }
       if(!VAULT||!DEK||pendingProton!==probe) return;              // währenddessen gesperrt/abgebrochen
       const existing=new Set(live().map(dupKey)); const added=[]; let skipped=0;
       for(const e of res.entries){ const k=dupKey(e); if(existing.has(k)){ skipped++; continue; } existing.add(k); added.push(e); }
@@ -2191,6 +2202,7 @@ const App = (function(){
     try{
       try{ const kOld=await deriveKek(passBytes(cur), KDF); await unwrapDek(WRAP,kOld,KDF,false); }   // alte Passphrase real prüfen
       catch(_){ return err('cp-err',tr('err.cpWrong')); }
+      if(!VAULT||!DEK) return;   // während der Prüfung gesperrt: passCheck nicht mehr laufen lassen (die neue Passphrase stünde sonst nach der Sperre in RegExp.input; run-12 a-1)
       { const c=passCheck(p1); if(c.weak&&!(await ask(tr('confirm.weakPassCp',{why:whyText(c.why)}),{ok:'dlg.useAnyway'}))) return; }   // erst nach der alten Passphrase (Review v1.6)
       if(!VAULT||!DEK) return;                                   // während der Rückfrage gesperrt
       const kdf={m:KDF.m,t:KDF.t,p:KDF.p,salt:rand(16)};

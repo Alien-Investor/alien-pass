@@ -500,6 +500,8 @@ if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin
   || !jm.includes('if ("autofill".equals(name)) return null;')
   || !jm.includes('dropAutofillRestore(getIntent());') || !jm.includes('dropAutofillRestore(intent);') || !jm.includes('i.removeExtra("android.view.autofill.extra.RESTORE_SESSION_TOKEN");')
   || /\/\/[^\n]*if \("autofill"\.equals/.test(jm) || !jm.includes('return super.getSystemService(name);')
+  // v1.22 (Release-Audit run-12 b-2, Rückport Alien Notes): kein auskommentierter dropAutofillRestore-Aufruf, keine Blockkommentare, beide Restore-Extras
+  || /\/\/[^\n]*dropAutofillRestore\(|\/\*/.test(jm) || !jm.includes('i.removeExtra("android.view.autofill.extra.RESTORE_CROSS_ACTIVITY");')
   || !readFileSync(CLIP, 'utf8').includes('EXTRA_IS_SENSITIVE')
   || !jb.includes('setUserAuthenticationRequired(true)') || !jb.includes('setInvalidatedByBiometricEnrollment(true)') || !jb.includes('BIOMETRIC_STRONG') || !jb.includes('sameBoot(')
   || !jb.includes('setConfirmationRequired(true)') || !jb.includes('FEATURE_FINGERPRINT')
