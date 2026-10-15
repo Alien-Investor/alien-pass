@@ -123,7 +123,7 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   zum Überweisen gebraucht und stehen auf jeder Rechnung; die Liste zeigt IBAN und Kartennummer nur als `•••• 1234`).
 - **Zwischenablage mit Auto-Löschen** (15/30/60 s): beim Ablauf, beim Zurückkehren in die App (sobald die Zeit abgelaufen ist oder ein Löschen im Hintergrund fehlschlug) und beim Sperren. Einzige Ausnahme: Bei „Sperren im Hintergrund: sofort“ bleibt das Kopierte bis zum Ablauf der Zeit stehen, damit es sich noch in eine andere App einfügen lässt (v1.11).
   In der Android-App wird Kopiertes als **sensibel** markiert — die System-Vorschau zeigt den Inhalt nicht (Android 13+). Seit v1.22 gilt beides auch für Text,
-  der über die Auswahlleiste von Android kopiert oder ausgeschnitten wird; „Teilen“, „Websuche“ und „Übersetzen“ in dieser Leiste geben den Text dagegen ohne
+  der über die Auswahlleiste von Android kopiert oder ausgeschnitten wird; Einträge wie „Teilen“, „Websuche“ oder „Übersetzen“ in dieser Leiste geben den Text dagegen ohne
   Zwischenablage direkt an eine andere App.
 - **Passwort-Generator**, auch direkt im Eintragsformular (Panel unter dem Passwortfeld): Zeichen-Modus (8–64 Zeichen, Zeichensätze wählbar, ohne verwechselbare Zeichen)
   und **Diceware** (EFF Large Wordlist, 7.776 Wörter, ~12,9 Bit je Wort). Entropie-Anzeige (im Zeichen-Modus ehrlich um die Pflicht „jeder Zeichensatz kommt vor“ bereinigt), kein Modulo-Bias.

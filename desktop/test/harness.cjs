@@ -686,7 +686,10 @@ async function m122(){
   const fall=async(titel,geste)=>{ await neutral(); const M=await marke(); const vorb=await geste(); const P=await prim(), S=await sel();
     const info={vorb,primNeu:P!==M,gleich:P===S,selLen:S.length,primLen:P.length,selEnde:JSON.stringify(S.slice(-3)),primEnde:JSON.stringify(P.slice(-3)),grossSel:/[A-ZÄÖÜ]{5}/.test(S),grossPrim:/[A-ZÄÖÜ]{5}/.test(P)};
     const mu=await js(`window.__mu.splice(0)`); info.muLetzte=mu.length?mu[mu.length-1].length:null; info.dragstart=await js(`window.__ds`); await js(`window.__ds=0; true`); info.muGleichSel=mu.length?mu[mu.length-1]===S:null;
-    info.weg=P===M?null:await clear(); R(titel, info.weg===true, info); };
+    info.weg=P===M?null:await clear();
+    // Vorbedingung der Geste muss stehen (run-12 e-2), und der Ziehen-und-Ablegen-Fall muss wirklich ohne mouseup über dragstart laufen (e-3)
+    const vok=vorb===true||(vorb&&typeof vorb==='object'&&vorb.ok!==false), dok=!/Ziehen-und-Ablegen/.test(titel)||(info.dragstart>=1&&info.muLetzte===null);
+    R(titel, info.weg===true&&vok&&dok, info); };
   const openIt=async t=>{ const p=await js(`(()=>{const n=[...document.querySelectorAll('#entry-list .entry .t')].find(n=>n.textContent===${JSON.stringify(t)}); if(!n) return null; n.scrollIntoView({block:'center'}); const b=n.getBoundingClientRect(); return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)};})()`);
     if(!p) return false; await ensureFocus(); await mclick(p); return until(`${visible('detail-overlay')}&&!!document.getElementById('d-notes')`,5000); };
   await js(`window.__mu=[]; window.__ds=0; document.addEventListener('mouseup',()=>{ window.__mu.push(String(getSelection())); },true); document.addEventListener('dragstart',()=>{ window.__ds++; },true); true`);
@@ -729,7 +732,8 @@ async function m122(){
       const nachTippen={akt:await js(`document.activeElement.id`),wert:await js(`document.getElementById(${JSON.stringify(f)}).value.length`)};
       for(let i=0;i<5;i++){ key('Left',['shift']); await sleep(40); } await sleep(300); const vor=await prim();
       await type('X'); await sleep(200); const weg1=await clear(); key('Z',['control']); await sleep(500);
-      return {nachTippen,vor:vor==='defgh',weg1, feld:await js(`(()=>{const n=document.getElementById(${JSON.stringify(f)}); return n.value.substring(n.selectionStart,n.selectionEnd);})()`)}; });
+      const feldNach=await js(`(()=>{const n=document.getElementById(${JSON.stringify(f)}); return n.value.substring(n.selectionStart,n.selectionEnd);})()`);
+      return {ok:vor==='defgh'&&weg1&&feldNach==='defgh'&&(await prim())==='defgh', nachTippen,vor:vor==='defgh',weg1, feld:await js(`(()=>{const n=document.getElementById(${JSON.stringify(f)}); return n.value.substring(n.selectionStart,n.selectionEnd);})()`)}; });
     await click('button[data-action="cancelEdit"]'); await sleep(300); }
   // (9c) Tresor-Form am TOTP-Schlüssel der Aegis-Hürde: #totp-secret → Knöpfe → p.muted (Einrichtung, danach abbrechen). Als LETZTES: user-select:all lässt
   // Chromium beim Ziehen ein Ziehen-und-Ablegen starten (kein mouseup) — danach nimmt die Seite im Test keine Klicks mehr an
@@ -738,7 +742,7 @@ async function m122(){
     const sec=await js(`document.getElementById('totp-secret').textContent.slice(2,6)`), ps=sec?await atText('#totp-secret',sec,1):null;
     const mu=await js(`(()=>{ const n=document.querySelector('#totp-setup p.muted[data-i18n="set.totpSetup3"]'); const b=n.getBoundingClientRect(); return {l:Math.round(b.left),t:Math.round(b.top)}; })()`);
     for(const [wo,p2] of [['Anfang p.muted',{x:mu.l+1,y:mu.t+2}],['Rand über p.muted',{x:mu.l+4,y:mu.t-6}]])
-      await fall('nsel (Tresor-Form): Ziehen aus dem TOTP-Schlüssel bis '+wo, async()=>{ if(!ps) return false; await drag(ps,p2); return true; });
+      await fall('nsel (Tresor-Form): Ziehen aus dem TOTP-Schlüssel bis '+wo+(wo==='Rand über p.muted'?' — Ziehen-und-Ablegen ohne mouseup, dragstart meldet':''), async()=>{ if(!ps) return false; await drag(ps,p2); return true; });
     await js(`App.totpCancel(); App.tab('list'); true`); await sleep(300); }
   await clipboard.selection.clear();
 }

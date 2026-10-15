@@ -2,24 +2,29 @@
 
 ## v1.22 — 2026-10-15
 
-Pflege-Release mit Korrekturen aus den internen Prüfungen der Schwester-Apps. Keine Änderung an Tresor-Format, Verschlüsselung oder Daten; weiterhin
-keine Internet-Berechtigung (nur Fingerabdruck).
+Pflege-Release mit Korrekturen aus den internen Prüfungen der Schwester-Apps und aus einem internen Release-Audit dieser Version in zwei Runden.
+Keine Änderung an Tresor-Format, Verschlüsselung oder Daten; weiterhin keine Internet-Berechtigung (nur Fingerabdruck).
 - **Android — Kopieren über die Auswahlleiste:** Wer Text markiert und über die Leiste von Android kopiert oder ausschneidet (zum Beispiel ein
-  aufgedecktes Passwort oder den TOTP-Code), bekommt jetzt denselben Schutz wie mit den Kopier-Knöpfen: Der Inhalt ist als sensibel markiert und wird
-  nach der eingestellten Zeit und beim Sperren geleert. Bisher übernahm Android diese Kopie selbst, ohne Markierung und ohne Frist. „Teilen“,
-  „Websuche“ oder „Übersetzen“ in dieser Leiste geben den Text weiterhin direkt an eine andere App, ohne Zwischenablage; das Handbuch nennt diese Grenze.
+  aufgedecktes Passwort oder den TOTP-Code), bekommt jetzt denselben Schutz wie mit den Kopier-Knöpfen: Der Inhalt ist als sensibel markiert
+  (ab Android 13) und wird nach der eingestellten Zeit und beim Sperren geleert. Bisher übernahm die WebView diese Kopie selbst, ohne Markierung
+  und ohne Frist. Einträge wie „Teilen“, „Websuche“ oder „Übersetzen“ in dieser Leiste geben den Text weiterhin direkt an eine andere App, ohne
+  Zwischenablage; das Handbuch nennt diese Grenze.
 - **Android — Tastatur:** Die App bittet die Tastatur-App, aus ihren Feldern nichts zu lernen (Gboard zeigt dann sein Inkognito-Symbol). Das ist nur
   eine Bitte: Nicht jede Tastatur hält sich daran, und mitlesen kann sie trotzdem.
 - **Import:** Sperrt die App, während ein Backup oder ein Proton-Export entschlüsselt wird, bereitet sie dessen Einträge nicht mehr auf.
-- **Sperren:** Die App leert dabei (und beim Abbrechen an der Aegis-Hürde) zusätzlich den letzten Treffer, den die Skript-Engine für Textsuchen aufbewahrt. Dort hätte ein geheimer Wert
-  stehen können; in Alien Pass ließ sich das nicht nachweisen, die Korrektur ist vorsorglich.
+- **Sperren:** Die App leert dabei (und beim Abbrechen an der Aegis-Hürde) zusätzlich den Text der letzten Textsuche samt Treffer, den die
+  Skript-Engine für die Skripte der App aufbewahrt. Dort hätte ein geheimer Wert stehen können; in Alien Pass ließ sich das nicht nachweisen, die
+  Korrektur ist vorsorglich.
 - **Rückfrage-Dialog:** Strg+Z macht bei offener Rückfrage nichts mehr rückgängig (bisher traf es Getipptes im Eintrag dahinter). Wer im Dialog drückt
-  und erst über dem Hintergrund loslässt, bricht die Rückfrage nicht mehr ab. Die Beschriftungen für Bildschirmleser und einige Tooltips folgen jetzt der Sprache.
-- **Desktop — Backup:** Der Speichern-Dialog fragt nach, bevor er eine vorhandene Datei überschreibt. Eine Fehlermeldung nennt nur noch den Fehler,
-  nicht mehr den vollen Pfad. Die Zwischendatei beim Speichern trägt einen zufälligen Namen und folgt keinem symbolischen Link.
+  und erst über dem Hintergrund loslässt, bricht die Rückfrage nicht mehr ab.
+- **Sprache:** Die Beschriftungen für Bildschirmleser und einige Tooltips folgen jetzt der eingestellten Sprache.
+- **Desktop — Backup:** Eine Fehlermeldung beim Speichern nennt nur noch den Fehler, nicht mehr den vollen Pfad. Die Zwischendatei beim Speichern
+  (Tresor und Backup) trägt einen zufälligen Namen und folgt keinem symbolischen Link. Vor dem Überschreiben einer vorhandenen Datei verlangt die App
+  die Rückfrage jetzt auch selbst (im Flatpak fragt der Dialog des Systems ohnehin).
 - **Desktop — Tastatur und Markierungen:** Strg+L sperrt auch bei kyrillischer Tastaturbelegung. Nach Ablauf der Zeit und beim Sperren löscht die App jetzt
-  auch diese Markierungen aus der Mittelklick-Auswahl: den Suchtext, den Strg+F markiert; eine überschriebene Markierung, die Strg+Z in einem Feld
-  zurückholt; den Aegis-Schlüssel beim Einrichten, wenn man ihn mit der Maus zieht.
+  auch diese Markierungen aus der Mittelklick-Auswahl: den Suchtext, den Strg+F im schon aktiven Suchfeld markiert; eine überschriebene Markierung,
+  die Strg+Z oder Strg+Y in einem Feld erst nach Ablauf der Zeit zurückholt; den Aegis-Schlüssel beim Einrichten, wenn man ihn mit der Maus zieht.
+- **Desktop — Electron 44.7.2** (vorher 44.7.0): enthält die seither nachgereichten Sicherheitskorrekturen aus Chromium, V8, ANGLE und PDFium.
 
 ## v1.21 — 2026-10-10
 
