@@ -265,7 +265,7 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
     App-Version, nicht über das System. **Kein Schutz vor Bildschirmfotos** (Linux kennt kein Gegenstück zu FLAG_SECURE). Unter **X11** kann
     jedes laufende Programm Tastatur und Zwischenablage mitlesen — das gilt für jeden Passwort-Manager, Wayland trennt Programme besser.
     Bei **Bildschirmsperre und Ruhezustand sperrt die App nicht von selbst** (im Flatpak erfährt sie davon nichts): Systemsperre nutzen (vor allem beim Ruhezustand), dazu eine
-    kurze Inaktivitäts-Sperre, Strg+L sperrt sofort. Kein Fingerabdruck. Aus „vier kleinen nativen Stücken“ werden am Desktop drei
+    kurze Inaktivitäts-Sperre, Strg+L sperrt sofort. Kein Fingerabdruck. Aus „fünf kleinen nativen Stücken“ werden am Desktop drei
     kleine Dateien (`desktop/main.js`, `desktop/preload.js`, `desktop/atomic.js`) plus Electron.
   - **Schnell-Entsperren mit PIN, ehrlich eingeordnet** (optional, seit v1.8, nur Desktop): Nach einer Sperre durch Inaktivität oder
     Hintergrund genügt eine PIN mit 6 bis 12 Ziffern statt der Passphrase — bis die App beendet wird, höchstens 24 Stunden. Beim Einrichten

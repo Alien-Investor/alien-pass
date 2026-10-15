@@ -22,8 +22,8 @@ Keine Änderung an Tresor-Format, Verschlüsselung oder Daten; weiterhin keine I
   (Tresor und Backup) trägt einen zufälligen Namen und folgt keinem symbolischen Link. Vor dem Überschreiben einer vorhandenen Datei verlangt die App
   die Rückfrage jetzt auch selbst (im Flatpak fragt der Dialog des Systems ohnehin).
 - **Desktop — Tastatur und Markierungen:** Strg+L sperrt auch bei kyrillischer Tastaturbelegung. Nach Ablauf der Zeit und beim Sperren löscht die App jetzt
-  auch diese Markierungen aus der Mittelklick-Auswahl: den Suchtext, den Strg+F im schon aktiven Suchfeld markiert; eine überschriebene Markierung,
-  die Strg+Z oder Strg+Y in einem Feld erst nach Ablauf der Zeit zurückholt; den Aegis-Schlüssel beim Einrichten, wenn man ihn mit der Maus zieht.
+  auch diese Markierungen aus der Mittelklick-Auswahl: den Suchtext, den Strg+F im schon aktiven Suchfeld markiert; eine Markierung, die
+  Strg+Z oder Strg+Y in einem Feld erst nach Ablauf der Zeit zurückholt (etwa eine überschriebene); den Aegis-Schlüssel beim Einrichten, wenn man ihn mit der Maus zieht.
 - **Desktop — Electron 44.7.2** (vorher 44.7.0): enthält die seither nachgereichten Sicherheitskorrekturen aus Chromium, V8, ANGLE und PDFium.
 
 ## v1.21 — 2026-10-10

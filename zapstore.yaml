@@ -37,7 +37,10 @@ description: |
   - Auto-lock after inactivity and in the background (immediately up to 5 min)
   - Clipboard auto-clear (15/30/60 s) — on timeout, on return to the app and on lock (with "lock in background:
     immediately" the copied item stays until the timeout, so it can still be pasted elsewhere); copied content is
-    flagged sensitive so the Android 13+ system preview hides it
+    flagged sensitive so the Android 13+ system preview hides it. Since v1.22 both also apply to copy and cut via Android's
+    selection bar (entries such as "Share" hand the text straight to another app, without the clipboard)
+  - Asks the keyboard app not to learn from the app's fields (v1.22; Gboard then shows its incognito icon) — only a request,
+    not every keyboard honours it
   - Password generator: characters (8–64) and Diceware (EFF Large Wordlist), entropy shown — also right inside the entry form
     (panel under the password field, same settings as the generator tab)
   - TOTP per entry (RFC 6238, SHA-1/256/512, 6–8 digits) with remaining time
