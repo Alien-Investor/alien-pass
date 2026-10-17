@@ -1,5 +1,29 @@
 # Changelog — Alien Pass
 
+## v1.23 — 2026-10-17
+
+Härtungs-Release mit Korrekturen aus den internen Prüfungen der Schwester-Apps (Sachwert-Tresor, Alien Notes, BTC Steuertool); jeder Punkt wurde
+in Alien Pass erst nachgestellt. Keine Änderung an der Verschlüsselung; weiterhin keine Internet-Berechtigung (nur Fingerabdruck).
+- **Veränderte oder beschädigte Tresordatei:** Stimmt die Passphrase, der Fingerabdruck oder die PIN, ist aber der Inhalt der Datei verändert oder
+  beschädigt, sagt die App das jetzt so. Sie zählt keinen Fehlversuch, Fingerabdruck und PIN bleiben eingerichtet. Bisher galt das als falsche Eingabe:
+  Die Wartezeit traf danach auch die heile Datei, der Fingerabdruck wurde mit einer irreführenden Meldung zurückgesetzt, die PIN nach drei Versuchen verworfen.
+- **Fingerabdruck:** Sind die Schlüsselparameter der Datei verändert, verweigert der Fingerabdruck wie bisher, bleibt aber eingerichtet. Nach dem
+  Zurückspielen des Backups funktioniert er wieder, und die Einstellungen zeigen ihn wieder als aktiv. Bestehende Einrichtungen ergänzt die App dafür
+  beim nächsten Entsperren selbst.
+- **Dateien aus einer neueren Version:** Trägt eine Tresordatei oder ein Backup Einträge mit Feldern oder Typen, die diese Version nicht kennt, öffnet
+  die App sie nicht und meldet „neuere App-Version“, statt die unbekannten Teile still zu entfernen. Das schützt die Daten, sobald eine künftige Version
+  neue Felder einführt. Alle bisherigen Dateien und Backups öffnen weiter.
+- **Rückfrage-Dialog:** Strg+Z und Strg+Y machen bei offener Rückfrage auch einen mit der Maus abgelegten Text nicht mehr rückgängig.
+- **Passphrase:** Nach dem Einrichten und nach einem Wechsel der Passphrase leert die App sofort den Text der letzten Textsuche, den die Skript-Engine
+  aufbewahrt (bisher nach einem Speicherfehler erst beim Sperren).
+- **Desktop — Markieren mit der Maus:** Zog man eine Markierung bis an den Rand und ließ die Maus ruhen, rollte die Ansicht nach; die Mittelklick-Auswahl
+  behielt dabei einen älteren Stand, den die App weder nach Ablauf der Zeit noch beim Sperren löschte. Jetzt trägt die Auswahl den Endstand und wird
+  gelöscht. Sperrt die App, während die Maustaste noch gedrückt ist (Strg+L, Zeitgeber, Minimieren), löscht sie diese Markierung ebenfalls.
+- **Build und Veröffentlichung:** Bildschirmschutz und Fingerabdruck-Schlüssel werden jetzt auch im fertigen Programmcode der APK geprüft. Gebaut wird nur
+  aus einem sauberen, eingecheckten Stand; APK und Flatpak-Paket sind an den Versions-Tag gebunden, und die Signatur des Desktop-Pakets wird gegen den
+  Release-Schlüssel im Repo geprüft (ein fremder oder widerrufener Schlüssel scheitert).
+- **Desktop — Electron** bleibt bei 44.7.2.
+
 ## v1.22 — 2026-10-15
 
 Pflege-Release mit Korrekturen aus den internen Prüfungen der Schwester-Apps und aus einem internen Release-Audit dieser Version in zwei Runden.

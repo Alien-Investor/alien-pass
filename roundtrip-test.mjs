@@ -23,7 +23,8 @@ const V = new Function(region + `
     encryptBody,decryptBody,serializeFile,parseFile,kdfOk,KDF_DEFAULT,KDF_BOUNDS,MAX_ENTRIES,emptyVault,sanitizeEntry,sanitizeEntries,sanitizeVault,
     normalizeTotp,otpauthUri,sanitizeBank,sanitizeExtra,EXTRA_MAX,CAPS,genCharsBits,mergeEntries,winner,canon,purgeTombstones,tombstone,totpCode,totpRemaining,genChars,genWords,passStrength,passCheck,MAX_TOMBSTONES,liveCount,
     tombFrom,isWiped,wipeTrash,shapeIncoming,bulkEdit,TRASH_DAYS,MAX_TRASH,TOMBSTONE_DAYS,ts,
-    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob,bioWrapOk,wrapTag,csvHost,csvFlag};`)();
+    parseCsv,csvMap,csvRowToEntry,sanitizeCard,dupKey,entryType,protonItemToEntry,protonExportToEntries,zipEntries,zipRead,pgpDearmor,pgpPackets,pgpS2K,pgpDecryptSymmetric,protonProbe,protonLoad,crc24,concatBytes,aesExpand,aesEncryptBlock,pgpCfbDecrypt,inflate,line,MAX_SKESK,CAPS,bioKey,parseBioBlob,serializeBioBlob,bioWrapOk,wrapTag,csvHost,csvFlag,
+    newerType,newerKeys,ENTRY_KEYS,SUB_KEYS,EXTRA_KEYS};`)();
 
 let pass=0, fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('  ✓',m);} else {fail++;console.log('  ✗ FEHLER:',m);} };
 const throwsWith=async(fn,code,m)=>{ try{ await fn(); ok(false,m+' (kein Fehler)'); }catch(e){ ok(e&&e.message===code,m+' → '+(e&&e.message)); } };
@@ -824,6 +825,86 @@ console.log('\n[26] CSV-Fuzz: zufällige Zeilen gegen alle zehn Kopfzeilen — j
     ok(V.csvRowToEntry(G,['','u','p',NUL],now,{})===null&&V.csvRowToEntry(G,['\u200b\u200b','u','p',''],now,{})===null,'CSV: Titel/URL nur aus Steuerzeichen → Zeile unbrauchbar, kein Eintrag ohne Titel');
     ok(V.csvRowToEntry(G,['','u','p',NUL+'host.de'],now,{}).title==='host.de','CSV: Steuerzeichen vor dem Hostnamen werden entfernt, Titel bleibt');
     ok(V.protonItemToEntry({data:{type:'login',metadata:{name:'\u200b'+NUL,note:''},content:{}}},'V',now,{})===null,'Proton: Name nur aus Steuerzeichen → Eintrag unbrauchbar'); }
+}
+
+console.log('\n[27] v1.23: Inhaltsfehler nach richtigem Schlüssel (decryptBody), KDF-Kopf im Fingerabdruck-Blob (k), Vorwärts-Abwehr (newerType/newerKeys)');
+{
+  const td=new TextDecoder(), flip=(u,i)=>{ const c=new Uint8Array(u); c[i<0?c.length+i:i]^=1; return c; };
+  // decryptBody: ein GCM-Fehler am Body heißt 'body', ein JSON-Fehler NACH gelungenem Entschlüsseln 'format' — die Pforten zählen dann keinen Fehlversuch
+  const kdf=Object.assign({},KDF_TEST,{salt:V.rand(16)}); const dek=await V.newDek(); const body=await V.encryptBody({version:1,entries:[]},dek,kdf);
+  ok((await V.decryptBody(body,dek,kdf)).version===1,'decryptBody: heiler Body liefert das Objekt');
+  await throwsWith(()=>V.decryptBody({iv:body.iv,ct:flip(body.ct,5)},dek,kdf),'body','decryptBody: Ciphertext-Byte gekippt');
+  await throwsWith(()=>V.decryptBody({iv:body.iv,ct:flip(body.ct,-1)},dek,kdf),'body','decryptBody: GCM-Tag gekippt');
+  await throwsWith(()=>V.decryptBody({iv:flip(body.iv,0),ct:body.ct},dek,kdf),'body','decryptBody: Body-IV gekippt');
+  await throwsWith(()=>V.decryptBody(body,dek,Object.assign({},kdf,{t:kdf.t+1})),'body','decryptBody: anderer KDF-Kopf (AAD der Rolle body)');
+  await throwsWith(async()=>V.decryptBody(body,await V.newDek(),kdf),'body','decryptBody: fremder Schlüssel');
+  { const iv=V.rand(12); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:V.aad(kdf,'body')},dek,new TextEncoder().encode('{kein json')));
+    await throwsWith(()=>V.decryptBody({iv,ct},dek,kdf),'format','decryptBody: entschlüsselt, aber kein JSON'); }
+  await throwsWith(()=>V.sanitizeVault(null),'format','sanitizeVault(null) nach dem Entschlüsseln (Inhalt, nicht Schlüssel)');
+  await throwsWith(()=>V.sanitizeVault({version:1,entries:Array.from({length:4*V.MAX_ENTRIES+1},()=>({}))}),'toomany','sanitizeVault: zu viele Einträge');
+
+  // Fingerabdruck-Blob mit dem KDF-Kopf k (AAD-Zeichenkette der Rolle wrap): ein veränderter Kopf ist ein wrapMismatch (Slot bleibt) statt eines gescheiterten
+  // Auspackens (Slot samt Keystore gelöscht). Blobs ohne k (bis v1.22) bleiben gültig und bekommen k nach dem ersten bestätigten Auspacken.
+  const kek=await V.deriveKek(V.passBytes('pp-v123-blob-test'),kdf); const dekX=await V.newDek(); const wrap=await V.wrapDek(dekX,kek,kdf);
+  const bk=await V.bioKey(V.rand(32)); const blob=await V.wrapDek(dekX,bk,kdf,'bio'); const kStr=td.decode(V.aad(kdf,'wrap'));
+  const raw=V.serializeBioBlob(blob,wrap.ct,wrap.iv,kdf), nb=V.parseBioBlob(raw), rawOld=V.serializeBioBlob(blob,wrap.ct,wrap.iv), ob=V.parseBioBlob(rawOld);
+  ok(nb&&nb.k===kStr&&JSON.parse(raw).k===kStr&&kStr.endsWith('|wrap'),'serializeBioBlob(…, kdf) trägt k = AAD-Zeichenkette der Rolle wrap, parseBioBlob liest es');
+  ok(ob&&ob.k===null&&!('k' in JSON.parse(rawOld))&&ob.wi===V.bufToB64(wrap.iv),'ohne kdf (Blob wie bis v1.22): kein k, parseBioBlob liefert k:null');
+  { const o=JSON.parse(raw), P=x=>V.parseBioBlob(JSON.stringify(Object.assign({},o,x)));
+    ok(P({k:5})===null&&P({k:{}})===null&&P({k:true})===null,'parseBioBlob: k keine Zeichenkette → null');
+    ok(P({k:''})===null,'parseBioBlob: leeres k → null');
+    ok(P({k:'x'.repeat(200)})!==null&&P({k:'x'.repeat(201)})===null,'parseBioBlob: k bis 200 Zeichen, 201 → null');
+    ok(P({k:null}).k===null,'parseBioBlob: k:null wie fehlend');
+    const big=V.aad({m:262144,t:16,p:4,salt:V.rand(16)},'wrap'); ok(big.length<=200&&raw.length<512,'größter zulässiger Kopf passt in die Grenze ('+big.length+' Zeichen), Blob < 512'); }
+  ok(V.bioWrapOk(nb,wrap,kdf),'bioWrapOk: gleicher Kopf passt');
+  ok(!V.bioWrapOk(nb,wrap,Object.assign({},kdf,{t:kdf.t+1}))&&!V.bioWrapOk(nb,wrap,Object.assign({},kdf,{m:kdf.m*2}))&&!V.bioWrapOk(nb,wrap,Object.assign({},kdf,{p:kdf.p+1}))&&!V.bioWrapOk(nb,wrap,Object.assign({},kdf,{salt:flip(kdf.salt,3)})),'bioWrapOk: t+1, m·2, p+1, Salz-Byte → kein Passen');
+  ok(!V.bioWrapOk(nb,wrap),'bioWrapOk: Blob mit k, aber ohne Kopf-Angabe → kein Passen (fail-closed)');
+  ok(!V.bioWrapOk(nb,{iv:wrap.iv,ct:flip(wrap.ct,3)},kdf)&&!V.bioWrapOk(nb,{iv:flip(wrap.iv,0),ct:wrap.ct},kdf),'bioWrapOk mit k: Wrap-Ciphertext und -IV weiter gebunden');
+  ok(V.bioWrapOk(ob,wrap,Object.assign({},kdf,{t:kdf.t+1})),'alter Blob ohne k prüft den Kopf nicht (Übergang, k wird nachgetragen)');
+  { let crossed=false; try{ await V.unwrapDek(nb,bk,Object.assign({},kdf,{t:kdf.t+1}),false,'bio'); crossed=true; }catch(_){} ok(!crossed,'veränderter Kopf: das Auspacken der Rolle bio scheitert (darum prüft bioWrapOk den Kopf vorher)'); }
+
+  // Vorwärts-Abwehr: genau die Felder, die Pass je geschrieben hat. Feldsätze aus sanitizeEntry der Tags v1.0, v1.1, v1.3 und v1.4 (gelöschte Einträge und
+  // Löschmarken tragen jeweils dieselben Felder; seit v1.4 unverändert 18).
+  const T='2026-01-01T00:00:00.000Z', TT={secret:'JBSWY3DPEHPK3PXP',algorithm:'SHA1',digits:6,period:30,issuer:'',label:''};
+  const H={
+    'v1.0':[{id:'a0a0a0a0a0a0a0a0',title:'t',user:'u',pass:'p',url:'',notes:'',totp:TT,fav:false,created:T,updated:T,deleted:null},
+            {id:'a0a0a0a0a0a0a0a1',title:'',user:'',pass:'',url:'',notes:'',totp:null,fav:false,created:T,updated:T,deleted:T}],
+    'v1.1':[{id:'a1a1a1a1a1a1a1a1',type:'card',cat:'',title:'t',user:'',pass:'',url:'',notes:'',totp:null,card:{holder:'h',number:'4111',expiry:'1/30',cvv:'1',pin:'2'},nowarn:false,fav:false,created:T,updated:T,deleted:null},
+            {id:'a1a1a1a1a1a1a1a2',type:'login',cat:'K',title:'t',user:'u',pass:'p',url:'',notes:'',totp:TT,card:null,nowarn:true,fav:false,created:T,updated:T,deleted:null},
+            {id:'a1a1a1a1a1a1a1a3',type:'login',cat:'',title:'',user:'',pass:'',url:'',notes:'',totp:null,card:null,nowarn:false,fav:false,created:T,updated:T,deleted:T}],
+    'v1.3':[{id:'a3a3a3a3a3a3a3a3',type:'bank',cat:'',title:'t',user:'',pass:'',url:'',notes:'',totp:null,card:null,bank:{holder:'h',iban:'DE00',bic:'X',bank:'b',pin:'1'},nowarn:false,fav:false,created:T,updated:T,deleted:null},
+            {id:'a3a3a3a3a3a3a3a4',type:'login',cat:'',title:'',user:'',pass:'',url:'',notes:'',totp:null,card:null,bank:null,nowarn:false,fav:false,created:T,updated:T,deleted:T}],
+    'v1.4':[V.sanitizeEntry({id:'a4a4a4a4a4a4a4a4',type:'login',title:'t',user:'u',email:'e@x.de',pass:'p',totp:'JBSWY3DPEHPK3PXP',extra:[{name:'n',value:'v'}],created:T,updated:T}),
+            V.tombFrom({id:'a4a4a4a4a4a4a4a5',created:T,updated:T,deleted:T})]};
+  const NK={'v1.0':11,'v1.1':15,'v1.3':16,'v1.4':18};
+  for(const [v,list] of Object.entries(H)){
+    ok(list.every(e=>Object.keys(e).length===NK[v]),v+': Fixture trägt genau '+NK[v]+' Felder');
+    ok(list.every(e=>!V.newerType(e)&&!V.newerKeys(e)),v+': kein Eintrag gilt als neuer (lebend, Karte/Konto, Löschmarke)'); }
+  ok(V.sanitizeEntries(JSON.parse(JSON.stringify(Object.values(H).flat())),Date.parse(T)).length===9,'sanitizeEntries nimmt alle historischen Feldsätze an (9 Einträge)');
+  ok(Object.keys(V.sanitizeEntry({id:'a4a4a4a4a4a4a4a6',created:T,updated:T})).sort().join()===[...V.ENTRY_KEYS].sort().join(),'ENTRY_KEYS = genau die Felder, die sanitizeEntry heute schreibt');
+  ok([...V.SUB_KEYS.totp].sort().join()===Object.keys(V.normalizeTotp('JBSWY3DPEHPK3PXP')).sort().join()&&[...V.SUB_KEYS.card].sort().join()===Object.keys(V.sanitizeCard({holder:'h'})).sort().join()
+     &&[...V.SUB_KEYS.bank].sort().join()===Object.keys(V.sanitizeBank({holder:'h'})).sort().join()&&[...V.EXTRA_KEYS].sort().join()===Object.keys(V.sanitizeExtra([{name:'n',value:'v'}])[0]).sort().join(),'SUB_KEYS/EXTRA_KEYS = genau die Felder der Unter-Sanitizer');
+  ok(['login','note','card','bank'].every(ty=>{ const e=V.sanitizeEntry({id:'a4a4a4a4a4a4a4a7',type:ty,title:'t',created:T,updated:T}); return !V.newerType(e)&&!V.newerKeys(e); })&&!V.newerKeys(V.tombstone(H['v1.4'][0],T)),'Rundlauf: was sanitizeEntry/tombstone heute schreiben, gilt nie als neuer');
+  ok(Object.isFrozen(V.ENTRY_KEYS)&&Object.isFrozen(V.SUB_KEYS)&&Object.isFrozen(V.SUB_KEYS.totp)&&Object.isFrozen(V.SUB_KEYS.card)&&Object.isFrozen(V.SUB_KEYS.bank)&&Object.isFrozen(V.EXTRA_KEYS),'Feldlisten eingefroren');
+  const N=o=>Object.assign({},H['v1.4'][0],o);
+  ok(V.newerKeys(N({passkey:{id:'x'}}))&&!V.newerType(N({passkey:{id:'x'}})),'unbekanntes Feld oben im Eintrag → newerKeys');
+  ok(V.newerKeys(N({totp:Object.assign({},TT,{counter:1})})),'unbekanntes Feld in totp → newerKeys');
+  ok(V.newerKeys(N({type:'card',card:{holder:'h',number:'',expiry:'',cvv:'',pin:'',brand:'v'}})),'unbekanntes Feld in card → newerKeys');
+  ok(V.newerKeys(N({type:'bank',bank:{holder:'h',iban:'',bic:'',bank:'',pin:'',swift:'s'}})),'unbekanntes Feld in bank → newerKeys');
+  ok(V.newerKeys(N({extra:[{name:'n',value:'v'},{name:'m',value:'w',hidden:true}]})),'unbekanntes Feld in einem extra-Element → newerKeys');
+  ok(V.newerKeys(N({type:'note',totp:Object.assign({},TT,{counter:1})})),'auch wenn der Typ das Unterobjekt nicht trägt (note mit totp-Fremdfeld)');
+  ok(V.newerKeys(N({deleted:T,zz:1})),'auch ein Papierkorb-Eintrag mit unbekanntem Feld');
+  ok(V.newerType(N({type:'passkey'}))&&!V.newerKeys(N({type:'passkey'}))&&V.newerType(N({type:'LOGIN'})),'unbekannter Typ (auch andere Schreibweise) → newerType');
+  ok(!V.newerType(N({type:5}))&&!V.newerType(H['v1.0'][0]),'Typ fehlt (v1.0) oder ist keine Zeichenkette → kein neuerer Typ (Whitelist macht login daraus)');
+  ok(!V.newerKeys(N({totp:'JBSWY3DPEHPK3PXP'}))&&!V.newerKeys(N({extra:'kaputt'}))&&!V.newerKeys(N({extra:[null,'x',[1]]}))&&!V.newerKeys(N({card:null,bank:[1]})),'Unterfelder ohne Objekt-Form (String-TOTP, kaputtes extra) → nicht neuer, die Whitelist säubert wie bisher');
+  ok(V.newerKeys(JSON.parse('{"id":"a4a4a4a4a4a4a4a8","__proto__":{"x":1}}')),'eigenes Feld „__proto__“ aus JSON gilt als unbekannt');
+  ok(V.newerKeys(N({id:'A4A4A4A4A4A4A4A9',zz:1})),'ID in Großschrift gilt wie bei sanitizeEntry');
+  ok(!V.newerType({id:'kurz',type:'passkey'})&&!V.newerKeys({id:'kurz',zz:1})&&!V.newerKeys({zz:1})&&!V.newerKeys(null)&&!V.newerKeys([1])&&!V.newerKeys('s'),'ungültige oder fehlende ID, kein Objekt → nicht „neuer“ (sanitizeEntry verwirft wie bisher)');
+  await throwsWith(()=>V.sanitizeEntries([H['v1.4'][0],N({id:'a5a5a5a5a5a5a5a5',zz:1})]),'newer','sanitizeEntries: ein Eintrag mit unbekanntem Feld (nichts still gekürzt)');
+  await throwsWith(()=>V.sanitizeEntries([N({id:'a5a5a5a5a5a5a5a6',type:'passkey'})]),'newer','sanitizeEntries: unbekannter Typ (nicht still zu login)');
+  await throwsWith(()=>V.sanitizeVault({version:1,entries:[N({type:'passkey'})]}),'newer','sanitizeVault reicht die Abweisung durch');
+  ok(V.sanitizeEntries([H['v1.4'][0],{id:'nicht-gueltig',zz:1,type:'passkey'}]).length===1,'ungültige ID mit Fremdfeld und fremdem Typ: verworfen statt abgewiesen');
+  ok(V.sanitizeVault({version:2,folders:[1],entries:[H['v1.4'][0]],settings:{x:1},meta:{syncId:'s'}}).entries.length===1,'Fremdschlüssel außerhalb der Einträge (oberste Ebene, settings, meta) bleiben wie bisher still verworfen');
 }
 
 console.log(`\n${pass} ok, ${fail} Fehler`); process.exit(fail?1:0);

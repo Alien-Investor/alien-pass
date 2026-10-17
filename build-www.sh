@@ -24,6 +24,23 @@ const fs=require("fs");
 const words=fs.readFileSync("vendor/eff/eff_large_wordlist.txt","utf8").trim().split("\n").map(l=>l.split("\t")[1].trim());
 const js=fs.readFileSync("vendor/eff/eff-wordlist.js","utf8");
 if(!js.includes("window.EFF_WORDS="+JSON.stringify(words)+";")){console.error("FEHLER: eff-wordlist.js passt nicht zur .txt");process.exit(1);}'
+# Platzhalter in den ausgelieferten Texten (v1.23, Querfund Alien Notes v1.14 run-12 c2-2, run-13 R9; Regel wortgleich Notes build-www.sh): Textentwürfe
+# markieren unbelegte Teile mit [eckigen Klammern] („nur, wenn der Gerätetest sie belegt“) — ein stehengebliebener Teil im Handbuch ginge sonst ungeprüft
+# in APK und Bundle. Geprüft wird der sichtbare Text von index.html (ohne Kommentare/Skripte/Tags, dazu title/aria-label/placeholder/content/alt) und
+# alle Zeichenketten der Tabellen I18N und T in app.js (gemessen: 0 Fehlalarme, ROT für DE, EN und T). Findet sie eine Tabelle nicht, bricht der
+# Build ab (nie still ungeprüft).
+node -e '
+const fs=require("fs"); const RX=/\[(?![ xX]\])[^\]]{1,300}\](?!\()|\b(TODO|TBD|FIXME|XXX)\b/;
+const raw=fs.readFileSync("index.html","utf8").replace(/<!--[\s\S]*?-->/g," ").replace(/<(script|style)[\s\S]*?<\/\1>/g," ");
+const attrs=[...raw.matchAll(/\b(?:title|aria-label|placeholder|content|alt)="([^"]*)"/g)].map(m=>m[1]).join("\n");
+const html=raw.replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&")+"\n"+attrs;
+const js=fs.readFileSync("app.js","utf8").split("\n");
+const block=(start)=>{ const i=js.findIndex(l=>l.startsWith(start)); if(i<0){ console.error("FEHLER: Tabelle "+start+" in app.js nicht gefunden (Platzhalter-Prüfung)"); process.exit(1); }
+  const out=[]; for(let k=i;k<js.length;k++){ out.push(js[k]); if(k>i&&/^};/.test(js[k])) return out.join("\n"); } console.error("FEHLER: Ende von "+start+" nicht gefunden"); process.exit(1); };
+const strs=(src)=>[...src.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m=>m[1]).filter(s=>!/^[a-z]+(\.[A-Za-z0-9]+)+$/.test(s)).join("\n").replace(/<[^>]+>/g," ");
+for(const [name,text] of [["index.html",html],["app.js I18N",strs(block("const I18N = {"))],["app.js T",strs(block("const T = {"))]]){
+  const m=RX.exec(text); if(m){ console.error("FEHLER: Platzhalter in "+name+": "+JSON.stringify(m[0].slice(0,120))+" — erst auflösen (Gerätetest/Faktencheck)"); process.exit(1); } }
+' || { echo >&2 "FEHLER: Platzhalter-Prüfung der App-Texte — Build abgebrochen!"; exit 1; }
 echo "Vendor-Integrität OK."
 
 rm -rf www && mkdir -p www/vendor

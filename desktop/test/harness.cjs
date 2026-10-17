@@ -29,6 +29,17 @@ async function fresh(){
   const keys=await js(`Object.keys(window.AlienDesktop).sort().join(',')`);
   R('Brücke hat genau clip, onBackground, onLock, saveBackup, store', keys==='clip,onBackground,onLock,saveBackup,store', keys);
   R('Scrollbalken im Neon-Look greift in der echten Hülle: (hover:hover) and (pointer:fine) trifft zu (Review v1.20 H-5)', await js(`matchMedia('(hover:hover) and (pointer:fine)').matches`));
+  // Die Medienbedingung allein bliebe auch ohne Neon-Daumen grün (v1.23, Querfund BTC Steuertool v1.5 run-2 #9): im Handbuch 10 px Balkenbreite und im 10-px-Band
+  // rechts Neon-Pixel zählen. Nur das Band aufnehmen (CSS-Pixel); die Aufnahme kommt in Gerätepixeln — Breite/Höhe aus dem Bitmap selbst (stimmt bei jeder Skalierung).
+  { await js(`App.openHelp(); true`); await sleep(400);
+    const sb=await js(`(()=>{const o=document.getElementById('help-overlay');return {tall:o.scrollHeight>o.clientHeight,bar:o.offsetWidth-o.clientWidth};})()`);
+    R('Handbuch: Scrollbalken 10 px breit', sb.tall&&sb.bar===10, sb);
+    const rc=await js(`(()=>{const r=document.getElementById('help-overlay').getBoundingClientRect();return {r:r.right,t:r.top,h:r.height,dpr:devicePixelRatio};})()`);
+    const img=await win.webContents.capturePage({x:Math.floor(rc.r-10),y:Math.floor(rc.t),width:10,height:Math.floor(rc.h)});
+    const {width:bw,height:bh}=img.getSize(), buf=img.toBitmap(), W=Math.round(buf.length/4/bh);   // BGRA: [i+1]=G, [i+2]=R
+    let rows=0; for(let y=0;y<bh;y++){ for(let x=0;x<W;x++){ const i=(y*W+x)*4; if(buf[i+1]>=60&&buf[i+2]<60){ rows++; break; } } }
+    R('Neon-Daumen im Scrollbalken des Handbuchs sichtbar (Pixelzeilen mit Neon im Balkenband)', rows>=Math.ceil(20*rc.dpr), {rows,bw,bh,dpr:rc.dpr});
+    await js(`App.closeHelp(); true`); await sleep(200); }
   R('fetch nach außen scheitert', await js(`fetch('https://example.org/').then(()=>false,()=>true)`));
   R('window.open verweigert', await js(`window.open('https://example.org/')===null`));
   await js(`location.href='https://example.org/'`).catch(()=>{}); await sleep(600);
@@ -773,6 +784,229 @@ async function unreadable(){
   R('Lesefehler: Entsperren bleibt gesperrt', await js(visible('screen-lock'))&&!(await js(visible('screen-app'))));
 }
 
+// v1.23 (Querfunde Alien Notes v1.14, Release-Audit run-12 b-1/b2-1/b2-2/b3-1/b3-2/r4-1, in Pass gemessen 17.10.2026): Markieren in der echten Hülle.
+// Proben aus der Notes-Hülle übernommen und an Pass angepasst: Notizfeld im Formular (#f-notes, Textfeld), Detailansicht (#d-notes, Seitentext).
+// nachrollen/sperrziehen: die Befunde (gegen v1.22 rot); markklick/fremdanfang/spiegel (+AP_VOR=zitter): Rückschritte der Notes-Fixfassungen (Wächter).
+const {spawn:spawnM}=require('child_process');
+const ensureFocusM=async()=>{ if(!win.isFocused()){ win.focus(); for(let i=0;i<30&&!win.isFocused();i++) await sleep(100); await sleep(200); } return win.isFocused(); };
+const mouseOfM=wc=>(type,x,y,o={})=>wc.sendInputEvent({type,x:Math.round(x),y:Math.round(y),button:o.button||'left',clickCount:o.cc||1,...(o.mod?{modifiers:o.mod}:{})});
+const keyM=(wc,k,mod)=>{ wc.sendInputEvent({type:'keyDown',keyCode:k,...(mod?{modifiers:mod}:{})}); if(!mod||!mod.includes('control')) wc.sendInputEvent({type:'char',keyCode:k,...(mod?{modifiers:mod}:{})}); wc.sendInputEvent({type:'keyUp',keyCode:k,...(mod?{modifiers:mod}:{})}); };
+const keyNCM=(wc,k,mod)=>{ wc.sendInputEvent({type:'keyDown',keyCode:k,...(mod?{modifiers:mod}:{})}); wc.sendInputEvent({type:'keyUp',keyCode:k,...(mod?{modifiers:mod}:{})}); };
+const strgLM=wc=>{ wc.sendInputEvent({type:'keyDown',keyCode:'Control'}); wc.sendInputEvent({type:'keyDown',keyCode:'L',modifiers:['control']}); wc.sendInputEvent({type:'keyUp',keyCode:'L',modifiers:['control']}); wc.sendInputEvent({type:'keyUp',keyCode:'Control'}); };
+const strgCM=wc=>{ wc.sendInputEvent({type:'keyDown',keyCode:'Control'}); wc.sendInputEvent({type:'keyDown',keyCode:'C',modifiers:['control']}); wc.sendInputEvent({type:'keyUp',keyCode:'C',modifiers:['control']}); wc.sendInputEvent({type:'keyUp',keyCode:'Control'}); };
+const fselM=id=>js(`(()=>{ const t=document.getElementById(${JSON.stringify(id)}); return {s:t.selectionStart,e:t.selectionEnd,d:t.selectionDirection,akt:document.activeElement&&document.activeElement.id,v:t.value}; })()`);
+const caretXYM=(id,pos)=>js(`(()=>{ const n=document.getElementById(${JSON.stringify(id)}), cs=getComputedStyle(n), d=document.createElement('div');
+  ['fontFamily','fontSize','fontWeight','letterSpacing','lineHeight','wordBreak','overflowWrap','tabSize','paddingTop','paddingLeft','paddingRight','borderTopWidth','borderLeftWidth'].forEach(k=>d.style[k]=cs[k]);
+  Object.assign(d.style,{position:'absolute',visibility:'hidden',whiteSpace:n.tagName==='TEXTAREA'?'pre-wrap':'pre',boxSizing:'content-box',width:(n.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight))+'px',left:'0',top:'0'});
+  d.textContent=n.value.slice(0,${pos}); const m=document.createElement('span'); m.textContent=n.value.slice(${pos},${pos}+1)||'.'; d.appendChild(m); document.body.appendChild(d);
+  const b=n.getBoundingClientRect(), x=b.left+parseFloat(cs.borderLeftWidth)+m.offsetLeft+m.offsetWidth/2-n.scrollLeft, y=b.top+parseFloat(cs.borderTopWidth)+m.offsetTop+m.offsetHeight/2-n.scrollTop; d.remove(); return {x,y}; })()`);
+const txtPosM=(root,needle)=>js(`(()=>{ const w=document.createTreeWalker(document.querySelector(${JSON.stringify(root)}),NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())){ const i=n.data.indexOf(${JSON.stringify(needle)}); if(i>=0){ const r=document.createRange(); r.setStart(n,i); r.setEnd(n,i+1); const b=r.getBoundingClientRect(); return {x:b.x+b.width/2,y:b.y+b.height/2}; } } return null; })()`);
+const leerM=async(ms=3000)=>{ const t0=Date.now(); let ok=false; while(Date.now()-t0<ms&&!(ok=(await prim())==='')) await sleep(100); return ok; };
+async function unlockM(){ R('Sperrbildschirm', await until(visible('screen-lock'),15000)); await ensureFocusM(); await fill('lock-pass',PP); await click('#unlock-btn');
+  const ok=await until(visible('screen-app')); if(ok){ await js(`App.setAutolock('0'); true`); await sleep(300); } return ok; }
+async function relockM(){ if(await js(visible('screen-lock'))){ await ensureFocusM(); await fill('lock-pass',PP); await click('#unlock-btn'); await until(visible('screen-app'),60000); await sleep(400); } }
+// Formular „Neuer Eintrag“ mit Notizfeld-Inhalt (ohne Speichern); nach einer Sperre ist das Formular geleert und wird neu geöffnet
+async function formM(title,notes){ await click('button[data-action="newEntry"]'); await sleep(400); await fill('f-title',title); await fill('f-notes',notes); await sleep(250); }
+// gespeicherter Eintrag, dessen Notizen in der Detailansicht als Seitentext stehen
+async function saveM(title,notes){ await formM(title,notes); await click('#add-btn'); return until(`[...document.querySelectorAll('#entry-list .entry .t')].some(n=>n.textContent===${JSON.stringify(title)})`,10000); }
+async function openDetailM(t){ const p=await js(`(()=>{const n=[...document.querySelectorAll('#entry-list .entry .t')].find(n=>n.textContent===${JSON.stringify(t)}); if(!n) return null; n.scrollIntoView({block:'center'}); const b=n.getBoundingClientRect(); return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)};})()`);
+  if(!p) return false; await ensureFocusM(); const wc=win.webContents; wc.sendInputEvent({type:'mouseDown',x:p.x,y:p.y,button:'left',clickCount:1}); wc.sendInputEvent({type:'mouseUp',x:p.x,y:p.y,button:'left',clickCount:1}); await sleep(500);
+  return until(`${visible('detail-overlay')}&&!!document.getElementById('d-notes')`,5000); }
+const closeDetailM=()=>js(`(()=>{ getSelection().removeAllRanges(); try{ App.closeDetail(); }catch(_){} return true; })()`);
+
+// b-1 MITTEL: Markieren bis an den Rand, Maus ruht → Chromium rollt nach; PRIMARY muss den Endstand tragen und nach dem Löschen leer sein.
+async function nachrollen(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='GEHEIM-'+process.pid, M='mk-nachrollen-'+process.pid, REST=40;
+  const cnt=t=>(t.match(new RegExp(G,'g'))||[]).length;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  const lines=Array.from({length:150},(_,i)=>'Zeile '+i+' '+G+' text').join('\n');
+  // (A) Notizfeld im Formular (Textfeld, Standardhöhe und größer gezogen)
+  await formM('Lang-Feld',lines);
+  for(const [off,hold,hoch] of [[1,3000,0],[3,3000,0],[1,3000,260]]){
+    const f=await js(`(()=>{ const t=document.getElementById('f-notes'); if(${hoch}) t.style.height='${hoch}px'; t.setSelectionRange(0,0); t.scrollIntoView({block:'center'}); t.scrollTop=t.scrollHeight-t.clientHeight-${REST}; const b=t.getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height,top:t.scrollTop,leer:t.selectionStart===t.selectionEnd}; })()`);
+    await clipboard.selection.writeText(M); await ensureFocusM();
+    const a={x:f.x+30,y:f.y+Math.min(20,f.h/4)}, z={x:f.x+f.w/2,y:f.y+f.h-off};
+    mouse('mouseDown',a.x,a.y); for(let i=1;i<=14;i++){ mouse('mouseMove',a.x+(z.x-a.x)*i/14,a.y+(z.y-a.y)*i/14,{mod:['leftButtonDown']}); await sleep(30); }
+    await sleep(120); const y0=await js(`document.getElementById('f-notes').scrollTop`); await sleep(hold); const y1=await js(`document.getElementById('f-notes').scrollTop`);
+    mouse('mouseUp',z.x,z.y); await sleep(700);
+    const p=await prim(), sel=await js(`(()=>{ const t=document.getElementById('f-notes'); return t.value.substring(t.selectionStart,t.selectionEnd); })()`);
+    const vorb=f.leer&&p!==M&&cnt(sel)>0&&y1>f.top;
+    await js('AlienDesktop.clip.clear()'); const weg=await leerM();
+    R(`Nachrollen im Notizfeld (Höhe ${Math.round(f.h)} px, Rand-${off}, Maus ruht ${hold} ms): PRIMARY = Endstand, nach dem Löschen leer`, vorb&&p===sel&&weg, {vorb,gleich:p===sel,weg,scroll:[f.top,y0,y1],primLen:p.length,selLen:sel.length,primMarker:cnt(p),selMarker:cnt(sel)});
+    if(!weg){ await js('App.lock(); true'); await sleep(1000); R('  danach gesperrt: PRIMARY leer', (await prim())===''||(await prim())===M, {primMarker:cnt(await prim())}); await relockM(); await formM('Lang-Feld',lines); }
+    await clipboard.selection.clear(); }
+  // (B) Detailansicht (Seitentext im rollenden Overlay), gezogen bis an den unteren Fensterrand
+  try{ await js(`(()=>{ const t=document.getElementById('f-notes'); t.style.height=''; return true; })()`); }catch(_){}
+  const okS=await saveM('Lang-Detail',lines); R('Eintrag mit langen Notizen gespeichert', okS);
+  // negative Werte: Maus UNTER dem Fensterrand (wie beim Markieren über den Rand hinaus)
+  for(const off of (process.env.AP_DOFF||'1,3,-20,-60').split(',').map(Number)){
+    if(!(await openDetailM('Lang-Detail'))){ R('Detail offen',false); break; }
+    const info=await js(`(()=>{ const o=document.getElementById('detail-overlay'); o.scrollTop=0; const d=document.getElementById('d-notes'); const b=d.getBoundingClientRect(); return {sh:o.scrollHeight,ch:o.clientHeight,ih:innerHeight,top:b.top,left:b.left}; })()`);
+    const a=await txtPosM('#d-notes','Zeile 2 '); await clipboard.selection.writeText(M); await ensureFocusM();
+    const z={x:a.x+120,y:info.ih-off};
+    mouse('mouseDown',a.x-4,a.y); for(let i=1;i<=14;i++){ mouse('mouseMove',a.x-4+(z.x-(a.x-4))*i/14,a.y+(z.y-a.y)*i/14,{mod:['leftButtonDown']}); await sleep(30); }
+    await sleep(120); const y0=await js(`document.getElementById('detail-overlay').scrollTop`), l0=await js(`String(getSelection()).length`); await sleep(3000); const y1=await js(`document.getElementById('detail-overlay').scrollTop`), l1=await js(`String(getSelection()).length`);
+    mouse('mouseUp',z.x,z.y); await sleep(700);
+    const p=await prim(), sel=await js(`String(getSelection())`);
+    const vorb=p!==M&&cnt(sel)>0&&(y1>0||l1>l0);   // nachgerollt ODER Markierung bei ruhender Maus gewachsen
+    await js('AlienDesktop.clip.clear()'); const weg=await leerM();
+    R(`Nachrollen in der Detailansicht (Seitentext, Rand-${off}, Maus ruht 3000 ms): PRIMARY = Endstand, nach dem Löschen leer`, vorb&&weg, {vorb,gleich:p===sel,weg,scroll:[y0,y1],wuchs:[l0,l1],overlay:[info.sh,info.ch],primLen:p.length,selLen:sel.length,primMarker:cnt(p),selMarker:cnt(sel)});
+    if(!weg){ await js('App.lock(); true'); await sleep(1000); R('  danach gesperrt: PRIMARY leer', (await prim())===''||(await prim())===M, {primMarker:cnt(await prim())}); await relockM(); }
+    else await closeDetailM();
+    await clipboard.selection.clear(); }
+}
+
+// b2-1 (Rückschritt-Probe für einen reselect-Fix): ein Klick IN eine Markierung hebt sie auf, ein danach getipptes Zeichen überschreibt nichts.
+async function markklick(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='Klick-'+process.pid;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  const body='alpha beta gamma delta epsilon zeta eta theta iota kappa lambda my ny xi omikron '+G;
+  await formM('Titel-alpha-beta-gamma-delta',body);
+  for(const [art,wie] of [['Ziehen','drag'],['Doppelklick','dbl']]){
+    await fill('f-notes',body); await sleep(150);
+    await js(`(()=>{ const t=document.getElementById('f-notes'); t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); t.scrollTop=0; return true; })()`); await sleep(150);
+    await clipboard.selection.clear(); await ensureFocusM();
+    const i0=body.indexOf('beta'), i1=body.indexOf('delta')+5;
+    const a=await caretXYM('f-notes',i0), z=await caretXYM('f-notes',i1-1);
+    if(wie==='drag'){ mouse('mouseDown',a.x-3,a.y); for(let i=1;i<=8;i++){ mouse('mouseMove',a.x-3+(z.x+4-(a.x-3))*i/8,a.y,{mod:['leftButtonDown']}); await sleep(30); } mouse('mouseUp',z.x+4,z.y); }
+    else { mouse('mouseDown',a.x,a.y,{cc:1}); mouse('mouseUp',a.x,a.y,{cc:1}); mouse('mouseDown',a.x,a.y,{cc:2}); mouse('mouseUp',a.x,a.y,{cc:2}); }
+    await sleep(400); const s1=await fselM('f-notes'); const p1=await prim();
+    await sleep(900); const mid=await caretXYM('f-notes',wie==='drag'?body.indexOf('gamma')+2:i0+2);
+    mouse('mouseDown',mid.x,mid.y,{cc:1}); await sleep(60); mouse('mouseUp',mid.x,mid.y,{cc:1}); await sleep(400);
+    const s2=await fselM('f-notes');
+    R(`Notizfeld, ${art} markiert, Klick hinein: Markierung aufgehoben`, s1.s<s1.e&&s2.s===s2.e, {vorher:[s1.s,s1.e,s1.d,s1.akt], primGleich:p1===body.slice(s1.s,s1.e), nachher:[s2.s,s2.e,s2.d,s2.akt]});
+    keyM(wc,'X'); await sleep(300); const s3=await fselM('f-notes');
+    R(`  → ein Zeichen getippt: kein markierter Text überschrieben`, body.length-(s3.v.length-1)===0, {laengeVorher:body.length, laengeNachher:s3.v.length, umgebung:JSON.stringify(s3.v.slice(Math.max(0,s2.s-6),s2.s+8))});
+  }
+  { const T=await js(`document.getElementById('f-title').value`); await js(`(()=>{ const t=document.getElementById('f-title'); t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); return true; })()`); await sleep(150);
+    await clipboard.selection.clear(); await ensureFocusM();
+    const i0=T.indexOf('alpha'), i1=T.indexOf('gamma')+5; const a=await caretXYM('f-title',i0), z=await caretXYM('f-title',i1-1);
+    mouse('mouseDown',a.x-3,a.y); for(let i=1;i<=8;i++){ mouse('mouseMove',a.x-3+(z.x+4-(a.x-3))*i/8,a.y,{mod:['leftButtonDown']}); await sleep(30); } mouse('mouseUp',z.x+4,z.y); await sleep(400);
+    const s1=await fselM('f-title'); await sleep(900); const mid=await caretXYM('f-title',T.indexOf('beta')+2);
+    mouse('mouseDown',mid.x,mid.y,{cc:1}); await sleep(60); mouse('mouseUp',mid.x,mid.y,{cc:1}); await sleep(400); const s2=await fselM('f-title');
+    R('Titelfeld, Ziehen markiert, Klick hinein: Markierung aufgehoben', s1.s<s1.e&&s2.s===s2.e, {vorher:[s1.s,s1.e], nachher:[s2.s,s2.e,s2.akt]}); }
+  // Detailansicht (Seitentext)
+  { await fill('f-notes',body); const okS=(await click('#add-btn'), await until(`[...document.querySelectorAll('#entry-list .entry .t')].some(n=>n.textContent==='Titel-alpha-beta-gamma-delta')`,10000));
+    if(okS&&await openDetailM('Titel-alpha-beta-gamma-delta')){
+      const a=await txtPosM('#d-notes','beta'), z=await txtPosM('#d-notes','delta'); await clipboard.selection.clear(); await ensureFocusM();
+      mouse('mouseDown',a.x-3,a.y); for(let i=1;i<=8;i++){ mouse('mouseMove',a.x-3+(z.x+30-(a.x-3))*i/8,a.y,{mod:['leftButtonDown']}); await sleep(30); } mouse('mouseUp',z.x+30,z.y); await sleep(400);
+      const g1=await js(`String(getSelection())`); await sleep(900); const mid=await txtPosM('#d-notes','gamma');
+      mouse('mouseDown',mid.x,mid.y,{cc:1}); await sleep(60); mouse('mouseUp',mid.x,mid.y,{cc:1}); await sleep(400);
+      const g2=await js(`({c:getSelection().isCollapsed,t:String(getSelection()).length})`);
+      R('Detailansicht, Ziehen markiert, Klick hinein: Markierung aufgehoben', g1.length>0&&g2.c, {vorher:g1.length, nachher:g2});
+      await closeDetailM(); }
+    else R('Detailansicht offen',false); }
+  await clipboard.selection.clear();
+}
+
+// b2-2: Sperre bei GEHALTENER Maustaste nach dem Nachrollen — Strg+L, Zeitgeber (auch ohne Nachrollen), Minimieren bei „sofort“; Gegenprobe erst loslassen.
+async function sperrziehen(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='GEHEIM-'+process.pid, M='mk-b2-'+process.pid, REST=40;
+  const cnt=t=>(t.match(new RegExp(G,'g'))||[]).length;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  const lines=Array.from({length:150},(_,i)=>'Zeile '+i+' '+G+' text').join('\n');
+  for(const wie of (process.env.AP_WIE||'strgL,timer,timerOhne,minimize,mouseup').split(',')){
+    await formM('Lang-Feld',lines);
+    const f=await js(`(()=>{ const t=document.getElementById('f-notes'); t.setSelectionRange(0,0); t.scrollIntoView({block:'center'}); t.scrollTop=t.scrollHeight-t.clientHeight-${REST}; const b=t.getBoundingClientRect(); return {x:b.left,y:b.top,w:b.width,h:b.height,top:t.scrollTop}; })()`);
+    await clipboard.selection.writeText(M); await ensureFocusM();
+    const a={x:f.x+30,y:f.y+Math.min(20,f.h/4)}, z={x:f.x+f.w/2,y:wie==='timerOhne'?f.y+f.h/2:f.y+f.h-1};
+    if(wie==='minimize') await js(`App.setBgLock('0'); true`);
+    mouse('mouseDown',a.x,a.y); for(let i=1;i<=14;i++){ mouse('mouseMove',a.x+(z.x-a.x)*i/14,a.y+(z.y-a.y)*i/14,{mod:['leftButtonDown']}); await sleep(30); }
+    await sleep(120); const pDrag=await prim(); await sleep(2500); const sel=await js(`(()=>{ const t=document.getElementById('f-notes'); return t.value.substring(t.selectionStart,t.selectionEnd); })()`);
+    const pHold=await prim();
+    if(wie==='strgL') strgLM(wc);
+    else if(wie==='timer'||wie==='timerOhne') await js(`setTimeout(()=>App.lock(),0); true`);
+    else if(wie==='minimize'){ win.minimize(); await sleep(1500); win.restore(); await sleep(800); }
+    else mouse('mouseUp',z.x,z.y);
+    await sleep(1500);
+    if(wie!=='mouseup') mouse('mouseUp',z.x,z.y,{});
+    await sleep(800);
+    const gesperrt=await js(visible('screen-lock'));
+    if(wie==='mouseup'){ await js('App.lock(); true'); await sleep(1200); }
+    const pEnd=await prim(); const weg=pEnd===''||pEnd===M;
+    if(wie==='minimize') await js(`App.setBgLock('30'); true`).catch(()=>{});
+    R(`${wie==='timerOhne'?'OHNE Nachrollen (Mitte), ':'Nachrollen, '}dann ${wie==='strgL'?'Strg+L bei ruhender Maus':wie==='timer'||wie==='timerOhne'?'Sperre per Zeitgeber bei ruhender Maus':wie==='minimize'?'Minimieren (Hintergrund „sofort“) bei ruhender Maus':'Loslassen, dann Sperre (Gegenprobe)'}: nach der Sperre kein Notiztext in PRIMARY`, weg,
+      {gesperrt, primNachZug:pDrag.length, selBeiRuhe:sel.length, selMarker:cnt(sel), primBeiRuhe:pHold.length, primMarkerBeiRuhe:cnt(pHold), primNachSperre:pEnd.length, markerNachSperre:cnt(pEnd)});
+    await clipboard.selection.clear();
+    await relockM();
+    if(wie==='minimize') await js(`App.setBgLock('30'); true`).catch(()=>{});
+  }
+}
+
+// b3-2 (Rückschritt-Probe für einen peek-Fix): eine FREMDE Auswahl, die Anfang/Ende/Wort/Zeichen der stehenden Markierung ist, bleibt nach Meldung + Löschen bzw. Strg+L stehen.
+async function fremdanfang(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='GEHEIM-'+process.pid;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  const lines=Array.from({length:12},(_,i)=>'Zeile '+i+' '+G+' text').join('\n');
+  for(const v of (process.env.AP_V||'wort:frist,zeichen:frist,ende:frist,zeile:frist,wort:sperre,unbezogen:frist').split(',')){ const [art,wann]=v.split(':');
+    if(!(await js(`${visible('tab-add')}&&document.getElementById('f-notes').value.length>0`))) await formM('Peek',lines);
+    await js(`(()=>{ const t=document.getElementById('f-notes'); t.style.height='260px'; t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); t.scrollTop=0; return true; })()`); await sleep(150);
+    await clipboard.selection.clear(); await ensureFocusM();
+    const i0=lines.indexOf('Zeile 1 '), i1=lines.indexOf('Zeile 3 ')+9;
+    const a=await caretXYM('f-notes',i0), z=await caretXYM('f-notes',i1);
+    mouse('mouseDown',a.x-2,a.y); for(let i=1;i<=8;i++){ mouse('mouseMove',a.x-2+(z.x-(a.x-2))*i/8,a.y+(z.y-a.y)*i/8,{mod:['leftButtonDown']}); await sleep(30); } mouse('mouseUp',z.x,z.y); await sleep(600);
+    const s=await fselM('f-notes'); const S=s.v.slice(s.s,s.e); const pS=(await prim())===S;
+    const F=art==='wort'?S.split(' ')[0]:art==='zeichen'?S[0]:art==='ende'?S.slice(-3):art==='zeile'?S.split('\n')[0]:'fremd-'+process.pid;
+    await clipboard.selection.writeText(F); await sleep(200); const vorF=(await prim())===F;
+    keyNCM(wc,'Shift'); await sleep(600);
+    let gesperrt=false;
+    if(wann==='frist'){ await js('AlienDesktop.clip.clear()'); await sleep(800); }
+    else { strgLM(wc); await sleep(1500); gesperrt=await js(visible('screen-lock')); }
+    const pEnd=await prim();
+    R(`fremde Auswahl = ${art} der Markierung, dann ${wann==='frist'?'Löschen (wie Frist)':'Strg+L'}: fremde Auswahl bleibt stehen`, pEnd===F, {Flen:F.length, selLen:S.length, pS, vorF, gesperrt, primNachher:pEnd===F?'fremd':pEnd===''?'leer':'anders'});
+    await clipboard.selection.clear();
+    if(gesperrt) await relockM();
+  }
+}
+
+// b3-1 / r4-1: hängender fremder PRIMARY-Besitzer (SIGSTOP) + gespiegelte Kopie (wie Klipper) — Frist, Strg+L und Beenden löschen sie trotzdem.
+let fremdPidM=0; const fremdAlleM=[];
+async function fremdStartM(F,buf,name){
+  const dir=path.join(__dirname,'fremd-app'), cfg=path.join(process.env.XDG_CONFIG_HOME||__dirname,'fremd'+(name||'')); fs.mkdirSync(cfg,{recursive:true});
+  const pr=spawnM(process.execPath,['--no-sandbox',dir],{env:{...process.env,XDG_CONFIG_HOME:cfg,FREMD_TEXT:F,FREMD_BUF:buf||'selection',AP_STEP:''},stdio:['ignore','pipe','ignore']});
+  fremdAlleM.push(pr.pid); if(!name) fremdPidM=pr.pid; let own=false; pr.stdout.on('data',d=>{ if(String(d).includes('OWN')) own=true; });
+  for(let i=0;i<100&&!own;i++) await sleep(100);
+  return own; }
+function fremdStopM(){ try{ process.kill(fremdPidM,'SIGSTOP'); return true; }catch(_){ return false; } }
+function fremdEndeM(){ for(const p of fremdAlleM.splice(0)){ try{ process.kill(p,'SIGCONT'); }catch(_){} try{ process.kill(p,'SIGTERM'); }catch(_){} } fremdPidM=0; }
+process.on('exit',fremdEndeM);
+function liesM(G){ return new Promise(res=>{ const dir=path.join(__dirname,'fremd-app'), cfg=path.join(process.env.XDG_CONFIG_HOME||__dirname,'fremdR'); fs.mkdirSync(cfg,{recursive:true});
+  const pr=spawnM(process.execPath,['--no-sandbox',dir],{env:{...process.env,XDG_CONFIG_HOME:cfg,FREMD_MODE:'read',FREMD_MARK:G,AP_STEP:''},stdio:['ignore','pipe','ignore']});
+  let out=''; pr.stdout.on('data',d=>out+=d); const k=setTimeout(()=>{ try{ pr.kill('SIGKILL'); }catch(_){} },8000);
+  pr.on('exit',()=>{ clearTimeout(k); const m=out.match(/READ (\{.*\})/); res(m?JSON.parse(m[1]):{fehler:true}); }); }); }
+async function spiegel(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='GEHEIM-'+process.pid, F='fremd-haengt-'+process.pid, N=Number(process.env.AP_N||3);
+  if(!(await unlockM())){ R('entsperrt',false); fremdEndeM(); R('Schritt vollständig',true); app.exit(0); return; }
+  const body=Array.from({length:10},(_,i)=>'Absatz '+i+' '+G+' text.').join('\n\n');
+  const TS='Spiegel-'+process.pid; await saveM(TS,body); if(!(await openDetailM(TS))){ R('Detail offen',false); }
+  await ensureFocusM();
+  { const a=await txtPosM('#d-notes','Absatz 1 '), z=await txtPosM('#d-notes','Absatz 2 '); mouse('mouseDown',a.x-4,a.y); for(let i=1;i<=8;i++){ mouse('mouseMove',a.x-4+(z.x+60-(a.x-4))*i/8,a.y+(z.y-a.y)*i/8,{mod:['leftButtonDown']}); await sleep(30); } mouse('mouseUp',z.x+60,z.y); }
+  await sleep(500); const S=await js(`String(getSelection())`); const pS=(await prim())===S;
+  const own=await fremdStartM(F,'selection'); await sleep(300); const vorF=(await prim())===F; fremdStopM(); await sleep(200);
+  if(process.env.AP_VOR==='clear'){ await Promise.race([js('AlienDesktop.clip.clear()'),sleep(3000)]); }
+  else if(process.env.AP_VOR==='zitter'){ const m=await txtPosM('#d-notes','Absatz 1 '); mouse('mouseDown',m.x+20,m.y); await sleep(40); mouse('mouseMove',m.x+21,m.y,{mod:['leftButtonDown']}); await sleep(40); mouse('mouseUp',m.x+21,m.y); }
+  else for(let i=0;i<N;i++){ keyNCM(wc,'Down'); await sleep(40); }
+  await sleep(400);
+  const selVorKopie=await js(`String(getSelection())`);
+  const nachVor={len:selVorKopie.length,gleichS:selVorKopie===S,akt:await js(`document.activeElement&&document.activeElement.id`)};
+  strgCM(wc);
+  await sleep(600); const rc=()=>Promise.race([clipboard.readText(),sleep(3000).then(()=>'HAENGT')]); const kop0=await rc(); const kop=kop0===S;
+  const okQ=await fremdStartM(S,'selection','Q'); await sleep(500);
+  const r0=await liesM(G);
+  const tc=Date.now(); await Promise.race([js('AlienDesktop.clip.clear()'),sleep(6000)]); const clearMs=Date.now()-tc; await sleep(2500);
+  const r1=await liesM(G); const c1r=await rc(); const c1=c1r===S;
+  strgLM(wc); await sleep(3000); const r2=await liesM(G); const gesperrt=await js(visible('screen-lock'));
+  R('Vorbedingungen', own&&vorF&&pS&&kop&&okQ&&r0.mark>0, {own,vorF,pS,kop,kopHaengt:kop0==="HAENGT",okQ,spiegelVorher:r0,nachVor,kopLen:String(kop0).length,sLen:S.length});
+  R('Kopie aus CLIPBOARD gelöscht (Frist)', !c1, {c1, eigenesClipboardLesenHaengt:c1r==='HAENGT'});
+  R('gespiegelte Kopie in PRIMARY nach dem Löschen (Frist) weg', r1.mark===0, {r1,clearMs});
+  R('gespiegelte Kopie in PRIMARY nach Strg+L weg', r2.mark===0, {r2,gesperrt});
+  const t0=Date.now();
+  app.on('will-quit',ev=>{ ev.preventDefault(); const ms=Date.now()-t0; (async()=>{ const r3=await liesM(G);
+    R('gespiegelte Kopie in PRIMARY beim Prozessende weg', r3.mark===0, {r3,ms});
+    fremdEndeM(); R('Schritt vollständig',true); app.exit(0); })(); });
+  app.quit();
+}
+
 app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
   w.webContents.once('did-finish-load',async()=>{
     try{
@@ -781,6 +1015,11 @@ app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
       else if(STEP==='background') await background();
       else if(STEP==='markierung') await markierung();
       else if(STEP==='m122') await m122();
+      else if(STEP==='nachrollen') await nachrollen();
+      else if(STEP==='markklick') await markklick();
+      else if(STEP==='sperrziehen') await sperrziehen();
+      else if(STEP==='fremdanfang') await fremdanfang();
+      else if(STEP==='spiegel'){ await spiegel(); return; }   // endet in will-quit (eigene Endmarke)
       else if(STEP==='sichern') await sichern();
       else if(STEP==='quit'||STEP==='quithang'){ await quitStep(STEP==='quithang'); return; }   // endet in will-quit (eigene Endmarke)
       else if(STEP==='quitslow'){ await quitSlow(); return; }

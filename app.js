@@ -8,7 +8,7 @@
    ============================================================ */
 const LS_KEY = 'ai-pass-vault';
 const LANG_KEY = 'ai-pass-lang';
-const APP_VERSION = '1.22';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
+const APP_VERSION = '1.23';   // Anzeige in den Einstellungen; muss VERSION_NAME entsprechen (build-www.sh setzt es aus VERSION, roundtrip-test.mjs prüft es)
 
 /* ============================ i18n ============================
    Deutsch = Original im HTML (data-i18n / -html / -ph). Englisch aus I18N.
@@ -145,6 +145,8 @@ const T = {
   "err.setupMismatch":{de:"Die Passphrasen stimmen nicht überein.",en:"Passphrases do not match."},
   "err.setupFailed":{de:"Einrichten fehlgeschlagen (WebCrypto/WASM nicht verfügbar?).",en:"Setup failed (WebCrypto/WASM unavailable?)."},
   "err.wrongPass":{de:"Falsche Passphrase oder beschädigter Tresor.",en:"Wrong passphrase or damaged vault."},
+  "err.fileBody":{de:"Der Schlüssel stimmt, aber die Datei wurde verändert oder ist beschädigt. Nichts wurde geändert, kein Fehlversuch gezählt.",en:"The key is correct, but the file was changed or is damaged. Nothing was changed, no failed attempt counted."},
+  "err.fileContent":{de:"Die Datei ließ sich öffnen, ihr Inhalt ist aber beschädigt oder ungültig. Nichts wurde geändert.",en:"The file opened, but its content is damaged or invalid. Nothing was changed."},
   "err.wait":{de:"Zu viele Fehlversuche — bitte {s} s warten.",en:"Too many failed attempts — wait {s} s."},
   "err.fileFormat":{de:"Keine gültige Alien-Pass-.vault-Datei.",en:"Not a valid Alien Pass .vault file."},
   "err.fileNewer":{de:"Die Datei stammt aus einer neueren App-Version. Bitte App aktualisieren.",en:"The file comes from a newer app version. Please update the app."},
@@ -402,16 +404,24 @@ function bioKey(raw){ if(!(raw instanceof Uint8Array)||raw.length!==32) throw ne
 // `wi` (v1.8, Audit run-8 #1) = b64 der Wrap-IV, OPTIONAL: Slots von ≤ v1.7 tragen nur `w` und laufen unverändert weiter; neue Slots binden
 // IV + Ciphertext, damit eine gekippte IV nicht ungeprüft in die Sitzung und mit dem nächsten persist() in Datei und Backups wandert.
 function parseBioBlob(raw){ if(typeof raw!=='string'||raw.length>512) return null; let o; try{ o=JSON.parse(raw); }catch(_){ return null; } if(!o||typeof o!=='object') return null; const iv=b64Bytes(o.iv), ct=b64Bytes(o.ct), w=b64Bytes(o.w); if(!(iv&&iv.length===12&&ct&&ct.length===48&&w&&w.length===48)) return null;
-  if(o.wi===undefined||o.wi===null) return {iv,ct,w:o.w,wi:null}; const wi=b64Bytes(o.wi); return (wi&&wi.length===12)?{iv,ct,w:o.w,wi:o.wi}:null; }
-function serializeBioBlob(blob, wrapCt, wrapIv){ if(!(wrapCt instanceof Uint8Array)||wrapCt.length!==48) throw new Error('bioblob'); if(wrapIv!==undefined&&!(wrapIv instanceof Uint8Array&&wrapIv.length===12)) throw new Error('bioblob');
-  const o={iv:bufToB64(blob.iv), ct:bufToB64(blob.ct), w:bufToB64(wrapCt)}; if(wrapIv) o.wi=bufToB64(wrapIv); return JSON.stringify(o); }
-// Passt der Passphrase-Slot der Datei zum Fingerabdruck-Blob? Ciphertext immer, IV nur wenn der Blob sie kennt (Übergang ≤ v1.7)
-function bioWrapOk(blob, wrap){ return !!blob&&!!wrap&&blob.w===bufToB64(wrap.ct)&&(!blob.wi||blob.wi===bufToB64(wrap.iv)); }
+  // `k` (v1.23, Querfund Alien Notes v1.14 run-12 a2-1) = AAD-Zeichenkette der Rolle wrap (m/t/p/Salz), OPTIONAL: Slots bis v1.22 tragen sie nicht und bekommen sie
+  // per bioAddK nachgetragen, sobald ein Auspacken den Kopf bestätigt hat (a3-1)
+  let k=null; if(o.k!==undefined&&o.k!==null){ if(typeof o.k!=='string'||!o.k||o.k.length>200) return null; k=o.k; }
+  if(o.wi===undefined||o.wi===null) return {iv,ct,w:o.w,wi:null,k}; const wi=b64Bytes(o.wi); return (wi&&wi.length===12)?{iv,ct,w:o.w,wi:o.wi,k}:null; }
+function serializeBioBlob(blob, wrapCt, wrapIv, kdf){ if(!(wrapCt instanceof Uint8Array)||wrapCt.length!==48) throw new Error('bioblob'); if(wrapIv!==undefined&&!(wrapIv instanceof Uint8Array&&wrapIv.length===12)) throw new Error('bioblob');
+  const o={iv:bufToB64(blob.iv), ct:bufToB64(blob.ct), w:bufToB64(wrapCt)}; if(wrapIv) o.wi=bufToB64(wrapIv); if(kdf) o.k=dec.decode(aad(kdf,'wrap')); return JSON.stringify(o); }
+// Passt der Passphrase-Slot der Datei zum Fingerabdruck-Blob? Ciphertext immer, IV und KDF-Kopf nur wenn der Blob sie kennt (Übergang ≤ v1.7 bzw. ≤ v1.22).
+// Ohne den Kopf scheiterte das Auspacken bei verändertem m/t/p/Salz an der AAD der Rolle bio — und der Slot wurde samt Keystore gelöscht (v1.23, in Pass gemessen)
+function bioWrapOk(blob, wrap, kdf){ return !!blob&&!!wrap&&blob.w===bufToB64(wrap.ct)&&(!blob.wi||blob.wi===bufToB64(wrap.iv))&&(!blob.k||(!!kdf&&blob.k===dec.decode(aad(kdf,'wrap')))); }
 // Bindung des PIN-Slots (nur RAM) an die Datei: KDF-Header (m/t/p/Salz über die AAD-Zeichenkette) + Wrap-IV + Wrap-Ciphertext — jede Abweichung
 // heißt „Datei geändert“, nie „falsche PIN“ (Audit run-8 #1/#10)
 function wrapTag(kdf, wrap){ return dec.decode(aad(kdf,'wrap'))+'|'+bufToB64(wrap.iv)+'|'+bufToB64(wrap.ct); }
 async function encryptBody(obj, dek, kdf){ const iv=rand(12); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad(kdf,'body')}, dek, enc.encode(JSON.stringify(obj)))); return {iv,ct}; }
-async function decryptBody(body, dek, kdf){ const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:body.iv,additionalData:aad(kdf,'body')}, dek, body.ct); return JSON.parse(dec.decode(pt)); }
+// GCM-Fehler am Body heißt 'body', ein JSON-Fehler danach 'format' (v1.23, Querfund Alien Notes v1.14 run-12 a-1, in Pass gemessen): alle Aufrufer erreichen
+// decryptBody erst nach gelungenem unwrapDek, der Schlüssel stimmte also — die Datei wurde verändert oder ist beschädigt. Die Pforten zählen dann keinen
+// Fehlversuch und behalten Fingerabdruck- und PIN-Slot (vorher: Fehlversuch, Fingerabdruck samt Keystore gelöscht, PIN nach drei Versuchen verworfen).
+async function decryptBody(body, dek, kdf){ let pt; try{ pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:body.iv,additionalData:aad(kdf,'body')}, dek, body.ct); }catch(_){ throw new Error('body'); }
+  try{ return JSON.parse(dec.decode(pt)); }catch(_){ throw new Error('format'); } }
 function serializeFile(kdf, wrap, body){
   return JSON.stringify({magic:MAGIC, ver:FILE_VER,
     kdf:{name:'argon2id', m:kdf.m, t:kdf.t, p:kdf.p, salt:bufToB64(kdf.salt)},
@@ -540,7 +550,22 @@ function winner(a,b){ const ta=ts(a.updated), tb=ts(b.updated); if(ta!==tb) retu
 function dedupeEntries(list){ const m=new Map(); for(const e of list){ const cur=m.get(e.id); m.set(e.id, cur?winner(cur,e):e); } return [...m.values()]; }
 // Cap gilt nur für LIVE-Einträge; Tombstones werden gepurgt/gekappt statt gezählt (sonst könnte eine
 // fremde Datei den Tresor mit unsichtbaren Löschmarken bis an den Cap füllen und der nächste eigene Eintrag brickt ihn).
-function sanitizeEntries(list, now){ if(!Array.isArray(list)) return []; if(list.length>MAX_ENTRIES*4) throw new Error('toomany'); const out=[]; for(const e of list){ const s=sanitizeEntry(e,now); if(s) out.push(s); } const d=purgeTombstones(wipeTrash(dedupeEntries(out), now), now); if(liveCount(d)>MAX_ENTRIES) throw new Error('toomany'); return d; }
+// Vorwärts-Abwehr (v1.23, Querfund Alien Notes v1.14 run-12 „Format“, Entscheidung Nutzer 17.10.2026): ein Eintrag mit gültiger ID und unbekanntem Typ oder
+// unbekanntem Feld (auch in totp/card/bank/extra) stammt aus einer neueren App-Version — vorher kürzte die Whitelist ihn still, und das erste persist schrieb die
+// gekürzte Fassung zurück (bei gleichem updated gewinnt sie sogar beim Rückweg aufs neuere Gerät). Jetzt Abbruch mit 'newer' („neuere App-Version“), ohne
+// Fehlversuch. Die Listen sind genau die Felder, die Pass je geschrieben hat (v1.0–v1.23 per Tag geprüft: nur hinzugekommen, nie entfallen) — alte Backups
+// bleiben lesbar. Gilt für Tresor und .vault-Import; CSV/Proton bauen ihre Einträge selbst (sanitizeEntry direkt). Ein NEUES Feld braucht künftig diese Liste
+// UND die Regel in DATEN-INVARIANTEN (neues Feld → ältere Versionen weisen ab statt zu kürzen).
+const ENTRY_KEYS=Object.freeze(['id','type','cat','title','user','email','pass','url','notes','totp','card','bank','extra','nowarn','fav','created','updated','deleted']);
+const SUB_KEYS=Object.freeze({totp:Object.freeze(['secret','algorithm','digits','period','issuer','label']), card:Object.freeze(['holder','number','expiry','cvv','pin']), bank:Object.freeze(['holder','iban','bic','bank','pin'])});
+const EXTRA_KEYS=Object.freeze(['name','value']);
+const plainObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const idOk=e=>typeof e.id==='string'&&ID_RE.test(e.id.toLowerCase());
+const newerType=e=>plainObj(e)&&idOk(e)&&typeof e.type==='string'&&!ENTRY_TYPES.includes(e.type);
+const newerKeys=e=>plainObj(e)&&idOk(e)&&(Object.keys(e).some(k=>!ENTRY_KEYS.includes(k))
+  ||Object.keys(SUB_KEYS).some(f=>plainObj(e[f])&&Object.keys(e[f]).some(k=>!SUB_KEYS[f].includes(k)))
+  ||(Array.isArray(e.extra)&&e.extra.some(x=>plainObj(x)&&Object.keys(x).some(k=>!EXTRA_KEYS.includes(k)))));
+function sanitizeEntries(list, now){ if(!Array.isArray(list)) return []; if(list.length>MAX_ENTRIES*4) throw new Error('toomany'); const out=[]; for(const e of list){ if(newerType(e)||newerKeys(e)) throw new Error('newer'); const s=sanitizeEntry(e,now); if(s) out.push(s); } const d=purgeTombstones(wipeTrash(dedupeEntries(out), now), now); if(liveCount(d)>MAX_ENTRIES) throw new Error('toomany'); return d; }
 function sanitizeSettings(s){ const o={}; for(const k in SETTINGS_DEFAULT){ const v=s&&typeof s==='object'?Number(s[k]):NaN; o[k]=SETTINGS_ALLOWED[k].includes(v)?v:SETTINGS_DEFAULT[k]; } return o; }
 function sanitizeVault(v, now){
   if(!v||typeof v!=='object') throw new Error('format');
@@ -997,7 +1022,7 @@ const App = (function(){
   let GEN=Object.assign({},GEN_DEFAULT);
   let totpTimer=null, lastCode='', clipTimer=null, clipOwnedAt=0, clipCopied=false, clipGateSel=false, failCount=0, lockedUntil=0, pendingImport=null, kdfTouched=false;
   // Desktop: meldet die Markierung eines Feldes an die Hülle (gesetzt im Zwischenablage-Block, nur mit DESK) — für Strg+A in deskKey (Audit run-11 e-3)
-  let reportFieldSel=null;
+  let reportFieldSel=null, reportSel=null, selReset=null;
   let pendingUnlock=null, pendingSecret=null, pendingOtpauth='', pendingProton=null;   // Aegis-Hürde / 2FA-Setup / Proton-Import
   let selMode=false, selIds=new Set(), shownIds=[];   // Mehrfachauswahl (v1.9): nur im RAM, Sperre räumt ab; shownIds = zuletzt gezeigte Zeilen (für „Alle“)
   const UNDO_MS=6000;   // so lange steht „Rückgängig“ nach dem Löschen im Toast
@@ -1049,6 +1074,10 @@ const App = (function(){
   function dialogOpen(){ return !!dlgResolve; }
   function dialogKey(ev){ if(!dlgResolve) return false;
     if(ev.key==='Escape'){ dialogCancel(); return true; }
+    // Rückgängig/Wiederholen bei offener Rückfrage schon an der Taste schlucken (v1.23, Querfund Sachwert-Tresor v3.11 run-11 c-4, in Pass gemessen): der Schritt eines
+    // ABLEGENS aus Seitentext hat keine Start-Wurzel, Chromium schickt dafür kein beforeinput — Strg+Z leerte das Feld hinter dem Dialog, Strg+Umschalt+Z zog den Fokus
+    // aus dem Dialog. Auch am Tastencode (Z 90, Y 89: andere Belegungen), auf allen Plattformen; der beforeinput-Riegel bleibt für getippte Schritte.
+    if((ev.ctrlKey||ev.metaKey)&&!ev.altKey){ const k=(ev.key||'').toLowerCase(); if(k==='z'||k==='y'||ev.keyCode===90||ev.keyCode===89) return true; }
     if(ev.key==='Tab'){ const menu=$('dlg-cat-menu'), opts=menu.classList.contains('hidden')?[]:[...menu.children];   // Feld → ▾ → Kategorien → Abbrechen → OK
       const ring=[$('dlg-input'),$('dlg-cat-btn'),...opts,$('dlg-cancel'),$('dlg-ok')].filter(n=>!n.classList.contains('hidden')); const i=ring.indexOf(document.activeElement); ring[(i+(ev.shiftKey?-1:1)+ring.length)%ring.length].focus(); return true; }
     return false; }
@@ -1118,7 +1147,9 @@ const App = (function(){
     const p1=$('setup-pass1').value, p2=$('setup-pass2').value;
     if(p1.length<12) return err('setup-err',tr('err.setupShort'));
     if(p1!==p2) return err('setup-err',tr('err.setupMismatch'));
-    { const c=passCheck(p1); if(c.weak&&!(await ask(tr('confirm.weakPass',{why:whyText(c.why)}),{ok:'dlg.useAnyway'}))) return; }   // Rückfrage, kein Verbot (v1.6)
+    // RegExp-Statics sofort nach der Stärke-Prüfung leeren (v1.23, Querfund Sachwert-Tresor v3.11): RegExp.input hielt sonst die Passphrase — im Normalablauf
+    // überschrieb sie nur zufällig renderSettings, nach einem Schreibfehler blieb sie bis zur Sperre (in Pass gemessen); das finally leert zusätzlich
+    { const c=passCheck(p1); /(?:)/.exec(''); if(c.weak&&!(await ask(tr('confirm.weakPass',{why:whyText(c.why)}),{ok:'dlg.useAnyway'}))) return; }   // Rückfrage, kein Verbot (v1.6)
     if(doSetup._busy||$('setup-pass1').value!==p1||$('setup-pass2').value!==p2) return;   // während der Rückfrage versteckt (Felder geleert) oder doppelt gestartet → nichts anlegen
     const btn=$('setup-btn'), orig=btn.textContent; doSetup._busy=true; btn.disabled=true; btn.textContent=tr('busy.creating');
     try{
@@ -1130,11 +1161,15 @@ const App = (function(){
       DEK=dek; KDF=kdf; WRAP=wrap; VAULT=emptyVault();
       await persist();
     }catch(e){ DEK=KDF=WRAP=VAULT=null; return err('setup-err',tr('err.setupFailed')); }
-    finally{ doSetup._busy=false; btn.disabled=false; btn.textContent=orig; }
+    finally{ doSetup._busy=false; btn.disabled=false; btn.textContent=orig; /(?:)/.exec(''); }
     $('setup-pass1').value=$('setup-pass2').value=''; $('setup-meter').textContent='';
     pendingFile=null;   // ein gemerkter Verweis gehört nie in einen NEU angelegten Tresor (Audit run-9 #4)
     enterApp(); toast(tr('toast.vaultCreated'));
   }
+  // Schlüssel stimmte, der Inhalt nicht (v1.23, Querfund Alien Notes v1.14 run-12 a-1): kein Fehlversuch, Fingerabdruck- und PIN-Slot bleiben. 'newer' = Eintrag
+  // aus einer neueren App-Version (Vorwärts-Abwehr in sanitizeEntries). Gilt für alle drei Pforten und den .vault-Import.
+  const contentErr=e=>!!e&&['toomany','format','body','newer'].includes(e.message);
+  const contentMsg=e=>tr({toomany:'err.tooMany',body:'err.fileBody',newer:'err.fileNewer'}[e.message]||'err.fileContent');
   async function doUnlock(){
     if(doUnlock._busy||doPin._busy) return; err('lock-err');                         // nicht neben einem PIN-Argon2 (Audit run-8, Härtung); ein hängender Fingerabdruck-Prompt darf die Passphrase NICHT blockieren (run-3, verify-bio [14])
     loadLockState();                                                                   // Stand eines anderen Tabs übernehmen
@@ -1146,6 +1181,7 @@ const App = (function(){
     try{
       const kek=await deriveKek(passBytes($('lock-pass').value), f.kdf);
       const dek=await unwrapDek(f.wrap, kek, f.kdf, false);
+      { const bb=bioBlob(); if(bb&&!bb.k&&bioWrapOk(bb,f.wrap)) bioAddK(f.kdf, bb.w); }   // wrap-AAD hat den Kopf bestätigt, der Blob gehört zu genau diesem wrap (v1.23, Notes a3-1)
       const dekX=(bioNeedsRearm&&BIO&&bioMarker())?await unwrapDek(f.wrap, kek, f.kdf, true):null;   // nur zum Neu-Bewaffnen des Fingerabdruck-Slots nach Neustart
       const obj=await decryptBody(f.body, dek, f.kdf);
       const v=sanitizeVault(obj);                                     // auch lokal: Whitelist beim Unlock
@@ -1153,11 +1189,15 @@ const App = (function(){
       if(v.totp){ pendingUnlock={dek, kdf:f.kdf, wrap:f.wrap, vault:v}; }   // Aegis-Hürde: Schlüssel erst nach Code-Prüfung in die Sitzung
       else { DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0; saveLockState(); }
       bioRearmDek=dekX;
+      // Z2 (v1.23, Nebenbefund der Messung): nach „Datei passt nicht zum Fingerabdruck“ und Zurückspielen des Backups zeigte die Karte „aus“, obwohl Blob und
+      // Keystore-Slot heil sind — erst die nächste Sperre brachte den Knopf zurück. Passt der Blob jetzt wieder zur Datei, gilt der Slot wie vor dem Abweisen.
+      if(bioMismatch){ bioMismatch=false; const bb=bioBlob(); if(BIO&&bb&&bioWrapOk(bb,f.wrap,f.kdf)) bioArmed=true; }
     }catch(e){
       if(gen!==bioGen||DEK||pendingUnlock){ $('lock-pass').value=''; maskInputs('#screen-lock'); return; }   // verspäteter Fehlversuch darf keine offene Sitzung stören
+      if(contentErr(e)){ $('lock-pass').value=''; maskInputs('#screen-lock'); return err('lock-err',contentMsg(e)); }   // Schlüssel stimmte: kein Fehlversuch (v1.23)
       failCount++; if(failCount>=3) lockedUntil=Date.now()+Math.min(30,(failCount-2)*2)*1000; saveLockState();
       $('lock-pass').value=''; maskInputs('#screen-lock');                    // Fehlversuch: Eingabe nie stehen lassen (Audit run-2 #1)
-      return err('lock-err', e&&e.message==='toomany'?tr('err.tooMany'):tr('err.wrongPass'));
+      return err('lock-err', tr('err.wrongPass'));
     }finally{ doUnlock._busy=false; btn.disabled=false; btn.textContent=orig; renderBioGate(); renderPinGate(); }
     afterGate();
   }
@@ -1228,10 +1268,14 @@ const App = (function(){
   // Stehen bleibt nur eine echte KOPIE (clipCopied) — eine bloße Markierung (Maus, Tab, Taste) startet die Frist auch, wird beim Sperren aber gelöscht
   // (Querfund Alien Notes v1.7 R2-N1). `===true`: lock steht im App-Export, ein Event als Argument wäre sonst truthy.
   function lock(keepClip){
+    // Sperre bei gehaltener Maustaste (Strg+L, Zeitgeber, Minimieren bei „sofort“): die Markierung ist noch nicht gemeldet (das geschieht erst im mouseup) —
+    // jetzt melden, damit clearClip sie mitlöscht (v1.23, Querfund Alien Notes v1.14 run-12 b2-2, in Pass gemessen; den älteren Stand nach einem Nachrollen merkt die Hülle dazu)
+    if(DESK&&reportSel) reportSel();
+    if(selReset) selReset();
     clearIdle(); stopTotp(); if(!(keepClip===true&&clipCopied&&clipOwnedAt&&clipTimer)) clearClip();
     DEK=null; KDF=null; WRAP=null; VAULT=null; editId=null; currentId=null; genValue=''; pendingImport=null; search=''; catFilter=null; selMode=false; selIds=new Set(); shownIds=[];
     pendingUnlock=null; pendingSecret=null; pendingOtpauth=''; pendingProton=null;
-    bioGen++; bioRearmDek=null; bioArmed=false; bioNeedsRearm=false;   // laufende Fingerabdruck-Vorgänge verfallen (Generation)
+    bioGen++; bioRearmDek=null; bioArmed=false; bioNeedsRearm=false; bioMismatch=false;   // laufende Fingerabdruck-Vorgänge verfallen (Generation)
     clearRendered(); boot();
     /(?:)/.exec('');   // RegExp.input/lastMatch/leftContext leeren: hielten nach der Sperre den letzten Treffer, z. B. die Passphrase aus der Stärke-Prüfung (v1.22, Querfund Sachwert-Tresor v3.10.1 Q-1, Vorlage Notes 1.12)
   }
@@ -1743,17 +1787,49 @@ const App = (function(){
     // geordnet (in der Hülle eine Kette): das clear() der Sperre kommt nach dieser Meldung an. Scheitert die Meldung, löscht der Zeitgeber nur eigene Hashes (harmlos).
     // Nach der Antwort ZUSÄTZLICH nachschärfen: lief gerade ein Löschen (clipOwnedAt noch gesetzt, sync nichts zu tun), setzt dessen ok() die Frist
     // danach auf 0 — die neue Markierung läge sonst ohne Frist in PRIMARY (Release-Audit v1.19 B-1; v1.18 armte nur in der Antwort, das hielt diesen Fall).
-    const report=(t,from)=>{ if(!t) return;
+    const report=(t,from,peek)=>{ if(!t) return;
       clipGateSel=!!(from&&GATE_IDS.includes(from.id));
       if(!clipOwnedAt) armClip();
-      let p=null; try{ p=DESK.clip.selected(t); }catch(_){ p=null; }
+      let p=null; try{ p=DESK.clip.selected(t,peek===true); }catch(_){ p=null; }
       if(p&&p.then) p.then(()=>{ if(!clipOwnedAt) armClip(); },()=>{}); };
-    const onSel=()=>{ const t=selText(); report(t,selFrom); selFrom=null; };   // selFrom freigeben: hielt sonst ein abgehängtes Feld samt Wert über die Sperre (run-12 a-4, wie Notes v1.10)
+    // peek (v1.23, Querfund Alien Notes v1.14 run-12 b3-1/b3-2): die Hülle liest PRIMARY nur bei EIGENEM Ziehen (Maustaste gehalten oder Loslassen nach einem
+    // Ziehen) — dann hat Chromium es gerade selbst geschrieben, das Lesen ist lokal. Läse sie bei jeder Meldung, hinge sie an einem eingefrorenen fremden Besitzer
+    // (eine von Klipper gespiegelte Kopie bliebe nach Frist, Sperre und Beenden stehen) und merkte eine fremde Auswahl, die zufällig Anfang/Ende der Markierung ist.
+    // Und nur, wenn diese Mausbedienung die Markierung tatsächlich geändert hat (Notes r4-1): ein Klick mit Zittern, ein dragstart oder ein fehlendes mouseup nach
+    // Ziehen-und-Ablegen läsen PRIMARY sonst, ohne dass Chromium es gerade geschrieben hat.
+    let selHeld=false;
+    // selFrom freigeben: hielt sonst ein abgehängtes Feld samt Wert über die Sperre (run-12 a-4, wie Notes v1.10)
+    const onSel=pk=>{ const t=selText(); report(t,selFrom,pk===true||(selHeld&&selMoved())); selFrom=null; };
+    reportSel=onSel;
     reportFieldSel=a=>report(a.value.substring(a.selectionStart,a.selectionEnd),a);
-    document.addEventListener('mouseup',onSel);
+    // Markieren bis an den Rand (v1.23, Querfund Notes v1.14 run-12 b-1 MITTEL, in Pass gemessen: Notizfeld und Detailansicht): rollt Chromium beim Ziehen nach,
+    // während die Maus ruht, wächst die Markierung ohne Eingabeereignis — PRIMARY behält den Stand der letzten Mausbewegung, die Meldung trägt den Endstand, die
+    // Hashes passten nie, und PRIMARY wurde weder nach der Frist noch beim Sperren gelöscht. Darum im mouseup (noch im Eingabeereignis) die Markierung einmal neu
+    // setzen: Chromium schreibt PRIMARY dann mit dem Endstand. Feld: Cursor kurz zusammen, dann wieder aufziehen, Rollstand zurück; Seite: collapse auf den Anker,
+    // extend zum Fokus.
+    const reselect=()=>{ try{ const a=document.activeElement;
+        if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number'){ const s0=a.selectionStart, e0=a.selectionEnd, d0=a.selectionDirection; if(s0===e0) return;
+          const st=a.scrollTop, sl=a.scrollLeft; a.setSelectionRange(s0,s0); a.setSelectionRange(s0,e0,d0); a.scrollTop=st; a.scrollLeft=sl; return; }
+        const g=window.getSelection(); if(!g||!g.rangeCount||g.isCollapsed||!g.anchorNode||!g.focusNode) return;
+        const an=g.anchorNode, ao=g.anchorOffset, fn=g.focusNode, fo=g.focusOffset; g.collapse(an,ao); g.extend(fn,fo); }catch(_){} };
+    // Nur nach einem ZIEHEN neu setzen (Notes b2-1, Rückschritt der ersten Fassung): im mouseup läuft reselect vor Chromiums eigener Behandlung des Loslassens —
+    // bei einem Klick ohne Bewegung (in eine Markierung, Doppelklick, Umschalt+Klick) klappte Chromium die Markierung danach nicht mehr zusammen, Weitertippen
+    // überschrieb den markierten Text. Ohne Mausbewegung gibt es kein Nachrollen, dort bleibt alles bei Chromium.
+    // Und nur, wenn sich die Markierung seit dem Drücken geändert hat (Notes b3 H-1): ein Klick mit Zittern oder ein Ziehen über einen Knopf schrieb eine stehende,
+    // nach der Frist schon gelöschte Markierung sonst neu nach PRIMARY.
+    let selDrag=false, selAtDown=[];
+    const selKey=()=>{ try{ const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') return [a,a.selectionStart,a.selectionEnd];
+        const g=window.getSelection(); return g&&g.rangeCount?[g.anchorNode,g.anchorOffset,g.focusNode,g.focusOffset]:[]; }catch(_){ return []; } };
+    const selSame=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]), selMoved=()=>!selSame(selAtDown,selKey());
+    // selAtDown nach jedem Loslassen, Ziehen-und-Ablegen und beim Sperren leeren (Notes r4-2): es hielt sonst nach der Sperre einen losgelösten Knoten der
+    // Detailansicht samt Text bzw. ein Feld bis zum nächsten Drücken fest (Klasse selFrom, run-12 a-4).
+    selReset=()=>{ selAtDown=[]; selHeld=false; selDrag=false; };
+    document.addEventListener('mousedown',ev=>{ if(ev.button===0){ selDrag=false; selHeld=true; selAtDown=selKey(); } },true);
+    document.addEventListener('mousemove',ev=>{ if(ev.buttons&1) selDrag=true; else selHeld=false; },true);
+    document.addEventListener('mouseup',ev=>{ const pk=ev.button===0&&selDrag&&selMoved(); if(pk) reselect(); if(ev.button===0){ selDrag=false; selHeld=false; } onSel(pk); if(ev.button===0) selAtDown=[]; });
     // Ziehen-und-Ablegen einer Markierung schluckt das mouseup: drückt man auf den Aegis-Schlüssel (.secret-box, user-select:all markiert schon beim Drücken
     // alles) und bewegt die Maus, startet Chromium ein Ziehen — der Schlüssel lag ungemeldet in PRIMARY, auch nach Frist und Sperre (v1.22, gemessen m122)
-    document.addEventListener('dragstart',onSel);
+    document.addEventListener('dragstart',()=>{ const m=selHeld&&selMoved(); selHeld=false; selDrag=false; onSel(m); selAtDown=[]; });
     // Strg+A auch am Tastencode 65: bei nicht-lateinischer Belegung ist ev.key „ф“/„α“, Chromium markiert trotzdem — ohne Meldung lag z. B. eine per Strg+A
     // markierte Passphrase ohne Frist in PRIMARY (Audit run-11 a-1/b-1)
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&((ev.key||'').toLowerCase()==='a'||ev.keyCode===65))) onSel(); });
@@ -1837,7 +1913,7 @@ const App = (function(){
     try{
       let incoming;
       try{ const kek=await deriveKek(passBytes($('import-pass').value), f.kdf); const dek=await unwrapDek(f.wrap,kek,f.kdf,false); const obj=await decryptBody(f.body,dek,f.kdf); if(!VAULT||!DEK||pendingImport!==f) return; incoming=sanitizeVault(obj).entries; }   // Sitzung VOR dem Aufbereiten prüfen (v1.22, Querfund Alien Notes 1.12): gesperrt → die entschlüsselte Datei nicht mehr anfassen
-      catch(e){ if(pendingImport!==f) return; $('import-pass').value=''; if(VAULT) $('import-msg').textContent=e&&e.message==='toomany'?tr('err.tooMany'):tr('bk.mergeFail'); return; }
+      catch(e){ if(pendingImport!==f) return; $('import-pass').value=''; if(VAULT) $('import-msg').textContent=contentErr(e)?contentMsg(e):tr('bk.mergeFail'); return; }
       if(!VAULT||!DEK||pendingImport!==f) return;                // während des Argon2-Laufs gesperrt (auch schnell wieder entsperrt: lock() nullt pendingImport) → abbrechen (Diff-Review v1.15)
       incoming=shapeIncoming(VAULT.entries, incoming);          // Papierkorb-Inhalt bleibt gerätelokal, fremde Marken verdrängen keine eigenen (Audit run-5)
       const before=VAULT.entries.slice(); const m=mergeEntries(VAULT.entries, incoming);
@@ -1950,7 +2026,7 @@ const App = (function(){
   // Nicht umbenannt, weil die Invarianten (BIO-INVARIANTEN.md, Audit run-3) sie so nennen.
   // bioKeep (v1.8) ist NUR Anzeige: die Wahrheit steht im Slot des Plugins und hängt in dessen GCM-AAD (boot+"|keep"). Geändert wird sie
   // ausschließlich durch Deaktivieren + neu Aktivieren — hier wird sie aus status()/enroll() übernommen, nie gesetzt.
-  let bioArmed=false, bioNeedsRearm=false, bioRearmDek=null, bioGen=0, bioAuto=true, bioKeep=false;
+  let bioArmed=false, bioNeedsRearm=false, bioRearmDek=null, bioGen=0, bioAuto=true, bioKeep=false, bioMismatch=false;   // bioMismatch: Knopf nur wegen wrapMismatch aus (Z2, v1.23)
   function bioBlob(){ try{ return parseBioBlob(localStorage.getItem(BIO_KEY)); }catch(_){ return null; } }
   function bioMarker(){ try{ return localStorage.getItem(BIO_REARM_KEY)==='1'; }catch(_){ return false; } }
   function setBioMarker(on){ try{ if(on) localStorage.setItem(BIO_REARM_KEY,'1'); else localStorage.removeItem(BIO_REARM_KEY); }catch(_){} }
@@ -1974,6 +2050,10 @@ const App = (function(){
   function renderBioGate(){ const b=$('bio-btn'); if(b){ b.classList.toggle('hidden',!bioArmed||bioHold()); b.disabled=!!(doUnlock._busy||doPin._busy); } const u=$('unlock-btn'); if(u&&!doUnlock._busy) u.disabled=!!doPin._busy; }   // Riegel: Knopf verborgen; Passphrase ruht nur während eines PIN-Argon2
   // Slot verwerfen: JS-Blob + Marker immer, Keystore-Teil auf Wunsch (bei ungültigem Schlüssel hat das Plugin ihn schon selbst gelöscht).
   // bioGen++ lässt laufende enroll/unlock-Vorgänge verfallen (Audit run-3)
+  // KDF-Kopf in einen alten Blob (bis v1.22, ohne k) nachtragen, sobald ein Auspacken den Kopf bestätigt hat (v1.23, Querfund Alien Notes v1.14 run-12 a3-1): sonst bekam
+  // ein keep-Slot k nie und ein normaler erst beim Neu-Bewaffnen nach einem Neustart — bis dahin löschte ein veränderter Kopf den Slot wie vor a2-1. Nur Kopfdaten.
+  function bioAddK(kdf, w){ try{ const raw=localStorage.getItem(BIO_KEY), o=JSON.parse(raw); if(!o||o.k!=null||o.w!==w||!parseBioBlob(raw)) return;
+      o.k=dec.decode(aad(kdf,'wrap')); const t=JSON.stringify(o); if(parseBioBlob(t)) localStorage.setItem(BIO_KEY,t); }catch(_){} }
   function bioDrop(native){ try{ localStorage.removeItem(BIO_KEY); }catch(_){} setBioMarker(false); setBioHold(false); bioArmed=false; bioNeedsRearm=false; bioRearmDek=null; bioKeep=false; bioGen++; if(native&&BIO){ try{ BIO.disable().catch(()=>{}); }catch(_){} } renderBioGate(); }
   // Sperrbildschirm: nativen Zustand abgleichen. auto = Prompt sofort zeigen (nicht nach manuellem Sperren, nie im Hintergrund)
   async function bioProbe(auto){
@@ -2002,7 +2082,7 @@ const App = (function(){
   async function bioArm(dekX, kdf, wrap, rearm, keep){
     const gen=bioGen, secret=rand(32), wantKeep=!!keep&&!rearm;
     try{
-      const key=await bioKey(secret); const blob=await wrapDek(dekX, key, kdf, 'bio'); const ser=serializeBioBlob(blob, wrap.ct, wrap.iv);   // seit v1.8 mit `wi` (Audit run-8 #1)
+      const key=await bioKey(secret); const blob=await wrapDek(dekX, key, kdf, 'bio'); const ser=serializeBioBlob(blob, wrap.ct, wrap.iv, kdf);   // seit v1.8 mit `wi` (Audit run-8 #1), seit v1.23 mit dem KDF-Kopf `k` (Notes a2-1)
       // rearm:true → das Plugin richtet nur mit gültigem Kanarien-Schlüssel neu ein (sonst 'invalidated', Querfund Tresor-Audit run-5 #1)
       await BIO.enroll({secret:bufToB64(secret), rearm:!!rearm, keep:wantKeep, title:tr('bio.promptTitle'), subtitle:tr(rearm?'bio.promptRearm':'bio.promptEnroll'), negative:tr('btn.cancel')});
       if(gen!==bioGen||!VAULT){ try{ BIO.disable().catch(()=>{}); }catch(_){} setBioMarker(false); toast(tr('bio.aborted')); return false; }   // zwischendurch gesperrt / Passphrase gewechselt: nichts hinterlassen — auch keinen Marker, sonst meldet die nächste Neu-Einrichtung ohne Kanarie fälschlich einen fremden Finger
@@ -2021,19 +2101,21 @@ const App = (function(){
     let raw; try{ raw=vaultGet(); }catch(_){ return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
     let f; try{ f=parseFile(raw); }catch(e){ return err('lock-err',fileErrMsg(e)); }
     const blob=bioBlob(); if(!blob){ bioDrop(true); return; }
-    if(!bioWrapOk(blob,f.wrap)){ bioArmed=false; renderBioGate(); return bioMsg(tr('bio.wrapMismatch')); }   // fremder/veränderter Passphrase-Slot (ct ODER iv): nie übernehmen, Blob behalten (Backup-Restore heilt)
+    if(!bioWrapOk(blob,f.wrap,f.kdf)){ bioArmed=false; bioMismatch=true; renderBioGate(); return bioMsg(tr('bio.wrapMismatch')); }   // fremder/veränderter Passphrase-Slot (ct ODER iv): nie übernehmen, Blob behalten (Backup-Restore heilt)
     const gen=bioGen; doBio._busy=true; renderBioGate(); renderPinGate(); let secret=null;
     try{
       const r=await BIO.unlock({title:tr('bio.promptTitle'), subtitle:tr('bio.promptUnlock'), negative:tr('bio.usePass')});
       secret=b64Bytes(r&&r.secret); if(!secret||secret.length!==32) throw new Error('invalid');
       const key=await bioKey(secret); secret.fill(0);
       const dek=await unwrapDek(blob, key, f.kdf, false, 'bio');
+      if(!blob.k) bioAddK(f.kdf, blob.w);   // bio-AAD hat den Kopf bestätigt (v1.23, Notes a3-1)
       const obj=await decryptBody(f.body, dek, f.kdf); const v=sanitizeVault(obj);
       if(gen!==bioGen||DEK||pendingUnlock) return;                        // zwischendurch gesperrt oder anders entsperrt
       if(v.totp){ pendingUnlock={dek, kdf:f.kdf, wrap:f.wrap, vault:v}; }
       else { DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0; saveLockState(); }
     }catch(e){
       const c=e&&e.message; if(gen!==bioGen) return;
+      if(contentErr(e)) return err('lock-err',contentMsg(e));             // Schlüssel stimmte, der Inhalt nicht: Slot bleibt (v1.23, vorher bioDrop(true) mit falscher Meldung)
       if(c==='cancel') return; if(c==='lockout') return err('lock-err',tr('bio.lockout'));
       if(c==='reboot'){ bioDrop(false); setBioMarker(true); bioNeedsRearm=true; return bioMsg(tr('bio.afterReboot')); }   // Slot hat unlock() selbst gelöscht, Kanarie bleiben lassen
       // 'error' = Timeout/Sensor nicht bereit im Dialog: unlock() lässt den Slot nativ stehen → hier auch nichts löschen. bioDrop(true)
@@ -2109,6 +2191,7 @@ const App = (function(){
       if(gen!==bioGen||DEK||pendingUnlock){ $('lock-pin').value=''; maskInputs('#screen-lock'); return; }   // verspäteter Fehlversuch stört keine offene Sitzung
       $('lock-pin').value=''; maskInputs('#screen-lock');
       if(PIN!==slot) return;                                           // Slot ist zwischendurch schon verworfen worden
+      if(contentErr(e)) return err('lock-err',contentMsg(e));             // Schlüssel stimmte, der Inhalt nicht: kein PIN-Fehlversuch (v1.23)
       PIN.tries++;
       // PIN-Fehlversuche zählen NICHT in die Passphrase-Bremse (ai-pass-lock) — sie sagen nichts über die Passphrase aus
       if(PIN.tries>=PIN_TRIES){ pinDrop(); return err('lock-err',tr('pin.dropped')); }
@@ -2203,7 +2286,7 @@ const App = (function(){
       try{ const kOld=await deriveKek(passBytes(cur), KDF); await unwrapDek(WRAP,kOld,KDF,false); }   // alte Passphrase real prüfen
       catch(_){ return err('cp-err',tr('err.cpWrong')); }
       if(!VAULT||!DEK) return;   // während der Prüfung gesperrt: passCheck nicht mehr laufen lassen (die neue Passphrase stünde sonst nach der Sperre in RegExp.input; run-12 a-1)
-      { const c=passCheck(p1); if(c.weak&&!(await ask(tr('confirm.weakPassCp',{why:whyText(c.why)}),{ok:'dlg.useAnyway'}))) return; }   // erst nach der alten Passphrase (Review v1.6)
+      { const c=passCheck(p1); /(?:)/.exec(''); if(c.weak&&!(await ask(tr('confirm.weakPassCp',{why:whyText(c.why)}),{ok:'dlg.useAnyway'}))) return; }   // erst nach der alten Passphrase (Review v1.6); Statics leeren wie in doSetup (v1.23)
       if(!VAULT||!DEK) return;                                   // während der Rückfrage gesperrt
       const kdf={m:KDF.m,t:KDF.t,p:KDF.p,salt:rand(16)};
       const kNew=await deriveKek(passBytes(p1), kdf);
@@ -2215,7 +2298,7 @@ const App = (function(){
       try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT){ DEK=old.DEK; KDF=old.KDF; WRAP=old.WRAP; } return; }
       const hadBio=bioArmed||!!bioBlob()||bioMarker(); if(hadBio) bioDrop(true); pinDrop(); bioGen++;   // neuer DEK/Salt: Fingerabdruck-Slot passt nicht mehr → bewusst neu aktivieren, PIN-Slot im RAM ebenso weg; bioGen++ lässt auch einen laufenden enroll verfallen (Audit run-3 #5)
       $('cp-cur').value=$('cp1').value=$('cp2').value=''; $('cp-meter').textContent=''; toast(tr(hadBio?'toast.passChangedBio':'toast.passChanged')); renderSettings();
-    }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; }
+    }finally{ changePass._busy=false; btn.disabled=false; btn.textContent=orig; /(?:)/.exec(''); }   // auch nach Schreibfehler/Abbruch: die neue Passphrase stand sonst bis zur Sperre in RegExp.input (v1.23)
   }
   async function wipeLocal(){ if(!VAULT||!(await ask(tr('confirm.wipe'),{ok:'dlg.wipe',danger:true}))) return; if(!VAULT) return; bioDrop(true); pinDrop(); try{ localStorage.removeItem(BIO_ALERT_KEY); }catch(_){}
     if(DESK){ try{ localStorage.removeItem(LS_KEY); }catch(_){} }   // sonst holt migrateDesk() eine Prototyp-Kopie zurück (Audit run-6 #4)
