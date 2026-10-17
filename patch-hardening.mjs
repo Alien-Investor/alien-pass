@@ -5,7 +5,7 @@
 //   3) MainActivity: FLAG_SECURE (kein Screenshot/Recording, keine Recents-Vorschau) + WebView vom Android-Autofill-Framework
 //      ausgenommen (v1.12: fremde Autofill-Dienste wie ein anderer Passwort-Manager sehen die Passphrase-Felder sonst und bieten
 //      an, sie zu speichern; autocomplete="off" im HTML hält das nicht auf)
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 
 const MANIFEST = 'android/app/src/main/AndroidManifest.xml';
 let m = readFileSync(MANIFEST, 'utf8');
@@ -508,6 +508,8 @@ const CLIPWRITE_SRC = "    @PluginMethod\n    public void write(PluginCall call)
 const CLEAR_SRC = "    @PluginMethod\n    public void clear(PluginCall call) {\n        try {\n            if (Build.VERSION.SDK_INT >= 28) cm().clearPrimaryClip();\n            else cm().setPrimaryClip(ClipData.newPlainText(\"\", \" \"));\n            call.resolve();\n        } catch (Exception e) { call.reject(\"clip\"); }\n    }\n";
 // Kommentare in EINEM Durchlauf von links nach rechts wie javac (v1.23, Querfund Notes run-12 c3-3, run-13 B7 s1/s2): bis v1.22 prüfte jb den Rohtext, schon ein
 // einfaches `//` vor der sameBoot-Zeile blieb grün; erst Block-, dann Zeilenkommentare zu entfernen läse `//*…*/ code` falsch. Zeichenketten und Zeichen bleiben stehen.
+// Einzige Abweichung von javac: noComments kennt nur LF als Zeilenende, javac auch ein einzelnes CR (JLS 3.4) — `// x<CR> code` verbärge Code. Darum ist
+// rohes CR in allen vier Java-Dateien verboten (unten, run-13 d-5), statt noComments umzubauen.
 const noComments = (t) => t.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (m) => (m[0] === '/' ? '' : m));
 const jm = readFileSync(MAIN, 'utf8'), jb = readFileSync(BIO, 'utf8'), jc = readFileSync(CLIP, 'utf8'), jwr = readFileSync(WV, 'utf8');
 const jbc = noComments(jb), jcc = noComments(jc);
@@ -536,7 +538,7 @@ if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin
   || !jb.includes(CREATEKEY_SRC) || [jb, jbc].some((t) => (t.match(/KeyGenParameterSpec\.Builder\s*\(/g) || []).length !== 1 || (t.match(/void\s+createKey\s*\(\s*String\s/g) || []).length !== 1)
   || !jbc.includes('b.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG);')
   || [jb, jbc].some((t) => (t.match(/setConfirmationRequired\s*\(/g) || []).length !== 1 || (t.match(/setAllowedAuthenticators\s*\(/g) || []).length !== 1)
-  || !jb.includes(PROMPT_SRC) || (jb.match(/PromptInfo\.Builder\(\)/g) || []).length !== 1
+  || !jb.includes(PROMPT_SRC) || [jb, jbc].some((t) => (t.match(/PromptInfo\.Builder\(\)/g) || []).length !== 1)   // roh UND ohne Kommentare (run-13 d-7: vorher nur roh)
   // v1.23 (run-13 B7): keine Unicode-Escapes (auch \\uu…, JLS 3.3) und keine Textblöcke (noComments kennt sie nicht) in KEINER Java-Datei, auch NoLearnWebView;
   // FLAG_SECURE auch nicht über die LayoutParams (lp.flags &= ~FLAG_SECURE + updateViewLayout braucht kein clearFlags), nirgends clearFlags/setFlags/setAttributes
   || [jm, jb, jc, jwr].some((t) => /\\u+[0-9a-fA-F]{4}/.test(t) || t.includes('"""'))
@@ -562,6 +564,49 @@ if (!jm.includes('FLAG_SECURE') || !jm.includes('registerPlugin(SecureClipPlugin
        return before(jbc.indexOf('public void status(')) && before(jbc.indexOf('public void unlock(')); })()
   || !/USE_FINGERPRINT"\s+android:maxSdkVersion="27"\s+tools:node="replace"/.test(readFileSync(MANIFEST, 'utf8'))) {   // cap sync bricht die Zeile um
   console.error('FEHLER: Java-Härtung unvollständig — Build abgebrochen!'); process.exit(1);
+}
+// v1.23 Runde 1 (17.10.2026, Release-Audit run-13 d-1…d-6, Nachweis run-13/w5): auch die übrigen Hebel WÖRTLICH als unabhängige Zweitkopie — bis dahin
+// blieben eine Versionsweiche um den getSystemService-Hebel, eine Bedingung vor dropAutofillRestore in onNewIntent, ein fester Boot-Zähler, beide aad()-Aufrufe
+// als Zeichenkette, ein drittes Plugin über getBridge().registerPlugin*/registerPluginInstance, ein umbenannter Plugin-Name (app.js fiele STILL auf
+// navigator.clipboard ohne IS_SENSITIVE zurück), ein `// x<CR>`-Versteck und Reflection grün. Mit den Bytecode-Pins in build-apk.sh nachziehen.
+const GETSYS_SRC = "    @Override\n    public Object getSystemService(String name) {\n        if (\"autofill\".equals(name)) return null;   // Dienstname des AutofillManager (API 26+, Konstante ist nicht öffentlich)\n        return super.getSystemService(name);\n    }\n";
+const NEWINTENT_SRC = "    @Override\n    protected void onNewIntent(Intent intent) {\n        dropAutofillRestore(intent);\n        super.onNewIntent(intent);\n    }\n";
+const BOOTTAG_SRC = "    private String bootTag() {\n        try { int n = Settings.Global.getInt(getContext().getContentResolver(), Settings.Global.BOOT_COUNT); if (n > 0) return \"b:\" + n; } catch (Exception ignored) {}\n        try (BufferedReader r = new BufferedReader(new FileReader(\"/proc/sys/kernel/random/boot_id\"))) {\n            String s = r.readLine();\n            if (s != null && s.trim().length() >= 8) return \"id:\" + s.trim();\n        } catch (Exception ignored) {}\n        return \"t:\" + ((System.currentTimeMillis() - SystemClock.elapsedRealtime()) / 1000L);\n    }\n";
+const SAMEBOOT_SRC = "    private boolean sameBoot(String stored) {\n        if (stored == null || stored.length() < 3) return false;\n        String now = bootTag();\n        if (!stored.startsWith(\"t:\") || !now.startsWith(\"t:\")) return stored.equals(now);\n        try { return Math.abs(Long.parseLong(stored.substring(2)) - Long.parseLong(now.substring(2))) <= 120; }\n        catch (Exception e) { return false; }\n    }\n";
+const AAD_SRC = "    private static void aad(Cipher c, String boot) {\n        if (boot != null && !boot.isEmpty()) c.updateAAD(boot.getBytes(StandardCharsets.UTF_8));\n    }\n";
+const CLIPHEAD_SRC = "@CapacitorPlugin(name = \"SecureClip\")\npublic class SecureClipPlugin extends Plugin {\n";
+const BIOHEAD_SRC = "@CapacitorPlugin(name = \"Biometric\")\npublic class BiometricPlugin extends Plugin {\n";
+{
+  const bad = [], cnt = (t, re) => (t.match(re) || []).length, all = [jm, jc, jb, jwr], jmc = noComments(jm);
+  // Zeichenketteninhalt weg (auf dem Text ohne Kommentare): dort zählt nur noch Code — `String a = "aad(cipher, ad);";` erfüllte sonst die Zählung (d-4)
+  const noStr = (t) => t.replace(/"(?:[^"\\\n]|\\.)*"/g, '""'), jbs = noStr(jbc);
+  // d-5: rohes CR (javac: Zeilenende, noComments nicht) und Reflection (javac faltet "clear" + "Flags" zur Konstante, kein Methodenverweis im Bytecode)
+  if (all.some((t) => t.includes('\r'))) bad.push('rohes CR');
+  if (all.some((t) => /\bget(Declared)?(Method|Field|Constructor)s?\s*\(|\bforName\s*\(|java\.lang\.(reflect|invoke)|MethodHandle/.test(t))) bad.push('Reflection');
+  // d-3: genau die vier Java-Dateien unter src/main/java (rekursiv, ein Symlink zählt als Datei), keine weitere .java/.kt unter src/main
+  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(d + '/' + e.name) : [d + '/' + e.name]));
+  const want = [MAIN, CLIP, BIO, WV].sort().join('\n');
+  if (walk('android/app/src/main/java').sort().join('\n') !== want || walk('android/app/src/main').filter((f) => /\.(java|kts?)$/.test(f)).sort().join('\n') !== want) bad.push('Java-Dateien');
+  // d-3: Plugins nur über die zwei registerPlugin in onCreate (ONCREATE_SRC) — kein registerPluginInstance/registerPlugins/addPlugin*, keine dritte Plugin-Klasse
+  if (cnt(jm, /registerPlugin\w*\s*\(/g) !== 2 || [jc, jb, jwr].some((t) => /registerPlugin\w*\s*\(/.test(t)) || all.some((t) => /addPlugin|NativePlugin|PluginHandle/.test(t))) bad.push('Plugin-Registrierung');
+  if ([jc, jb].some((t) => cnt(t, /@CapacitorPlugin\b/g) !== 1 || cnt(t, /\bextends\s+Plugin\b/g) !== 1) || /@CapacitorPlugin\b|\bextends\s+Plugin\b/.test(jm + jwr)) bad.push('Plugin-Klassen');
+  // d-6: Plugin-Name und Klassenkopf wörtlich (app.js sucht CAP.Plugins.SecureClip/Biometric), @PluginMethod genau an write/clear bzw. den fünf Biometric-Methoden
+  if (!jc.includes(CLIPHEAD_SRC) || !jb.includes(BIOHEAD_SRC)) bad.push('Plugin-Name');
+  const pm = (t, names) => [t, noComments(t)].every((x) => cnt(x, /@PluginMethod\b/g) === names.length) && names.every((n) => t.includes('    @PluginMethod\n    public void ' + n + '(PluginCall call) {'));
+  if (!pm(jc, ['write', 'clear']) || !pm(jb, ['available', 'status', 'disable', 'enroll', 'unlock']) || /@PluginMethod\b/.test(jm + jwr)) bad.push('@PluginMethod');
+  // d-1: Autofill-Hebel getSystemService und onNewIntent wörtlich, je genau eine Methode; d-2: setImportantForAutofill( genau einmal (eine Rücknahme in
+  // onResume blieb sonst grün), genau drei @Override (getSystemService, onNewIntent, onCreate)
+  if (!jm.includes(GETSYS_SRC) || [jm, jmc].some((t) => cnt(t, /\bgetSystemService\s*\(\s*String\b/g) !== 1)) bad.push('getSystemService');
+  if (!jm.includes(NEWINTENT_SRC) || [jm, jmc].some((t) => cnt(t, /\bvoid\s+onNewIntent\s*\(/g) !== 1)) bad.push('onNewIntent');
+  if ([jm, jmc].some((t) => cnt(t, /setImportantForAutofill\s*\(/g) !== 1 || cnt(t, /@Override\b/g) !== 3)) bad.push('Autofill/Override');
+  // d-4: Neustart-Regel — bootTag, sameBoot und aad wörtlich, je genau eine Methode; die Code-Zählungen zusätzlich ohne Zeichenketteninhalt
+  if (!jb.includes(BOOTTAG_SRC) || !jb.includes(SAMEBOOT_SRC) || !jb.includes(AAD_SRC)
+      || [jb, jbc].some((t) => cnt(t, /\bString\s+bootTag\s*\(/g) !== 1 || cnt(t, /\bboolean\s+sameBoot\s*\(/g) !== 1 || cnt(t, /\bvoid\s+aad\s*\(/g) !== 1)) bad.push('Neustart-Regel');
+  if (cnt(jbs, /\baad\(cipher, ad\);/g) !== 2 || cnt(jbs, /!keep && !sameBoot\(/g) !== 2 || cnt(jbs, /\bsameBoot\(/g) !== 3 || cnt(jbs, /\bbootTag\(\)/g) !== 3
+      || cnt(jbs, /optBoolean\("", false\)/g) !== 2 || cnt(jbs, /\bboot \+ ""/g) !== 2 || !jbs.includes('c.updateAAD(boot.getBytes(') || !jbs.includes('Settings.Global.BOOT_COUNT')
+      || !['setUserAuthenticationRequired(true)', 'setInvalidatedByBiometricEnrollment(true)', 'setConfirmationRequired(true)', 'BIOMETRIC_STRONG', 'FEATURE_FINGERPRINT', 'canaryState()'].every((s) => jbs.includes(s)))
+    bad.push('Neustart-Regel/AAD ohne Zeichenketten');
+  if (bad.length) { console.error('FEHLER: Java-Härtung unvollständig (' + bad.join(', ') + ') — Build abgebrochen!'); process.exit(1); }
 }
 
 // Tastatur-Bitte (v1.22, wortgleich Alien Notes 1.13): Reihenfolge und Form gepinnt — das ODER muss NACH super stehen (vorher gesetzt überschriebe Chromium es), darf nicht zur

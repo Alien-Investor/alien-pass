@@ -837,20 +837,34 @@ async function nachrollen(){
     await clipboard.selection.clear(); }
   // (B) Detailansicht (Seitentext im rollenden Overlay), gezogen bis an den unteren Fensterrand
   try{ await js(`(()=>{ const t=document.getElementById('f-notes'); t.style.height=''; return true; })()`); }catch(_){}
-  const okS=await saveM('Lang-Detail',lines); R('Eintrag mit langen Notizen gespeichert', okS);
-  // negative Werte: Maus UNTER dem Fensterrand (wie beim Markieren über den Rand hinaus)
-  for(const off of (process.env.AP_DOFF||'1,3,-20,-60').split(',').map(Number)){
-    if(!(await openDetailM('Lang-Detail'))){ R('Detail offen',false); break; }
+  const TD='Lang-Detail-'+process.pid;   // Titel je Prozess eindeutig (Lehre Spiegel-<pid>): bei einem zweiten Lauf auf demselben Tresor öffnete openDetailM sonst den älteren Eintrag (fremde Marker)
+  const okS=await saveM(TD,lines); R('Eintrag mit langen Notizen gespeichert', okS);
+  // negative Werte: Maus UNTER dem Fensterrand (wie beim Markieren über den Rand hinaus). Nur −20/−60 (run-13 a H-3): 1/3 px ÜBER dem Fensterrand rollt die
+  // Detailspalte nicht nach und die Markierung wächst bei ruhender Maus nicht (gemessen: scroll [0,0], PRIMARY = Auswahl, 23/23 Marker) — die Lage von b-1
+  // entsteht dort gar nicht, auch v1.22 bliebe grün; die alte Vorbedingung war nur erfüllt, wenn die Markierung 120 ms nach dem Ziehen zufällig noch
+  // hinterherhinkte (unveränderter Stand 2/2 rot, früher grün). Im Notizfeld (A) bleiben Rand-1/-3: das Feld rollt dort nach (Vorbedingung y1>top).
+  // AP_DOFF=1,3 nur zum Nachmessen (meldet dann rot über die Vorbedingung).
+  for(const off of (process.env.AP_DOFF||'-20,-60').split(',').map(Number)){
+    if(!(await openDetailM(TD))){ R('Detail offen',false); break; }
     const info=await js(`(()=>{ const o=document.getElementById('detail-overlay'); o.scrollTop=0; const d=document.getElementById('d-notes'); const b=d.getBoundingClientRect(); return {sh:o.scrollHeight,ch:o.clientHeight,ih:innerHeight,top:b.top,left:b.left}; })()`);
     const a=await txtPosM('#d-notes','Zeile 2 '); await clipboard.selection.writeText(M); await ensureFocusM();
     const z={x:a.x+120,y:info.ih-off};
-    mouse('mouseDown',a.x-4,a.y); for(let i=1;i<=14;i++){ mouse('mouseMove',a.x-4+(z.x-(a.x-4))*i/14,a.y+(z.y-a.y)*i/14,{mod:['leftButtonDown']}); await sleep(30); }
-    await sleep(120); const y0=await js(`document.getElementById('detail-overlay').scrollTop`), l0=await js(`String(getSelection()).length`); await sleep(3000); const y1=await js(`document.getElementById('detail-overlay').scrollTop`), l1=await js(`String(getSelection()).length`);
+    // Ziehen an Zustände gebunden (wie [2r], gemessen 17.10.2026): kamen die Bewegungen gebündelt an, war die Markierung 120 ms nach dem Ziehen noch leer
+    // (wuchs [0,4267], scroll [0,0]) — die alte Vorbedingung „gewachsen“ war dann allein durch die späte Zustellung erfüllt, auch bei −20/−60. Darum auf der
+    // gleichen Geraden in Stufen bis 40 px über den Fensterrand, je bis die Markierung gewachsen ist, dann unter den Rand, bis sie dort gewachsen ist.
+    const L='String(getSelection()).length', tIn=Math.max(0.2,Math.min(1,(info.ih-40-a.y)/(z.y-a.y))); let stufen=0;
+    mouse('mouseDown',a.x-4,a.y); await sleep(40);
+    for(let i=1;i<=5;i++){ const t=tIn*i/5, l=await js(L); mouse('mouseMove',a.x-4+(z.x-(a.x-4))*t,a.y+(z.y-a.y)*t,{mod:['leftButtonDown']}); if(await until(`${L}>${l}`,2000)) stufen++; }
+    { const l=await js(L); mouse('mouseMove',z.x,z.y,{mod:['leftButtonDown']}); await until(`${L}>${l}`,3000); }
+    await sleep(120); const y0=await js(`document.getElementById('detail-overlay').scrollTop`), l0=await js(L); await sleep(3000); const y1=await js(`document.getElementById('detail-overlay').scrollTop`), l1=await js(L);
+    const pR=await prim(), selR=await js(`String(getSelection())`);
     mouse('mouseUp',z.x,z.y); await sleep(700);
     const p=await prim(), sel=await js(`String(getSelection())`);
-    const vorb=p!==M&&cnt(sel)>0&&(y1>0||l1>l0);   // nachgerollt ODER Markierung bei ruhender Maus gewachsen
+    // Lage (b-1): PRIMARY hinkt bei ruhender Maus der Markierung hinterher (Markerzahl, unabhängig von der Zeilenend-Angleichung) — genau der Stand, den v1.22
+    // nach Frist und Sperre stehen ließ (gemessen: 680 von 736, 708 von 4436 Zeichen)
+    const vorb=p!==M&&cnt(sel)>0&&cnt(selR)>cnt(pR);
     await js('AlienDesktop.clip.clear()'); const weg=await leerM();
-    R(`Nachrollen in der Detailansicht (Seitentext, Rand-${off}, Maus ruht 3000 ms): PRIMARY = Endstand, nach dem Löschen leer`, vorb&&weg, {vorb,gleich:p===sel,weg,scroll:[y0,y1],wuchs:[l0,l1],overlay:[info.sh,info.ch],primLen:p.length,selLen:sel.length,primMarker:cnt(p),selMarker:cnt(sel)});
+    R(`Nachrollen in der Detailansicht (Seitentext, ${off<0?(-off)+' px unter dem Fensterrand':'Rand-'+off}, Maus ruht 3000 ms): PRIMARY = Endstand, nach dem Löschen leer`, vorb&&weg, {vorb,stufen,gleich:p===sel,weg,scroll:[y0,y1],wuchs:[l0,l1],ruheMarker:[cnt(pR),cnt(selR)],overlay:[info.sh,info.ch],primLen:p.length,selLen:sel.length,primMarker:cnt(p),selMarker:cnt(sel)});
     if(!weg){ await js('App.lock(); true'); await sleep(1000); R('  danach gesperrt: PRIMARY leer', (await prim())===''||(await prim())===M, {primMarker:cnt(await prim())}); await relockM(); }
     else await closeDetailM();
     await clipboard.selection.clear(); }
@@ -924,9 +938,12 @@ async function sperrziehen(){
     const gesperrt=await js(visible('screen-lock'));
     if(wie==='mouseup'){ await js('App.lock(); true'); await sleep(1200); }
     const pEnd=await prim(); const weg=pEnd===''||pEnd===M;
+    // Vorbedingung (run-13 a H-2): bei ruhender Maus steht Notiztext in PRIMARY — schrieb das Ziehen PRIMARY nicht (Fokus, Last), blieb der Marker stehen und
+    // der Fall war still grün. pHold (nach 2,5 s), nicht pDrag: 200 ms nach dem Ziehen stand unter Last mehrfach noch der Marker.
+    const vorb=cnt(pHold)>0;
     if(wie==='minimize') await js(`App.setBgLock('30'); true`).catch(()=>{});
-    R(`${wie==='timerOhne'?'OHNE Nachrollen (Mitte), ':'Nachrollen, '}dann ${wie==='strgL'?'Strg+L bei ruhender Maus':wie==='timer'||wie==='timerOhne'?'Sperre per Zeitgeber bei ruhender Maus':wie==='minimize'?'Minimieren (Hintergrund „sofort“) bei ruhender Maus':'Loslassen, dann Sperre (Gegenprobe)'}: nach der Sperre kein Notiztext in PRIMARY`, weg,
-      {gesperrt, primNachZug:pDrag.length, selBeiRuhe:sel.length, selMarker:cnt(sel), primBeiRuhe:pHold.length, primMarkerBeiRuhe:cnt(pHold), primNachSperre:pEnd.length, markerNachSperre:cnt(pEnd)});
+    R(`${wie==='timerOhne'?'OHNE Nachrollen (Mitte), ':'Nachrollen, '}dann ${wie==='strgL'?'Strg+L bei ruhender Maus':wie==='timer'||wie==='timerOhne'?'Sperre per Zeitgeber bei ruhender Maus':wie==='minimize'?'Minimieren (Hintergrund „sofort“) bei ruhender Maus':'Loslassen, dann Sperre (Gegenprobe)'}: nach der Sperre kein Notiztext in PRIMARY`, vorb&&weg,
+      {vorb, gesperrt, primNachZug:pDrag.length, selBeiRuhe:sel.length, selMarker:cnt(sel), primBeiRuhe:pHold.length, primMarkerBeiRuhe:cnt(pHold), primNachSperre:pEnd.length, markerNachSperre:cnt(pEnd)});
     await clipboard.selection.clear();
     await relockM();
     if(wie==='minimize') await js(`App.setBgLock('30'); true`).catch(()=>{});
@@ -1007,6 +1024,179 @@ async function spiegel(){
   app.quit();
 }
 
+// v1.23, Release-Audit run-13 Prüfer a (Hinweis H-1 Testlücke, Fund a-1), übernommen aus run-13/a/proben-a.cjs: die heikelsten Pass-Stellen (Passwortfeld
+// type=password — Chromium legt dessen Markierung im KLARTEXT in PRIMARY —, Suchfeld, Passphrase am Sperrbildschirm mit DEK null) und der Fokuswechsel
+// zwischen Drücken und Loslassen. pwnachrollen/sperrhalten: gegen v1.22 rot; fokusklick/spiegelfeld/fremdknopf: gegen die erste v1.23-Fassung von selMoved
+// (selKey verglich nach einem Fokuswechsel Feld mit Seiten-Range) rot. Jede Probe meldet rot, wenn ihre Geste die Lage nicht herstellt (vorb im Ergebnis).
+// Innenkante eines Feldes (l/r ohne Polster und Rahmen), Außenkante R, Zeilenmitte y
+const boxM=id=>js(`(()=>{ const t=document.getElementById(${JSON.stringify(id)}); const b=t.getBoundingClientRect(), cs=getComputedStyle(t);
+  const l=b.left+parseFloat(cs.paddingLeft)+parseFloat(cs.borderLeftWidth), r=b.right-parseFloat(cs.paddingRight)-parseFloat(cs.borderRightWidth);
+  const y=t.tagName==='TEXTAREA'?b.top+parseFloat(cs.borderTopWidth)+parseFloat(cs.paddingTop)+8:b.top+b.height/2;
+  return {l,r,R:b.right,y,w:b.width,ih:innerHeight,iw:innerWidth,sicht:b.width>0&&b.top>=0&&b.bottom<=innerHeight}; })()`);
+const posM=(sel,zeigen)=>js(`(()=>{ const n=document.querySelector(${JSON.stringify(sel)}); if(!n) return null; ${zeigen?"n.scrollIntoView({block:'center'});":''} const b=n.getBoundingClientRect(); return {x:b.x+b.width/2,y:b.y+b.height/2}; })()`);
+const lageM=feld=>js(`(()=>{ const g=getSelection(), t=document.getElementById(${JSON.stringify(feld)}); return {akt:document.activeElement&&(document.activeElement.id||document.activeElement.tagName), coll:g.rangeCount?g.getRangeAt(0).collapsed:null, f:[t.selectionStart,t.selectionEnd]}; })()`);
+const ziehM=async(mouse,a,z,n,ms)=>{ mouse('mouseDown',a.x,a.y); for(let i=1;i<=n;i++){ mouse('mouseMove',a.x+(z.x-a.x)*i/n,a.y+(z.y-a.y)*i/n,{mod:['leftButtonDown']}); await sleep(ms); } };
+// Klick mit 1 px Zittern (Drücken, 1 px Bewegung mit gehaltener Taste, Loslassen) bzw. ohne Bewegung
+const klickM=async(mouse,k,zitter)=>{ mouse('mouseDown',k.x,k.y); await sleep(zitter?40:80); if(zitter){ mouse('mouseMove',k.x+1,k.y,{mod:['leftButtonDown']}); await sleep(40); } mouse('mouseUp',k.x+(zitter?1:0),k.y); };
+
+// [2r] H-1: waagrechtes Nachrollen in einzeiligen Feldern (wie [2l] im Notizfeld): bis hinter den Feldrand ziehen, Maus ruht → Chromium rollt das Feld nach,
+// die Markierung wächst ohne Eingabeereignis. PRIMARY = Endstand, nach dem Löschen leer. v1.22 (Prüfer a): f-pass 109 von 649 Zeichen, Suche 48, lock-pass 45 blieben stehen.
+async function pwnachrollen(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='Q'+process.pid, M='mk-pw-'+process.pid;
+  const cnt=t=>(t.match(new RegExp(G,'g'))||[]).length;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  // lang genug, dass das Feld in 3 s Ruhe nicht ans Ende rollt (sonst holt eine verspätet zugestellte Bewegung PRIMARY ein, die Lage wäre nicht hergestellt)
+  const lang=Array.from({length:150},(_,i)=>G+'x'+i).join('-');
+  const fall=async(feld,vor)=>{ await vor();
+    const da=await js(`(()=>{ const t=document.getElementById('${feld}'); t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); t.scrollLeft=0; return t.value===${JSON.stringify(lang)}&&t.scrollWidth>t.clientWidth+200; })()`); await sleep(250);
+    await clipboard.selection.writeText(M); await ensureFocusM();
+    const b=await boxM(feld), dx=Number(process.env.AP_PWDX||40); const a={x:b.l+3,y:b.y}, z={x:Math.min(b.R+dx,b.iw-12),y:b.y};
+    // Ziehen an Zustände gebunden (gemessen 17.10.2026): nach einer Ruhephase stellt Chromium hier Mausbewegungen nur noch gebündelt im 1-Hz-Bildtakt zu —
+    // kam die erste verarbeitete Bewegung erst hinter dem Feldrand an, rollte das Feld nicht nach (beobachtet: lock-pass, Suche je nach Lauf). Darum in Stufen IM Feld,
+    // je bis die Markierung gewachsen ist, dann hinter den Rand, bis das Feld rollt, dann noch einige Pixel weiter (Prüfer a).
+    const T=`document.getElementById('${feld}')`; let stufen=0;
+    mouse('mouseDown',a.x,a.y); await sleep(40);
+    for(let i=1;i<=6;i++){ const e0=await js(`${T}.selectionEnd`); mouse('mouseMove',a.x+(b.r-8-a.x)*i/6,a.y,{mod:['leftButtonDown']}); if(await until(`${T}.selectionEnd>${e0}`,2000)) stufen++; }
+    mouse('mouseMove',z.x,a.y,{mod:['leftButtonDown']}); const rollt=await until(`${T}.scrollLeft>0`,3000);
+    for(let i=1;i<=6;i++){ mouse('mouseMove',Math.min(z.x+i*2,b.iw-2),a.y+(i%2),{mod:['leftButtonDown']}); await sleep(40); }
+    await sleep(120); const x0=await js(`document.getElementById('${feld}').scrollLeft`), p0=await prim(), s0=await fselM(feld); await sleep(3000);
+    const x1=await js(`document.getElementById('${feld}').scrollLeft`), pR=await prim(), sR=await fselM(feld), selR=sR.v.slice(sR.s,sR.e);
+    mouse('mouseUp',Math.min(z.x+12,b.iw-2),a.y); await sleep(700);
+    const p=await prim(), s=await fselM(feld), sel=s.v.slice(s.s,s.e);
+    // Lage hergestellt (b-1): Feld voll + fokussiert, das Ziehen schrieb PRIMARY, das Feld ist nachgerollt (x1>0) und PRIMARY hinkt bei ruhender Maus der
+    // Markierung hinterher (Chromium schreibt beim Nachrollen ohne Eingabeereignis nicht neu) — genau der Stand, den v1.22 nach Frist und Sperre stehen ließ
+    const vorb=da&&b.sicht&&p0!==M&&cnt(p0)>0&&x1>0&&pR!==selR&&cnt(selR)>cnt(pR);
+    await js('AlienDesktop.clip.clear()'); const weg=await leerM();
+    R(`Nachrollen waagrecht in #${feld}${feld==='f-pass'?' (type=password, Klartext)':feld==='lock-pass'?' (Sperrbildschirm, DEK null)':''}: PRIMARY = Endstand, nach dem Löschen leer`, vorb&&p===sel&&weg,
+      {vorb,da,stufen,rollt,box:[Math.round(b.l),Math.round(b.R),b.iw],z:Math.round(z.x),x:[x0,x1],zug:[p0.length,s0.e-s0.s],ruhe:[pR.length,selR.length],primLen:p.length,selLen:sel.length,gleich:p===sel,weg,sel:[s.s,s.e,s.akt]});
+    await clipboard.selection.clear(); };
+  await fall('f-pass',async()=>{ await formM('PW-Lang',''); await fill('f-pass',lang); });
+  await fall('search',async()=>{ await js(`App.tab('list'); true`); await sleep(300); await fill('search',lang); await sleep(200); });
+  await fill('search','');
+  await fall('lock-pass',async()=>{ await js('App.lock(); true'); await sleep(900); await fill('lock-pass',lang); });
+  await relockM();
+}
+
+// [2s] H-1: Sperre bei gehaltener Maus (wie [2n]) an den Pass-Stellen, die sperrziehen nicht hat: Detailansicht (Seitentext), Passwortfeld, Suchfeld.
+// v1.22: Detail per Zeitgeber 514, f-pass (Strg+L) 109, Suche (Zeitgeber) 57 Zeichen nach der Sperre in PRIMARY.
+async function sperrhalten(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='H'+process.pid, M='mk-halt-'+process.pid, TD='Halt-'+process.pid;   // Titel je Prozess eindeutig (Lehre Spiegel-<pid>)
+  const cnt=t=>(t.match(new RegExp(G,'g'))||[]).length;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  const lines=Array.from({length:150},(_,i)=>'Zeile '+i+' '+G+' text').join('\n'), lang=Array.from({length:60},(_,i)=>G+'x'+i).join('-');
+  R('Eintrag mit langen Notizen gespeichert', await saveM(TD,lines));
+  for(const v of (process.env.AP_HALT||'detail:strgL,detail:timer,fpass:strgL,search:timer').split(',')){ const [wo,wie]=v.split(':'); let a,z;
+    if(wo==='detail'){ if(!(await openDetailM(TD))){ R('Detail offen',false); continue; }
+      await js(`document.getElementById('detail-overlay').scrollTop=0; true`); const q=await txtPosM('#d-notes','Zeile 2 '); const ih=await js('innerHeight'); a={x:q.x-4,y:q.y}; z={x:q.x+120,y:ih-2}; }
+    else { const feld=wo==='fpass'?'f-pass':'search';
+      if(wo==='fpass'){ await formM('Halt-PW',''); await fill('f-pass',lang); } else { await js(`App.tab('list'); true`); await sleep(300); await fill('search',lang); }
+      await js(`(()=>{ const t=document.getElementById('${feld}'); t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); t.scrollLeft=0; return true; })()`); await sleep(250);
+      const b=await boxM(feld); a={x:b.l+3,y:b.y}; z={x:Math.min(b.r+12,b.iw-3),y:b.y}; }
+    await clipboard.selection.writeText(M); await ensureFocusM();
+    await ziehM(mouse,a,z,14,30);
+    await sleep(200); const pDrag=await prim(); await sleep(2500); const pHold=await prim();
+    if(wie==='strgL') strgLM(wc); else await js(`setTimeout(()=>App.lock(),0); true`);
+    await sleep(1500); mouse('mouseUp',z.x,z.y); await sleep(900);
+    const gesperrt=await js(visible('screen-lock')), pEnd=await prim(), vorb=cnt(pHold)>0&&gesperrt;   // Vorbedingung: bei ruhender Maus Text in PRIMARY, dann wirklich gesperrt
+    R(`Sperre (${wie==='strgL'?'Strg+L':'Zeitgeber'}) bei gehaltener Maus nach Ziehen in ${wo==='detail'?'der Detailansicht':wo==='fpass'?'#f-pass (type=password)':'#search'}: danach kein Markierungstext in PRIMARY`, vorb&&cnt(pEnd)===0,
+      {vorb,pDragMarker:cnt(pDrag),pHoldMarker:cnt(pHold),pHoldLen:pHold.length,pEndLen:pEnd.length,pEndMarker:cnt(pEnd),gesperrt});
+    await clipboard.selection.clear(); await relockM();
+    if(wo==='search') await fill('search','');
+  }
+}
+
+// [2t] a-1 (c): Feld per Ziehen markiert → Klick auf ein Kästchen (Fokus dort, die Feld-Markierung bleibt, Seiten-Range zusammengeklappt) → Frist löscht PRIMARY →
+// Klick mit 1 px Zittern IN die alte Markierung. Die erste Fassung von selMoved verglich die Seiten-Range (Drücken) mit [feld,s,e] (Loslassen) → „geändert“ →
+// reselect schrieb die schon gelöschte Markierung wieder nach PRIMARY (f-pass: 12 Zeichen Klartext), in f-pass, f-notes und f-title.
+async function fokusklick(){
+  const wc=win.webContents, mouse=mouseOfM(wc), PW='PWgeheim'+process.pid+'abcdefghijklmnopqrstuvwxyz0123456789', KN=process.env.AP_KNOPF||'#f-fav';
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  for(const feld of (process.env.AP_FELDER||'f-pass,f-notes,f-title').split(',')){
+    await formM('Fokus-'+feld,''); await fill(feld,PW); await sleep(150);
+    await js(`(()=>{ const t=document.getElementById('${feld}'); t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); return true; })()`); await sleep(200);
+    await clipboard.selection.clear(); await ensureFocusM();
+    let b=await boxM(feld); await ziehM(mouse,{x:b.l+2,y:b.y},{x:b.l+92,y:b.y},8,30); mouse('mouseUp',b.l+92,b.y); await sleep(500);
+    const s1=await fselM(feld), T=s1.v.slice(s1.s,s1.e), p1=await prim();
+    const k=await posM(KN,true); await sleep(150); mouse('mouseDown',k.x,k.y); mouse('mouseUp',k.x,k.y); await sleep(400);
+    const nachKnopf=await lageM(feld);
+    await js('AlienDesktop.clip.clear()'); const weg=await leerM(); await sleep(400);   // wie Fristablauf
+    await js(`document.getElementById('${feld}').scrollIntoView({block:'center'}); true`); await sleep(150);
+    b=await boxM(feld); const m={x:b.l+2+45,y:b.y};   // Mitte der alten Markierung (l+2 … l+92)
+    const vorK=await lageM(feld);
+    await klickM(mouse,m,true); await sleep(700);
+    const p2=await prim(), s2=await fselM(feld);
+    // Lage: Markierung stand in PRIMARY, Fokus auf dem Kästchen, das Feld behielt [s,e] (Punkte-Falle), PRIMARY nach der Frist leer, Markierung vor dem Zitter-Klick noch da
+    const vorb=T.length>=8&&p1===T&&nachKnopf.akt===KN.slice(1)&&nachKnopf.f[0]===s1.s&&nachKnopf.f[1]===s1.e&&weg&&vorK.f[0]<vorK.f[1];
+    R(`${feld}: markiert, Klick auf ${KN}, Frist, Klick mit 1 px Zittern IN die alte Markierung: die gelöschte Markierung kommt NICHT wieder nach PRIMARY`, vorb&&!p2.includes(T),
+      {vorb,tLen:T.length,p1GleichT:p1===T,nachKnopf,weg,p2Len:p2.length,p2HatT:p2.includes(T),s2:[s2.s,s2.e,s2.akt]});
+    { await js('App.lock(); true'); await sleep(1500); const pL=await prim();
+      R(`  ${feld}: danach Sperre: PRIMARY leer`, pL==='', {nachLen:pL.length}); await relockM(); }
+    await clipboard.selection.clear();
+  }
+}
+
+// [2u] a-1 (a): wie [2p], aber Markierung im Notizfeld (Textfeld) und als Geste ein Klick mit 1 px Zittern auf ein Kästchen (Fokus wandert, die Feld-Markierung
+// bleibt). Erste Fassung von selMoved: peek → die Hülle las PRIMARY am hängenden fremden Besitzer, die gespiegelte Kopie blieb nach Frist, Strg+L und Beenden.
+// AP_FVOR=knopf (Vorgabe) | knopfstill | shift (Kontrollen)
+async function spiegelfeld(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='GEHEIM-'+process.pid, F='fremd-haengt-'+process.pid, KN=process.env.AP_KNOPF||'#f-fav', VOR=process.env.AP_FVOR||'knopf';
+  if(!(await unlockM())){ R('entsperrt',false); fremdEndeM(); R('Schritt vollständig',true); app.exit(0); return; }
+  const body=Array.from({length:10},(_,i)=>'Absatz '+i+' '+G+' text.').join('\n');
+  await formM('SpiegelFeld',body);
+  await js(`(()=>{ const t=document.getElementById('f-notes'); t.style.height='200px'; t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); t.scrollTop=0; return true; })()`); await sleep(200);
+  await clipboard.selection.clear(); await ensureFocusM();
+  const i0=body.indexOf('Absatz 1 '), i1=body.indexOf('Absatz 2 ')+9; const a=await caretXYM('f-notes',i0), z=await caretXYM('f-notes',i1);
+  await ziehM(mouse,{x:a.x-2,y:a.y},z,8,30); mouse('mouseUp',z.x,z.y); await sleep(600);
+  const s=await fselM('f-notes'); const S=s.v.slice(s.s,s.e); const pS=(await prim())===S;
+  const own=await fremdStartM(F,'selection'); await sleep(300); const vorF=(await prim())===F; fremdStopM(); await sleep(200);
+  const k=await posM(KN,false);
+  if(VOR==='knopf'||VOR==='knopfstill') await klickM(mouse,k,VOR==='knopf'); else keyNCM(wc,'Shift');
+  await sleep(400);
+  const nachVor=await lageM('f-notes');
+  strgCM(wc);
+  await sleep(600); const rc=()=>Promise.race([clipboard.readText(),sleep(3000).then(()=>'HAENGT')]); const kop0=await rc(); const kop=kop0===S;
+  const okQ=await fremdStartM(S,'selection','Q'); await sleep(500);
+  const r0=await liesM(G);
+  const tc=Date.now(); await Promise.race([js('AlienDesktop.clip.clear()'),sleep(6000)]); const clearMs=Date.now()-tc; await sleep(2500);
+  const r1=await liesM(G); const c1r=await rc(); const c1=c1r===S;
+  strgLM(wc); await sleep(3000); const r2=await liesM(G); const gesperrt=await js(visible('screen-lock'));
+  // Lage (a-1): Fokus nach der Geste auf dem Kästchen, die Feld-Markierung steht noch (bei shift bleibt der Fokus im Feld)
+  const lage=VOR==='shift'?nachVor.akt==='f-notes':nachVor.akt===KN.slice(1)&&nachVor.f[0]===s.s&&nachVor.f[1]===s.e;
+  R('Vorbedingungen ('+VOR+')', own&&vorF&&pS&&lage&&kop&&okQ&&r0.mark>0, {own,vorF,pS,lage,kop,kopHaengt:kop0==="HAENGT",okQ,spiegelVorher:r0,nachVor,kopLen:String(kop0).length,sLen:S.length});
+  R('Kopie aus CLIPBOARD gelöscht (Frist)', !c1, {c1, eigenesClipboardLesenHaengt:c1r==='HAENGT'});
+  R('gespiegelte Kopie in PRIMARY nach dem Löschen (Frist) weg', r1.mark===0, {r1,clearMs});
+  R('gespiegelte Kopie in PRIMARY nach Strg+L weg', r2.mark===0, {r2,gesperrt});
+  const t0=Date.now();
+  app.on('will-quit',ev=>{ ev.preventDefault(); const ms=Date.now()-t0; (async()=>{ const r3=await liesM(G);
+    R('gespiegelte Kopie in PRIMARY beim Prozessende weg', r3.mark===0, {r3,ms});
+    fremdEndeM(); R('Schritt vollständig',true); app.exit(0); })(); });
+  app.quit();
+}
+
+// [2v] a-1 (b): wie [2o] (fremde Auswahl = erstes Wort der Feld-Markierung), Geste = Klick auf ein Kästchen mit/ohne 1 px Zittern, dann Löschen (wie Frist).
+// Erste Fassung von selMoved: peek beim Zitter-Klick → die Hülle merkte den Hash der fremden Auswahl und löschte sie. AP_KV=knopf,knopfstill,knopf (Vorgabe)
+async function fremdknopf(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='GEHEIM-'+process.pid, KN=process.env.AP_KNOPF||'#f-fav';
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  const lines=Array.from({length:12},(_,i)=>'Zeile '+i+' '+G+' text').join('\n');
+  for(const v of (process.env.AP_KV||'knopf,knopfstill,knopf').split(',')){
+    await formM('FremdKnopf',lines);
+    await js(`(()=>{ const t=document.getElementById('f-notes'); t.style.height='200px'; t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); t.scrollTop=0; return true; })()`); await sleep(150);
+    await clipboard.selection.clear(); await ensureFocusM();
+    const i0=lines.indexOf('Zeile 1 '), i1=lines.indexOf('Zeile 3 ')+9; const a=await caretXYM('f-notes',i0), z=await caretXYM('f-notes',i1);
+    await ziehM(mouse,{x:a.x-2,y:a.y},z,8,30); mouse('mouseUp',z.x,z.y); await sleep(600);
+    const s=await fselM('f-notes'); const S=s.v.slice(s.s,s.e); const pS=(await prim())===S; const F=S.split(' ')[0];
+    await clipboard.selection.writeText(F); await sleep(200); const vorF=(await prim())===F;
+    const k=await posM(KN,false); await klickM(mouse,k,v==='knopf');
+    await sleep(600); const nach=await lageM('f-notes');
+    await js('AlienDesktop.clip.clear()'); await sleep(800); const pEnd=await prim();
+    const vorb=pS&&vorF&&F.length>0&&nach.akt===KN.slice(1)&&nach.f[0]===s.s&&nach.f[1]===s.e;   // Lage: Fokus auf dem Kästchen, Feld-Markierung steht noch
+    R(`fremde Auswahl = erstes Wort der Feld-Markierung, Klick auf ${KN} ${v==='knopf'?'mit 1 px Zittern':'ohne Bewegung'}, Löschen: fremde Auswahl bleibt stehen`, vorb&&pEnd===F,
+      {vorb,pS,vorF,nach,Flen:F.length,primNachher:pEnd===F?'fremd':pEnd===''?'leer':'anders'});
+    await clipboard.selection.clear();
+  }
+}
+
 app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
   w.webContents.once('did-finish-load',async()=>{
     try{
@@ -1020,6 +1210,11 @@ app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
       else if(STEP==='sperrziehen') await sperrziehen();
       else if(STEP==='fremdanfang') await fremdanfang();
       else if(STEP==='spiegel'){ await spiegel(); return; }   // endet in will-quit (eigene Endmarke)
+      else if(STEP==='pwnachrollen') await pwnachrollen();
+      else if(STEP==='sperrhalten') await sperrhalten();
+      else if(STEP==='fokusklick') await fokusklick();
+      else if(STEP==='spiegelfeld'){ await spiegelfeld(); return; }   // endet in will-quit (eigene Endmarke)
+      else if(STEP==='fremdknopf') await fremdknopf();
       else if(STEP==='sichern') await sichern();
       else if(STEP==='quit'||STEP==='quithang'){ await quitStep(STEP==='quithang'); return; }   // endet in will-quit (eigene Endmarke)
       else if(STEP==='quitslow'){ await quitSlow(); return; }

@@ -1104,6 +1104,9 @@ const App = (function(){
     if(!dek||!vault) throw lockedErr();
     const list=vault.entries;                                  // Eintragsstand mitpinnen (Audit run-5 #6)
     const entries=purgeTombstones(wipeTrash(vault.entries));   // Wipe/Purge erst NACH erfolgreichem Schreiben committen
+    // Dieselbe Vorwärts-Abwehr wie beim Lesen (run-13 b-5): ein Programmfehler, der ein Hilfsfeld am Eintrag liegen lässt, scheitert hier beim Schreiben,
+    // statt den eigenen Tresor beim nächsten Entsperren als „neuere App-Version“ dauerhaft zu sperren (Backups trügen das Feld mit)
+    if(entries.some(e=>newerType(e)||newerKeys(e))){ toast(tr('err.saveFailed')); throw new Error('selfcheck'); }
     const body=await encryptBody(Object.assign({},vault,{entries}), dek, kdf);
     // Nachprüfen: das Pinnen allein genügt nicht, der Stand kann während des await veraltet sein (Querfund Sachwert-Tresor v2.9.1).
     if(!DEK||VAULT!==vault) throw lockedErr();                 // zwischenzeitlich gesperrt → NICHT mehr schreiben
@@ -1722,7 +1725,7 @@ const App = (function(){
   function genUse(){ if(!genValue) return; if(!editId&&!$('f-title').value) { editId=null; resetForm(); $('add-title').textContent=tr('add.titleNew'); } if(formType!=='login') setEntryType('login'); $('f-pass').value=genValue; meterForm(); tab('add'); }
   function genIntoForm(){ $('fg-panel').classList.remove('hidden'); const b=document.querySelector('[data-showpass="f-pass"]'); if(b) setEye(b,true); else $('f-pass').type='text'; fgGen(); }   // „Generieren“: Panel auf, EINMAL aufdecken, erzeugen
   function suggestPass(){ const r=genWords(6,'-',false,false); if(!r.pw) return toast(tr('toast.wordsMissing')); $('setup-pass1').value=r.pw; $('setup-pass2').value=r.pw; document.querySelectorAll('[data-showpass="setup-pass1"],[data-showpass="setup-pass2"]').forEach(b=>setEye(b,true)); meterSetup(); toast(tr('toast.suggest')); }   // Augen über setEye: #setup-show gab es seit dem Auge nicht mehr → TypeError, kein Balken/Toast (Release-Audit v1.18 B-2)
-  function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const c=passCheck(p), st=c.level; const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren();
+  function renderMeter(inId,outId){ const p=$(inId).value, o=$(outId); if(!p){ o.textContent=''; return; } const c=passCheck(p), st=c.level; /(?:)/.exec(''); const col=['var(--red)','var(--orange)','var(--text-mid)','var(--neon)'][st]; o.replaceChildren();
     const txt=p.length<12?tr('pass.s0'):c.weak?tr('pass.weak',{why:whyText(c.why)}):tr('pass.est',{s:tr('pass.s'+st)})+(c.why.length?' · '+tr('pass.has',{why:whyText(c.why)}):'');
     const s=el('span',null,'▮'.repeat(st+1)+'▯'.repeat(3-st)+' '+txt); s.style.color=col; o.appendChild(s); }
   function meterSetup(){ renderMeter('setup-pass1','setup-meter'); }
@@ -1817,19 +1820,26 @@ const App = (function(){
     // überschrieb den markierten Text. Ohne Mausbewegung gibt es kein Nachrollen, dort bleibt alles bei Chromium.
     // Und nur, wenn sich die Markierung seit dem Drücken geändert hat (Notes b3 H-1): ein Klick mit Zittern oder ein Ziehen über einen Knopf schrieb eine stehende,
     // nach der Frist schon gelöschte Markierung sonst neu nach PRIMARY.
-    let selDrag=false, selAtDown=[];
-    const selKey=()=>{ try{ const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number') return [a,a.selectionStart,a.selectionEnd];
-        const g=window.getSelection(); return g&&g.rangeCount?[g.anchorNode,g.anchorOffset,g.focusNode,g.focusOffset]:[]; }catch(_){ return []; } };
-    const selSame=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]), selMoved=()=>!selSame(selAtDown,selKey());
+    // Beim Drücken BEIDE Darstellungen merken (Seiten-Range und [s,e] des fokussierten und des Ziel-Feldes) und gleich mit gleich vergleichen (run-13 a-1):
+    // wanderte der Fokus zwischen Drücken und Loslassen (Zitter-Klick auf ein Kästchen bei markiertem Feld, in ein Feld mit verdeckter Markierung), verglich die
+    // erste Fassung Feld mit Seiten-Range → immer „geändert“ → reselect und peek ohne eigenes Ziehen (alte Markierung wieder in PRIMARY, Spiegel blieb stehen).
+    let selDrag=false, selAtDown=[[],[]];
+    const isFld=a=>!!a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number';
+    const pgKey=()=>{ const g=window.getSelection(); return g&&g.rangeCount?[g.anchorNode,g.anchorOffset,g.focusNode,g.focusOffset]:[]; };
+    const selKeyAt=t=>{ try{ return [pgKey(),[document.activeElement,t].filter(isFld).map(a=>[a,a.selectionStart,a.selectionEnd])]; }catch(_){ return [[],[]]; } };
+    const selSame=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);
+    const selMoved=()=>{ try{ const a=document.activeElement;
+        if(isFld(a)){ const o=selAtDown[1].find(x=>x[0]===a); return !o||o[1]!==a.selectionStart||o[2]!==a.selectionEnd; }
+        return !selSame(selAtDown[0],pgKey()); }catch(_){ return true; } };
     // selAtDown nach jedem Loslassen, Ziehen-und-Ablegen und beim Sperren leeren (Notes r4-2): es hielt sonst nach der Sperre einen losgelösten Knoten der
     // Detailansicht samt Text bzw. ein Feld bis zum nächsten Drücken fest (Klasse selFrom, run-12 a-4).
-    selReset=()=>{ selAtDown=[]; selHeld=false; selDrag=false; };
-    document.addEventListener('mousedown',ev=>{ if(ev.button===0){ selDrag=false; selHeld=true; selAtDown=selKey(); } },true);
+    selReset=()=>{ selAtDown=[[],[]]; selHeld=false; selDrag=false; };
+    document.addEventListener('mousedown',ev=>{ if(ev.button===0){ selDrag=false; selHeld=true; selAtDown=selKeyAt(ev.target); } },true);
     document.addEventListener('mousemove',ev=>{ if(ev.buttons&1) selDrag=true; else selHeld=false; },true);
-    document.addEventListener('mouseup',ev=>{ const pk=ev.button===0&&selDrag&&selMoved(); if(pk) reselect(); if(ev.button===0){ selDrag=false; selHeld=false; } onSel(pk); if(ev.button===0) selAtDown=[]; });
+    document.addEventListener('mouseup',ev=>{ const pk=ev.button===0&&selDrag&&selMoved(); if(pk) reselect(); if(ev.button===0){ selDrag=false; selHeld=false; } onSel(pk); if(ev.button===0) selAtDown=[[],[]]; });
     // Ziehen-und-Ablegen einer Markierung schluckt das mouseup: drückt man auf den Aegis-Schlüssel (.secret-box, user-select:all markiert schon beim Drücken
     // alles) und bewegt die Maus, startet Chromium ein Ziehen — der Schlüssel lag ungemeldet in PRIMARY, auch nach Frist und Sperre (v1.22, gemessen m122)
-    document.addEventListener('dragstart',()=>{ const m=selHeld&&selMoved(); selHeld=false; selDrag=false; onSel(m); selAtDown=[]; });
+    document.addEventListener('dragstart',()=>{ const m=selHeld&&selMoved(); selHeld=false; selDrag=false; onSel(m); selAtDown=[[],[]]; });
     // Strg+A auch am Tastencode 65: bei nicht-lateinischer Belegung ist ev.key „ф“/„α“, Chromium markiert trotzdem — ohne Meldung lag z. B. eine per Strg+A
     // markierte Passphrase ohne Frist in PRIMARY (Audit run-11 a-1/b-1)
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&((ev.key||'').toLowerCase()==='a'||ev.keyCode===65))) onSel(); });
@@ -2105,7 +2115,7 @@ const App = (function(){
     const gen=bioGen; doBio._busy=true; renderBioGate(); renderPinGate(); let secret=null;
     try{
       const r=await BIO.unlock({title:tr('bio.promptTitle'), subtitle:tr('bio.promptUnlock'), negative:tr('bio.usePass')});
-      secret=b64Bytes(r&&r.secret); if(!secret||secret.length!==32) throw new Error('invalid');
+      secret=b64Bytes(r&&r.secret); /(?:)/.exec(''); if(!secret||secret.length!==32) throw new Error('invalid');   // b64Bytes prüft per Regex: Geheimnis aus RegExp.input/lastMatch (run-13 b-1, Inhaltsfehler-Zweig ohne weitere RegExp)
       const key=await bioKey(secret); secret.fill(0);
       const dek=await unwrapDek(blob, key, f.kdf, false, 'bio');
       if(!blob.k) bioAddK(f.kdf, blob.w);   // bio-AAD hat den Kopf bestätigt (v1.23, Notes a3-1)

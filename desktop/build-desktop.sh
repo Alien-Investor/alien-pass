@@ -13,9 +13,30 @@ rm -f build/release/bundle.ok
 # sind Klartext, ohne Schlüssel (fremder Klon) geht es genauso. Ohne Git (Selbstbau aus einem Archiv) wird wie bisher im Ordner gebaut, kein Release-Build.
 # Diese Datei bleibt Klartext und sourct das verschlüsselte release-quellen.sh bewusst nicht: Liste und Prüfungen stehen hier selbst.
 REPO="$(cd .. && pwd)"
+# Gibt es ein Git-Verzeichnis, aber git scheitert (kein git im PATH, verbogenes GIT_DIR …), wird NICHT still im gemeinsamen Ordner gebaut (v1.23 Runde 1,
+# run-13 c-5: genau der R6-Fall, den das Abbild schließt) — Selbstbau ohne Git nur, wenn es wirklich kein Repo ist
+if [ "${PASS_IM_ABBILD:-}" != 1 ] && [ -e "$REPO/.git" ] && ! git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "FEHLER: $REPO/.git vorhanden, aber git rev-parse scheitert (git im PATH? GIT_DIR?) — kein Bau im gemeinsamen Ordner." >&2; exit 1
+fi
 if [ "${PASS_IM_ABBILD:-}" != 1 ] && git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   [ -z "$(git -C "$REPO" status --porcelain --untracked-files=no)" ] || { echo "FEHLER: nicht committete Änderungen — gebaut wird HEAD, erst committen." >&2; exit 1; }
-  mkdir -p "$HOME/.cache/alien-pass-abbild"; ABB="$(mktemp -d "$HOME/.cache/alien-pass-abbild/desktop.XXXXXX")"
+  # Nicht versionierte Eingaben fehlten im Abbild STILL (v1.23 Runde 1, run-13 c-7); gitignorierte Build-Ordner zeigt git status nicht
+  ST="$(git -C "$REPO" status --porcelain --untracked-files=all -- vendor assets desktop index.html app.js qr.js icon.svg VERSION build-www.sh)"
+  NV="$(grep '^?? ' <<<"$ST" || true)"
+  [ -z "$NV" ] || { echo "FEHLER: nicht versionierte Dateien unter den Quellen — sie fehlten im Abbild von HEAD (erst committen oder entfernen):" >&2; echo "$NV" >&2; exit 1; }
+  # Reste abgebrochener Läufe (v1.23 Runde 1, run-13 c-9): nach SIGKILL/Absturz läuft der trap nicht — Abbild-Ordner und Worktree-Einträge (mit dem verlinkten
+  # git-crypt-Schlüssel) blieben still liegen. Melden und abbrechen, nie selbst löschen; ein laufender Build (Prozess aus .lauf lebt, gleiche Startzeit) ist kein Rest.
+  AB="$HOME/.cache/alien-pass-abbild"
+  lebt() { local p s; [ -f "$1/.lauf" ] && read -r p s < "$1/.lauf" || return 1; [ -n "$s" ] && [ "$(awk '{print $22}' "/proc/$p/stat" 2>/dev/null)" = "$s" ]; }
+  RM=""; WT=""
+  for d in "$AB"/apk.* "$AB"/desktop.*; do [ -e "$d" ] || [ -L "$d" ] || continue; lebt "$d" || RM+="  rm -rf '$d'"$'\n'; done
+  WTL="$(git -C "$REPO" worktree list --porcelain)"
+  while read -r w; do [ -n "$w" ] || continue; d="$(dirname "$w")"; if [ -d "$w" ] && ! lebt "$d"; then WT+="  git -C '$REPO' worktree remove --force '$w'"$'\n'; fi
+    [ -d "$w" ] || WT+="  (verwaister Eintrag $w)"$'\n'; done < <(awk -v ab="$AB/" 'index($0, "worktree " ab) == 1 {print substr($0, 10)}' <<<"$WTL")
+  [ -z "$RM$WT" ] || { { echo "FEHLER: Reste eines abgebrochenen Builds unter $AB (entschlüsselte Quellen / Worktree mit verlinktem git-crypt-Schlüssel)."
+    echo "  Erst sicherstellen, dass kein Build mehr läuft, dann von Hand entfernen (in dieser Reihenfolge) und neu starten:"; printf '%s%s' "$WT" "$RM"
+    echo "  git -C '$REPO' worktree prune"; } >&2; exit 1; }
+  mkdir -p "$AB"; ABB="$(mktemp -d "$AB/desktop.XXXXXX")"; echo "$$ $(awk '{print $22}' /proc/$$/stat)" > "$ABB/.lauf"
   aufraeumen() { git -C "$REPO" worktree remove --force "$ABB/repo" >/dev/null 2>&1 || true; rm -rf "$ABB"; git -C "$REPO" worktree prune || true; }
   trap aufraeumen EXIT
   git -C "$REPO" worktree add -q --no-checkout --detach "$ABB/repo" HEAD
@@ -158,7 +179,12 @@ flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakr
 (cd build/release && sha256sum "$BUNDLE" > SHA256SUMS)
 [ "$(desk_summen)" = "$DESK_SUMS0" ] || { echo "FEHLER: Quellen haben sich während des Baus geändert — neu bauen!" >&2; exit 1; }
 lock_gleich . || { echo "FEHLER: node_modules hat sich während des Baus geändert" >&2; exit 1; }
-# Prüfdatei (wird NICHT hochgeladen): 1. Zeile Bundle-Hash, 2. Zeile Electron-Pin, danach die Quellen (make-release.sh gleicht sie mit dem Tag ab)
-{ sha256sum "build/release/$BUNDLE" | cut -d' ' -f1; echo "electron $EL_VER $EL_SHA"; echo "$DESK_SUMS0"; } > build/release/bundle.ok
+# Prüfdatei (wird NICHT hochgeladen): 1. Zeile Bundle-Hash, 2. Zeile Electron-Pin, danach die Quellen (make-release.sh gleicht sie mit dem Tag ab).
+# Nur aus dem Abbild (v1.23 Runde 1, run-13 c-5): ein Selbstbau ohne Git (Archiv) bekommt keine — make-release.sh lädt ohne sie nichts hoch.
+if [ "${PASS_IM_ABBILD:-}" = 1 ]; then
+  { sha256sum "build/release/$BUNDLE" | cut -d' ' -f1; echo "electron $EL_VER $EL_SHA"; echo "$DESK_SUMS0"; } > build/release/bundle.ok
+else
+  echo "Hinweis: Selbstbau ohne Git — keine bundle.ok (kein Release-Build)."
+fi
 echo "Bundle: desktop/build/release/$BUNDLE"; cat build/release/SHA256SUMS
 echo "Signieren (Nutzer): gpg --local-user 100F9E25BFAEA807DBC357D750C0D78583BFCB81 --armor --detach-sign desktop/build/release/SHA256SUMS"

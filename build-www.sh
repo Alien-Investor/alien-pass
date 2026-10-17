@@ -28,16 +28,26 @@ if(!js.includes("window.EFF_WORDS="+JSON.stringify(words)+";")){console.error("F
 # markieren unbelegte Teile mit [eckigen Klammern] („nur, wenn der Gerätetest sie belegt“) — ein stehengebliebener Teil im Handbuch ginge sonst ungeprüft
 # in APK und Bundle. Geprüft wird der sichtbare Text von index.html (ohne Kommentare/Skripte/Tags, dazu title/aria-label/placeholder/content/alt) und
 # alle Zeichenketten der Tabellen I18N und T in app.js (gemessen: 0 Fehlalarme, ROT für DE, EN und T). Findet sie eine Tabelle nicht, bricht der
-# Build ab (nie still ungeprüft).
+# Build ab (nie still ungeprüft). Seit v1.23 Runde 1 (Release-Audit run-13 c-4, so streng wie die CHANGELOG-Regel): Groß-/Kleinschreibung egal, dazu ???,
+# XX (auch „XX.10.2026“) und vX.Y; Attribute auch in einfachen Anführungszeichen; ein Wert in I18N/T außerhalb von "…" (einfache Anführungszeichen,
+# Template-Literal) bricht ab, weil die Prüfung ihn sonst gar nicht läse (Zerleger: "…" und Kommentare werden übersprungen). Gemessen über alle Tags,
+# HEAD und Arbeitsbaum: 0 Fehlalarme.
 node -e '
-const fs=require("fs"); const RX=/\[(?![ xX]\])[^\]]{1,300}\](?!\()|\b(TODO|TBD|FIXME|XXX)\b/;
+const fs=require("fs"); const RX=/\[(?![ xX]\])[^\]]{1,300}\](?!\()|\?\?\?|\bX{2,}\b|\bvX\.Y\b|\b(?:TODO|TBD|FIXME)\b/i;
 const raw=fs.readFileSync("index.html","utf8").replace(/<!--[\s\S]*?-->/g," ").replace(/<(script|style)[\s\S]*?<\/\1>/g," ");
-const attrs=[...raw.matchAll(/\b(?:title|aria-label|placeholder|content|alt)="([^"]*)"/g)].map(m=>m[1]).join("\n");
+const attrs=[...raw.matchAll(/\b(?:title|aria-label|placeholder|content|alt)=(?:"([^"]*)"|\x27([^\x27]*)\x27)/g)].map(m=>m[1]??m[2]).join("\n");
 const html=raw.replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&")+"\n"+attrs;
 const js=fs.readFileSync("app.js","utf8").split("\n");
 const block=(start)=>{ const i=js.findIndex(l=>l.startsWith(start)); if(i<0){ console.error("FEHLER: Tabelle "+start+" in app.js nicht gefunden (Platzhalter-Prüfung)"); process.exit(1); }
   const out=[]; for(let k=i;k<js.length;k++){ out.push(js[k]); if(k>i&&/^};/.test(js[k])) return out.join("\n"); } console.error("FEHLER: Ende von "+start+" nicht gefunden"); process.exit(1); };
 const strs=(src)=>[...src.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m=>m[1]).filter(s=>!/^[a-z]+(\.[A-Za-z0-9]+)+$/.test(s)).join("\n").replace(/<[^>]+>/g," ");
+const fremd=(src)=>{ for(let i=0;i<src.length;i++){ const c=src[i];
+  if(c==="\""){ for(i++;i<src.length&&src[i]!=="\"";i++){ if(src[i]==="\\") i++; } continue; }
+  if(c==="/"&&src[i+1]==="/"){ while(i<src.length&&src[i]!=="\n") i++; continue; }
+  if(c==="/"&&src[i+1]==="*"){ const j=src.indexOf("*/",i+2); if(j<0) return "/*"; i=j+1; continue; }
+  if(c==="\x27"||c==="\x60") return src.slice(i,i+60); }
+  return null; };
+for(const start of ["const I18N = {","const T = {"]){ const f=fremd(block(start)); if(f!==null){ console.error("FEHLER: "+start+" in app.js hat einen Wert außerhalb von \"…\" (einfache Anführungszeichen/Template) — die Platzhalter-Prüfung läse ihn nicht: "+JSON.stringify(f)); process.exit(1); } }
 for(const [name,text] of [["index.html",html],["app.js I18N",strs(block("const I18N = {"))],["app.js T",strs(block("const T = {"))]]){
   const m=RX.exec(text); if(m){ console.error("FEHLER: Platzhalter in "+name+": "+JSON.stringify(m[0].slice(0,120))+" — erst auflösen (Gerätetest/Faktencheck)"); process.exit(1); } }
 ' || { echo >&2 "FEHLER: Platzhalter-Prüfung der App-Texte — Build abgebrochen!"; exit 1; }
