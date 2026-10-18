@@ -1,6 +1,6 @@
 # Changelog — Alien Pass
 
-## v1.23 — 2026-10-17
+## v1.23 — 2026-10-18
 
 Härtungs-Release mit Korrekturen aus den internen Prüfungen der Schwester-Apps (Sachwert-Tresor, Alien Notes, BTC Steuertool), jeweils erst an
 Alien Pass geprüft, und aus einem internen Release-Audit dieser Version in zwei Runden. Keine Änderung an der Verschlüsselung; weiterhin keine
@@ -16,6 +16,8 @@ Internet-Berechtigung (nur Fingerabdruck).
   die App sie nicht und meldet, dass sie aus einer neueren App-Version stammt, statt die unbekannten Teile still zu entfernen. Das schützt die Daten,
   sobald eine künftige Version neue Eintragsfelder einführt. Alle bisherigen Dateien und Backups öffnen weiter. Dieselbe Prüfung läuft auch beim
   Speichern, damit ein Programmfehler die eigene Datei nicht auf diesem Weg sperrt.
+- **Android — Backup:** Mit „Sperren im Hintergrund: sofort“ sperrte das Teilen-Blatt die App, bevor sie den Zeitpunkt des Backups eintrug — „Letztes
+  Backup“ blieb alt, und die Erinnerung kam immer wieder, obwohl die Datei gespeichert war. Die App trägt ihn jetzt ein, sobald die Datei im Ordner Dokumente liegt.
 - **Rückfrage-Dialog:** Strg+Z und Strg+Y machen bei offener Rückfrage auch einen mit der Maus abgelegten Text nicht mehr rückgängig.
 - **Passphrase und PIN:** Die Skript-Engine bewahrt den Text der letzten Textsuche auf. Die App leert ihn jetzt sofort nach dem Einrichten und nach einem
   Wechsel der Passphrase, bei der Stärke-Anzeige während der Eingabe und nach der PIN-Eingabe am Desktop (bisher teils erst beim Sperren). Wird gesperrt,

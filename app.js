@@ -1877,9 +1877,10 @@ const App = (function(){
   }
   if(DESK&&typeof DESK.onLock==='function') DESK.onLock(()=>{ if(DEK||pendingUnlock) lock(); });   // Hülle meldet Ruhezustand/Bildschirmsperre — nur außerhalb des Flatpaks wirksam (im Käfig kein logind; Portal-Weg bewusst verworfen)
   const BIO = (isNative && CAP.Plugins && CAP.Plugins.Biometric) ? CAP.Plugins.Biometric : null;   // Fingerabdruck-Plugin (patch-hardening.mjs), Web: kein Slot
-  async function nativeSaveAndShare(name, content, dir, shareText){
+  async function nativeSaveAndShare(name, content, dir, shareText, onWritten){
     const FS=CAP.Plugins&&CAP.Plugins.Filesystem; if(!FS) throw new Error('Filesystem-Plugin fehlt');
     const w=await FS.writeFile({path:name, data:content, directory:dir||'DOCUMENTS', encoding:'utf8', recursive:true});
+    if(onWritten) await onWritten();                                   // nach dem Schreiben, VOR dem Teilen-Blatt (v1.23, A3); darf nicht werfen
     try{ const SH=CAP.Plugins&&CAP.Plugins.Share; if(SH) await SH.share({title:name, text:shareText||'Alien Pass Backup', url:w.uri}); }catch(_){}
     return w.uri;
   }
@@ -1893,19 +1894,25 @@ const App = (function(){
       try{ await persist(); }catch(e){ if(e&&e.locked) return; if(DESK){ $('bk-msg').textContent=tr('bk.failed',{e:String(e&&e.message||e)}); return; } }   // Desktop: Schreibfehler → nicht den ungeräumten Altstand exportieren
       let raw; try{ raw=vaultGet(); }catch(_){ $('bk-msg').textContent=tr('err.storeRead'); return; }
       const name='alien-pass-'+new Date().toISOString().slice(0,10)+'.vault';
-      // Erst die Datei schreiben — der Backup-Stempel darf nur nach Erfolg gesetzt werden
+      // Erst die Datei schreiben — der Backup-Stempel darf nur nach Erfolg gesetzt werden. Android: Erfolg = Datei in DOCUMENTS geschrieben, der Stempel kommt
+      // VOR dem Teilen-Blatt (v1.23, Gerätetest 18.10.2026, Querfund Sachwert-Tresor c-1/d-1 Rest): bei „Sperren im Hintergrund: sofort“ sperrte das Blatt die
+      // App, der Stempel danach fand keinen Tresor mehr — „Letztes Backup“ blieb alt, die Erinnerung kam immer wieder. Ein abgebrochenes Teilen zählte schon
+      // vorher als Backup (die Datei liegt in Dokumente). Nur der CACHE-Weg (ältere Androids: die Datei verlässt die App nur über das Teilen) stempelt danach.
+      const stamp=async()=>{ try{ if(!VAULT) return;
+          const before={lastBackup:VAULT.meta.lastBackup,lastBackupCount:VAULT.meta.lastBackupCount};
+          VAULT.meta.lastBackup=nowIso(); VAULT.meta.lastBackupCount=VAULT.entries.length;
+          try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT) Object.assign(VAULT.meta,before); }
+          renderBackupHint(); }catch(_){} };
+      let stamped=false;
       try{ if(isNative){
-             try{ await nativeSaveAndShare(name, raw, 'DOCUMENTS', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneNative',{n:name}); }
-             catch(e1){ await nativeSaveAndShare(name, raw, 'CACHE', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneShare',{n:name}); }   // ältere Androids ohne Documents-Zugriff: nur via Teilen
+             try{ await nativeSaveAndShare(name, raw, 'DOCUMENTS', 'Alien Pass Backup', async()=>{ stamped=true; await stamp(); }); $('bk-msg').textContent=tr('bk.doneNative',{n:name}); }
+             catch(e1){ if(stamped) return; await nativeSaveAndShare(name, raw, 'CACHE', 'Alien Pass Backup'); $('bk-msg').textContent=tr('bk.doneShare',{n:name}); }   // ältere Androids ohne Documents-Zugriff: nur via Teilen
            } else if(DESK){ const n=await DESK.saveBackup(name, raw);   // Speichern-Dialog; abgebrochen → kein Backup-Stempel
              if(!n){ $('bk-msg').textContent=''; return; } $('bk-msg').textContent=tr('bk.done',{n}); }
            else { downloadFile(name, raw, 'application/octet-stream'); $('bk-msg').textContent=tr('bk.done',{n:name}); } }
       catch(e){ $('bk-msg').textContent=tr('bk.failed',{e:String(e&&e.message||e)}); return; }
-      if(!VAULT) return;
-      const before={lastBackup:VAULT.meta.lastBackup,lastBackupCount:VAULT.meta.lastBackupCount};
-      VAULT.meta.lastBackup=nowIso(); VAULT.meta.lastBackupCount=VAULT.entries.length;
-      try{ await persist(); }catch(e){ if(!(e&&e.locked)&&VAULT) Object.assign(VAULT.meta,before); }
-      renderBackupHint();
+      if(!VAULT||stamped) return;
+      await stamp();
     }finally{ exportVault._busy=false; }
   }
   // Nachgeholter Import (v1.10, Gerätetest): der Datei-Picker ist eine fremde Android-Activity — bei „Sperren im Hintergrund: sofort“ sperrt die
