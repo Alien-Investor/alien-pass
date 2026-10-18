@@ -1372,6 +1372,129 @@ async function zurueck(){
   }
 }
 
+// [2y] run-13 Nachprüfung N-a na-1 (NIEDRIG, schon v1.22 — Rest des r2a-2-Fixes), Probe „zurnach“ aus run-13/na/proben-na.cjs: vom Anfang in Stufen bis hinter
+// den Rand ziehen, Maus ruht → Chromium rollt nach, PRIMARY hinkt hinterher (Lage wie [2w]). Dann bei gedrückter Taste in EINEM Zug vor den Feldanfang (f-pass 30 px
+// links daneben, f-notes 25 px über das Feld) → Chromium setzt das Ende auf das erste sichtbare Zeichen, schreibt diesen Stand nach PRIMARY und rollt bei ruhender
+// Maus ohne Eingabeereignis zurück bis zur leeren Markierung. selLast stammt aus dem mousemove-Capture DIESER Bewegung (läuft vor Chromiums Behandlung) = der
+// nachgerollte Stand, der nie in PRIMARY stand — die Meldung ohne peek passte nie (gemessen: f-pass 45 Zeichen Passwort-Klartext, f-notes 473 Zeichen nach Frist UND
+// Sperre, HEAD 1ae497a und v1.22). Gesten in der Reihenfolge des Fundberichts: Cursor auf 0 + Marker, Stufen bis hinter den Rand, Ruhe bis [0,len], ein Zug zurück,
+// warten bis leer, loslassen, Frist, Strg+L. Lage (vorb) über N-a hinaus: ein eigenes Capture spiegelt selLast (letzte nicht leere Feld-Markierung bei gehaltener
+// Taste, registriert NACH dem der App, sieht also denselben Stand) — dieser gemerkte Stand muss vom PRIMARY-Stand vor dem Loslassen VERSCHIEDEN sein (sonst wäre es
+// ein [2x]-Fall, die alte Meldung passte). Nur Längen, Marker und Wahrheitswerte in der Ausgabe. AP_NZV=pass:aussen,notes:oben (Vorgabe), AP_NZWAIT (ms).
+async function zurnach(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='N'+process.pid, M='mk-zn-'+process.pid;
+  const cnt=t=>(t.match(new RegExp(G,'g'))||[]).length;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  await instM();
+  // Spiegel von selLast (nur Indizes und Feld-ID): mousedown leert, mousemove ohne Taste beendet das Halten, mousemove mit Taste merkt eine nicht leere Feld-Markierung
+  await js(`(()=>{ window.__znM=null; if(!window.__znOnM){ window.__znOnM=1; let h=false;
+    document.addEventListener('mousedown',e=>{ if(e.button===0){ h=true; window.__znM=null; } },true);
+    document.addEventListener('mousemove',e=>{ if(!(e.buttons&1)){ h=false; return; } if(!h) return; const a=document.activeElement;
+      if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')&&typeof a.selectionStart==='number'&&a.selectionStart!==a.selectionEnd) window.__znM={s:a.selectionStart,e:a.selectionEnd,id:a.id}; },true);
+    document.addEventListener('mouseup',e=>{ if(e.button===0) h=false; },true); } return true; })()`);
+  for(const v of (process.env.AP_NZV||'pass:aussen,notes:oben').split(',')){ const [wo,wie]=v.split(':');
+    const feld=wo==='pass'?'f-pass':'f-notes', T=`document.getElementById('${feld}')`;
+    const val=wo==='pass'?Array.from({length:14},(_,i)=>G+'x'+i).join('-'):Array.from({length:30},(_,i)=>'Zeile '+i+' '+G+' text').join('\n');
+    await formM('Zurnach-'+v+'-'+process.pid,wo==='notes'?val:''); if(wo==='pass') await fill('f-pass',val); await sleep(200);
+    await js(`(()=>{ const t=${T}; ${wo==='notes'?"t.style.height='120px';":''} t.scrollIntoView({block:'center'}); t.focus(); t.setSelectionRange(0,0); t.scrollLeft=0; t.scrollTop=0; return true; })()`); await sleep(300);
+    await clipboard.selection.writeText(M); await sleep(150); await ensureFocusM(); await instM();
+    const b=await boxM(feld), bb=await js(`(()=>{ const r=${T}.getBoundingClientRect(); return {bottom:r.bottom,top:r.top}; })()`);
+    const a={x:b.l+1,y:b.y}; let stufen=0, rollt=false, z;
+    mouse('mouseDown',a.x,a.y); await sleep(60);
+    if(wo==='pass'){ z={x:Math.min(b.R+40,b.iw-12),y:b.y};
+      for(let i=1;i<=6;i++){ const e0=await js(`${T}.selectionEnd`); mouse('mouseMove',a.x+(b.r-8-a.x)*i/6,a.y,{mod:['leftButtonDown']}); if(await until(`${T}.selectionEnd>${e0}&&${T}.selectionStart===0`,2000)) stufen++; }
+      mouse('mouseMove',z.x,a.y,{mod:['leftButtonDown']}); rollt=await until(`${T}.scrollLeft>0`,3000);
+      for(let i=1;i<=6;i++){ mouse('mouseMove',Math.min(z.x+i*2,b.iw-2),a.y+(i%2),{mod:['leftButtonDown']}); await sleep(40); } z={x:Math.min(z.x+12,b.iw-2),y:a.y}; }
+    else { z={x:b.l+60,y:Math.min(bb.bottom+25,b.ih-4)};
+      for(let i=1;i<=5;i++){ const e0=await js(`${T}.selectionEnd`); mouse('mouseMove',a.x+(b.l+60-a.x)*i/5,a.y+(bb.bottom-10-a.y)*i/5,{mod:['leftButtonDown']}); if(await until(`${T}.selectionEnd>${e0}&&${T}.selectionStart===0`,2000)) stufen++; }
+      mouse('mouseMove',z.x,z.y,{mod:['leftButtonDown']}); rollt=await until(`${T}.scrollTop>0`,3000);
+      for(let i=1;i<=6;i++){ mouse('mouseMove',z.x+i,z.y+(i%2),{mod:['leftButtonDown']}); await sleep(40); } z={x:z.x+6,y:z.y}; }
+    // Maus ruht, Chromium rollt nach (wie [2w] bis ans Ende, höchstens 30 s)
+    const ende=await until(`${T}.selectionStart===0&&${T}.selectionEnd===${T}.value.length`,Number(process.env.AP_NZWAIT||30000)); await sleep(400);
+    const pR=await prim(), sR=await fselM(feld), selR=sR.v.slice(sR.s,sR.e);
+    // in EINEM Zug vor den Feldanfang
+    const back=wo==='pass'?{x:b.l-30,y:a.y}:{x:a.x,y:Math.max(2,bb.top-25)};
+    mouse('mouseMove',back.x,back.y,{mod:['leftButtonDown']}); await sleep(300);
+    const sB=await fselM(feld), pB=await prim();
+    const leer=await until(`${T}.selectionStart===${T}.selectionEnd`,Number(process.env.AP_NZWAIT||30000)); await sleep(400);
+    const pVorLos=await prim(), gm=await js('window.__znM'), gem=gm&&gm.id===feld?sR.v.slice(gm.s,gm.e):'';
+    mouse('mouseUp',back.x,back.y); await sleep(800);
+    const ev=await instM();
+    const p1=await prim(), s1=await fselM(feld);
+    await js('AlienDesktop.clip.clear()'); await sleep(1500); const p2=await prim();
+    strgLM(wc); await sleep(1800); const gesperrt=await js(visible('screen-lock')); const p3=await prim();
+    const rest=p=>p.length>0&&val.includes(p);
+    // Lage: Nachrollen mit Hinterherhinken, das Zurückziehen in einem Zug schrieb einen kürzeren Stand nach PRIMARY, danach rollte Chromium bis zur leeren
+    // Markierung zurück, PRIMARY hielt dabei einen Rest des Feldtextes, der gemerkte Stand (Spiegel von selLast) ist ein ANDERER als dieser PRIMARY-Stand, kein
+    // Ziehen-und-Ablegen, je ein Drücken/Loslassen, danach gesperrt
+    const vorb=ende&&cnt(pR)>0&&pR!==M&&cnt(selR)>cnt(pR)&&sB.e>sB.s&&leer&&rest(pVorLos)&&gem.length>0&&gem!==pVorLos&&s1.s===s1.e&&ev.ds===0&&ev.md===1&&ev.mu===1&&gesperrt;
+    R(`${feld}: nachgerollt (PRIMARY hinkt), in einem Zug ${wie==='aussen'?'links vor das Feld':'über das Feld'} zurück, Chromium rollt bis zur leeren Markierung, losgelassen: nach Frist und Sperre kein Feldtext in PRIMARY`,
+      vorb&&!rest(p2)&&!rest(p3),
+      {vorb,stufen,rollt,ende,ruhe:{pLen:pR.length,pMarker:cnt(pR),selLen:selR.length,selMarker:cnt(selR)},nachZug:{s:sB.s,e:sB.e,pLen:pB.length,pMarker:cnt(pB)},leer,
+       vorLos:{len:pVorLos.length,marker:cnt(pVorLos),rest:rest(pVorLos)},gemerkt:{len:gem.length,marker:cnt(gem),gleichPrim:gem===pVorLos,primAnfang:pVorLos.length>0&&gem.startsWith(pVorLos)},
+       ev,nachLos:{len:p1.length,marker:cnt(p1)},nachFrist:{len:p2.length,marker:cnt(p2),rest:rest(p2)},gesperrt,nachSperre:{len:p3.length,marker:cnt(p3),rest:rest(p3)}});
+    await clipboard.selection.clear(); await relockM();
+  }
+}
+
+// [2z] run-13 Nachprüfung N-a na-2 (NIEDRIG, schon v1.22 — Lücke des b2-2-Fixes für Gate-Felder), Probe „haltweg“ aus run-13/na/proben-na.cjs: die Passphrase in
+// einem Gate-Feld per Ziehen markieren (Chromium schreibt PRIMARY, gemeldet wird erst im mouseup), Taste HALTEN, dann Fensterwechsel (blur) bzw. Minimieren. Der
+// blur-Zweig von DESK.onBackground und onHidden leerten das Feld (clearGateInputs), bevor etwas gemeldet war — auch bei „sofort“ las lock(true) danach nur das
+// leere Feld; beim Loslassen meldete onSel '' (gemessen: 21 Zeichen Passphrase nach Wegwechsel, Frist und Entsperren, 3/3, HEAD 1ae497a und v1.22). Gesten in
+// der Reihenfolge des Fundberichts: Text mit Markern ins Feld, Cursor auf 0 + Marker, in 4 Stufen ziehen bis PRIMARY ihn hat, Taste halten + blur/minimieren,
+// Fenster zurück, loslassen, Frist, Entsperren. Varianten (AP_HWV=blur,min,ohne,cpmin0,hide,cphide0): #lock-pass blur / minimiert (Sperrbildschirm, DEK null), „ohne“ =
+// Kontrolle (erst loslassen, dann blur), #cp-cur entsperrt bei Sperre „sofort“ (bgLock 0) minimiert; dazu (h4) hide/cphide0 = dasselbe mit win.hide().
+// Warum hide: gemessen kommt beim Minimieren „blur“ VOR „minimize“ (der blur-Zweig meldet zuerst, onHidden fände ein leeres Feld), beim Verstecken „hide“ VOR
+// „blur“ — nur dort greift das reportSel() in onHidden zuerst; ohne hide-Varianten blieb ein Rückbau genau dieser Stelle in allen vier Varianten grün (h4).
+// Lage (vorb) über N-a hinaus: beim Wegwechseln war die Taste noch gedrückt (kein mouseup davor; „ohne“: genau eins davor), kein neues Drücken/Ziehen-und-Ablegen
+// danach. Mitgeschrieben: Reihenfolge der Fenster-Ereignisse.
+async function haltweg(){
+  const wc=win.webContents, mouse=mouseOfM(wc), G='H'+process.pid, M='mk-hw-'+process.pid;
+  const cnt=t=>(t.match(new RegExp(G,'g'))||[]).length;
+  if(!(await unlockM())){ R('entsperrt',false); return; }
+  await instM();
+  const folge=[]; for(const n of ['blur','focus','minimize','restore','hide','show']) win.on(n,()=>folge.push(n));
+  for(const wie of (process.env.AP_HWV||'blur,min,ohne,cpmin0,hide,cphide0').split(',')){
+    const cp=wie.startsWith('cp'), fid=cp?'cp-cur':'lock-pass', F=`document.getElementById('${fid}')`, weg=/min/.test(wie)?'min':/hide/.test(wie)?'hide':'blur';
+    if(cp){ await js(`App.setBgLock('0'); App.tab('settings'); true`); await sleep(500); await js(`document.getElementById('cp-cur').scrollIntoView({block:'center'}); true`); await sleep(300); }
+    else { await js('App.lock(); true'); await until(visible('screen-lock'),5000); await sleep(500); }
+    await ensureFocusM();
+    const val=Array.from({length:8},(_,i)=>G+'p'+i).join('-');
+    await fill(fid,val);
+    await js(`(()=>{ const t=${F}; t.focus(); t.setSelectionRange(0,0); t.scrollLeft=0; return true; })()`); await sleep(300);
+    await clipboard.selection.writeText(M); await sleep(150); await ensureFocusM(); await instM(); folge.length=0;
+    const b=await boxM(fid), a={x:b.l+1,y:b.y}, z={x:a.x+Math.min(160,(b.r-b.l)*0.6),y:b.y};
+    mouse('mouseDown',a.x,a.y); await sleep(60); let stufen=0;
+    for(let i=1;i<=4;i++){ const e0=await js(`${F}.selectionEnd`); mouse('mouseMove',a.x+(z.x-a.x)*i/4,a.y,{mod:['leftButtonDown']}); if(await until(`${F}.selectionEnd>${e0}`,2000)) stufen++; }
+    const geschrieben=await (async()=>{ const t0=Date.now(); while(Date.now()-t0<3000){ const p=await prim(); if(cnt(p)>0) return p; await sleep(100); } return await prim(); })();
+    const selMitte=await js(`(()=>{ const t=${F}; return t.selectionEnd-t.selectionStart; })()`);
+    if(wie==='ohne'){ mouse('mouseUp',z.x,z.y); await sleep(600); }
+    const evVor=await instM();
+    if(weg==='min'){ win.minimize(); await sleep(1200); }
+    else if(weg==='hide'){ win.hide(); await sleep(1200); }
+    else { win.blur(); await sleep(1200); }
+    const geleert=await js(`${F}.value===''`), pWeg=await prim(), gesperrt=await js(visible('screen-lock'));
+    if(weg==='min') await restoreFocused(); else if(weg==='hide'){ win.show(); await sleep(300); await ensureFocusM(); } else { win.focus(); await ensureFocusM(); }
+    await sleep(400);
+    if(wie!=='ohne'){ mouse('mouseUp',z.x,z.y); await sleep(800); }
+    const evNach=await instM(), wf=folge.slice();
+    const p1=await prim();
+    await js('AlienDesktop.clip.clear()'); await sleep(1500); const p2=await prim();
+    await relockM(); await sleep(600); const p3=await prim();
+    if(cp){ await js(`App.setBgLock('30'); App.tab('list'); true`); await sleep(300); }
+    // Lage: das Ziehen schrieb die Passphrase nach PRIMARY, die Taste war beim Wegwechseln noch gedrückt (Kontrolle: schon losgelassen), das Gate-Feld wurde dabei
+    // geleert (Handler lief), kein weiteres Drücken/Ziehen-und-Ablegen; cp… zusätzlich: wirklich gesperrt
+    const gehalten=wie==='ohne'?evVor.mu===1:evVor.mu===0;
+    const vorb=cnt(geschrieben)>0&&selMitte>0&&geleert&&(!cp||gesperrt)&&evVor.md===1&&evVor.ds===0&&gehalten&&evNach.md===0&&evNach.ds===0;
+    const wegText=weg==='min'?(cp?'minimiert bei Sperre „sofort“':'Fenster minimiert'):weg==='hide'?(cp?'versteckt bei Sperre „sofort“':'Fenster versteckt'):'Fensterwechsel (blur)';
+    R(`#${fid} per Ziehen markiert, ${wie==='ohne'?'losgelassen, dann Fensterwechsel (Kontrolle)':'Taste gehalten, '+wegText}: danach (Wegwechsel, Frist, Entsperren) keine Passphrase in PRIMARY`,
+      vorb&&cnt(p2)===0&&cnt(p3)===0,
+      {vorb,stufen,mitte:{sel:selMitte,pLen:geschrieben.length,pMarker:cnt(geschrieben)},evVor,evNach,folge:wf,geleert,gesperrt,nachWeg:{len:pWeg.length,marker:cnt(pWeg)},
+       nachLos:{len:p1.length,marker:cnt(p1)},nachFrist:{len:p2.length,marker:cnt(p2)},nachEntsperren:{len:p3.length,marker:cnt(p3)}});
+    await clipboard.selection.clear();
+  }
+}
+
 app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
   w.webContents.once('did-finish-load',async()=>{
     try{
@@ -1392,6 +1515,8 @@ app.on('browser-window-created',(_e,w)=>{ if(win) return; win=w;
       else if(STEP==='fremdknopf') await fremdknopf();
       else if(STEP==='gleichfeld') await gleichfeld();
       else if(STEP==='zurueck') await zurueck();
+      else if(STEP==='zurnach') await zurnach();
+      else if(STEP==='haltweg') await haltweg();
       else if(STEP==='sichern') await sichern();
       else if(STEP==='quit'||STEP==='quithang'){ await quitStep(STEP==='quithang'); return; }   // endet in will-quit (eigene Endmarke)
       else if(STEP==='quitslow'){ await quitSlow(); return; }

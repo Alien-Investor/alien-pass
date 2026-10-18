@@ -1312,7 +1312,7 @@ const App = (function(){
   let bgAway=false;
   function onHidden(){
     if(bgAway) return; bgAway=true;
-    hiddenAt=Date.now(); clearGateInputs(); if(DESK&&!DEK&&clipOwnedAt&&!clipCopied) clearClip();   // gesperrt: Markierungen sofort weg; eine gesperrt kopierte Passphrase bleibt bis zur Frist (B-4)
+    hiddenAt=Date.now(); if(DESK&&reportSel) reportSel(); clearGateInputs(); if(DESK&&!DEK&&clipOwnedAt&&!clipCopied) clearClip();   // gesperrt: Markierungen sofort weg; eine gesperrt kopierte Passphrase bleibt bis zur Frist (B-4)
     if((DEK||pendingUnlock)&&settings().bgLock===0){ lock(true); }   // immer: getippte Passphrasen (auch in den Einstellungen) nie stehen lassen; Kopiertes bleibt bis zum Zeitgeber
   }
   function onShown(){
@@ -1334,7 +1334,9 @@ const App = (function(){
   // Entsperrt ebenso, wenn die letzte Meldung aus einem dieser Felder kam (Passphrase-Wechsel/PIN in den Einstellungen, Import-Passphrase): clearGateInputs
   // leert das Feld, die Markierung läge sonst bis zur Frist weiter in PRIMARY (Querfund Alien Notes v1.8 B-1). Eine Markierung in einem Eintragsfeld bleibt
   // per Mittelklick nutzbar (Einfügen im Browser), bis ihre Frist abläuft.
-  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur'){ const g=clipGateSel; clearGateInputs(); if((!DEK||g)&&clipOwnedAt&&!clipCopied) clearClip(); } else if(h) onHidden(); else onShown(); });
+  // Vor clearGateInputs zuerst die offene Markierung melden (run-13 na-2, Lücke im b2-2-Fix): bei gehaltener Maustaste in einem Gate-Feld (Fensterwechsel,
+  // Minimieren) leerte clearGateInputs das Feld, bevor etwas gemeldet war — die Passphrase-Markierung blieb nach Frist und Entsperren in PRIMARY. onHidden ebenso.
+  if(DESK&&typeof DESK.onBackground==='function') DESK.onBackground(h=>{ if(h==='blur'){ if(reportSel) reportSel(); const g=clipGateSel; clearGateInputs(); if((!DEK||g)&&clipOwnedAt&&!clipCopied) clearClip(); } else if(h) onHidden(); else onShown(); });
 
   /* ---------- Zwischenablage (synchron im Klick-Handler aufrufen!) ---------- */
   // fbCopy (v1.22, wie Alien Notes 1.13): solange fallbackCopy läuft, löst ihr execCommand('copy') synchron ein eigenes copy-Ereignis aus — der copy-Listener lässt es durch
@@ -1810,7 +1812,7 @@ const App = (function(){
     // nach PRIMARY (run-13 h2 „dquer“: Detail von einer Zeile hoch ins Etikett und zurück, 33 statt 32 Zeichen, Hash passte nie). Kein Neusetzen der Auswahl.
     let selLast=null;
     const lastText=()=>{ try{ if(!selLast) return ''; if(selLast.length===3){ const [a,x,y]=selLast; return a.value.substring(x,y); } return String(selLast[0]); }catch(_){ return ''; } };
-    const onSel=pk=>{ const t=selText(), f=selFrom; selFrom=null; if(!t&&selLast){ const l=lastText(), lf=selLast.length===3?selLast[0]:null; if(l) report(l,lf,false); }
+    const onSel=pk=>{ const t=selText(), f=selFrom; selFrom=null; if(!t&&selLast){ const l=lastText(), lf=selLast.length===3?selLast[0]:null; if(l) report(l,lf,true); }   // peek (run-13 na-1): nach Nachrollen + Zurückziehen stand der gemerkte Stand nie in PRIMARY — die Hülle merkt den kürzeren PRIMARY-Stand, wenn er Anfang/Ende ist; selLast entsteht nur beim eigenen Ziehen
       report(t,f,pk===true||(selHeld&&selMoved())); };
     reportSel=onSel;
     reportFieldSel=a=>report(a.value.substring(a.selectionStart,a.selectionEnd),a);

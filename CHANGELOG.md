@@ -24,7 +24,8 @@ Internet-Berechtigung (nur Fingerabdruck).
   behielt dabei einen älteren Stand, den die App weder nach Ablauf der Zeit noch beim Sperren löschte. Jetzt trägt die Auswahl den Endstand und wird
   gelöscht. Sperrt die App, während die Maustaste noch gedrückt ist (Strg+L, Zeitgeber, Minimieren bei „sofort“), löscht sie diese Markierung ebenfalls.
   Zieht man eine Markierung bei gedrückter Maustaste wieder bis zum Anfang zurück, löscht die App auch den zuletzt markierten Text aus der
-  Mittelklick-Auswahl.
+  Mittelklick-Auswahl. Wechselt man bei gedrückter Maustaste das Fenster oder minimiert die App, löscht sie auch eine Markierung in einem
+  Passphrase- oder PIN-Feld.
 - **Build und Veröffentlichung:** Die Endkontrolle der fertigen APK prüft jetzt auch Bildschirmschutz, Fingerabdruck-Schlüssel samt Neustart-Regel und
   die Liste der Plugins; Autofill-Sperre und App-Konfiguration prüft sie strenger als bisher. Gebaut wird nur aus einem sauberen, eingecheckten Stand;
   APK und Flatpak-Paket sind an den Versions-Tag gebunden, und die Signatur des Desktop-Pakets wird gegen den Release-Schlüssel im Repo geprüft (ein
