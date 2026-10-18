@@ -1187,8 +1187,10 @@ const App = (function(){
       { const bb=bioBlob(); if(bb&&!bb.k&&bioWrapOk(bb,f.wrap)) bioAddK(f.kdf, bb.w); }   // wrap-AAD hat den Kopf bestätigt, der Blob gehört zu genau diesem wrap (v1.23, Notes a3-1)
       const dekX=(bioNeedsRearm&&BIO&&bioMarker())?await unwrapDek(f.wrap, kek, f.kdf, true):null;   // nur zum Neu-Bewaffnen des Fingerabdruck-Slots nach Neustart
       const obj=await decryptBody(f.body, dek, f.kdf);
-      const v=sanitizeVault(obj);                                     // auch lokal: Whitelist beim Unlock
+      // Sitzung VOR dem Aufbereiten prüfen (run-13 r2b-2, wie doImportVault seit v1.22): gesperrt oder andere Pforte schneller → die entschlüsselte Datei nicht
+      // mehr anfassen; sanitizeVault legte sonst Tresorinhalt (TOTP-/Aegis-Schlüssel) über seine Regex-Prüfungen in die Statics des Sperrbildschirms
       if(gen!==bioGen||DEK||pendingUnlock){ $('lock-pass').value=''; maskInputs('#screen-lock'); return; }   // eine andere Pforte hat die Sitzung schon geöffnet: nichts überschreiben
+      const v=sanitizeVault(obj);                                     // auch lokal: Whitelist beim Unlock
       if(v.totp){ pendingUnlock={dek, kdf:f.kdf, wrap:f.wrap, vault:v}; }   // Aegis-Hürde: Schlüssel erst nach Code-Prüfung in die Sitzung
       else { DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0; saveLockState(); }
       bioRearmDek=dekX;
@@ -1802,7 +1804,14 @@ const App = (function(){
     // Ziehen-und-Ablegen läsen PRIMARY sonst, ohne dass Chromium es gerade geschrieben hat.
     let selHeld=false;
     // selFrom freigeben: hielt sonst ein abgehängtes Feld samt Wert über die Sperre (run-12 a-4, wie Notes v1.10)
-    const onSel=pk=>{ const t=selText(); report(t,selFrom,pk===true||(selHeld&&selMoved())); selFrom=null; };
+    // Letzte nicht leere Markierung während des Drückens (run-13 r2a-2, schon in v1.22): zog man bei gedrückter Taste zurück zum Anfang, meldete onSel nur den
+    // leeren Endstand (report bricht bei '' ab) — PRIMARY behielt den letzten nicht leeren Stand nach Frist und Sperre. Ist der Endstand leer, wird dieser gemeldet.
+    // Seite: den Text der AUSWAHL merken, nicht die Range — String(Range) weicht an Elementgrenzen in den Zeilenumbrüchen ab, Chromium legt String(Selection)
+    // nach PRIMARY (run-13 h2 „dquer“: Detail von einer Zeile hoch ins Etikett und zurück, 33 statt 32 Zeichen, Hash passte nie). Kein Neusetzen der Auswahl.
+    let selLast=null;
+    const lastText=()=>{ try{ if(!selLast) return ''; if(selLast.length===3){ const [a,x,y]=selLast; return a.value.substring(x,y); } return String(selLast[0]); }catch(_){ return ''; } };
+    const onSel=pk=>{ const t=selText(), f=selFrom; selFrom=null; if(!t&&selLast){ const l=lastText(), lf=selLast.length===3?selLast[0]:null; if(l) report(l,lf,false); }
+      report(t,f,pk===true||(selHeld&&selMoved())); };
     reportSel=onSel;
     reportFieldSel=a=>report(a.value.substring(a.selectionStart,a.selectionEnd),a);
     // Markieren bis an den Rand (v1.23, Querfund Notes v1.14 run-12 b-1 MITTEL, in Pass gemessen: Notizfeld und Detailansicht): rollt Chromium beim Ziehen nach,
@@ -1833,13 +1842,17 @@ const App = (function(){
         return !selSame(selAtDown[0],pgKey()); }catch(_){ return true; } };
     // selAtDown nach jedem Loslassen, Ziehen-und-Ablegen und beim Sperren leeren (Notes r4-2): es hielt sonst nach der Sperre einen losgelösten Knoten der
     // Detailansicht samt Text bzw. ein Feld bis zum nächsten Drücken fest (Klasse selFrom, run-12 a-4).
-    selReset=()=>{ selAtDown=[[],[]]; selHeld=false; selDrag=false; };
-    document.addEventListener('mousedown',ev=>{ if(ev.button===0){ selDrag=false; selHeld=true; selAtDown=selKeyAt(ev.target); } },true);
-    document.addEventListener('mousemove',ev=>{ if(ev.buttons&1) selDrag=true; else selHeld=false; },true);
-    document.addEventListener('mouseup',ev=>{ const pk=ev.button===0&&selDrag&&selMoved(); if(pk) reselect(); if(ev.button===0){ selDrag=false; selHeld=false; } onSel(pk); if(ev.button===0) selAtDown=[[],[]]; });
+    selReset=()=>{ selAtDown=[[],[]]; selHeld=false; selDrag=false; selLast=null; };
+    document.addEventListener('mousedown',ev=>{ if(ev.button===0){ selDrag=false; selHeld=true; selLast=null; selAtDown=selKeyAt(ev.target); } },true);
+    document.addEventListener('mousemove',ev=>{ if((ev.buttons&1)&&selHeld){ try{ const a=document.activeElement; if(isFld(a)){ if(a.selectionStart!==a.selectionEnd) selLast=[a,a.selectionStart,a.selectionEnd]; }
+        else { const g=window.getSelection(); if(g&&g.rangeCount&&!g.isCollapsed) selLast=[String(g)]; } }catch(_){} } },true);
+    // Beim ERSTEN Bewegen den Stand nach Chromiums Fokuswechsel neu merken (run-13 r2a-1, Rückschritt durch a-1): hatte ein Feld noch eine verdeckte Vollmarkierung
+    // [0,len] (Tab-Fokus, Strg+A, select()) und lag der Fokus anderswo, ergab erneutes Ziehen vom Anfang bis zum Ende Endstand = gemerkter Stand → kein reselect.
+    document.addEventListener('mousemove',ev=>{ if(ev.buttons&1){ if(selHeld&&!selDrag) selAtDown=selKeyAt(document.activeElement); selDrag=true; } else selHeld=false; },true);
+    document.addEventListener('mouseup',ev=>{ const pk=ev.button===0&&selDrag&&selMoved(); if(pk) reselect(); if(ev.button===0){ selDrag=false; selHeld=false; } onSel(pk); if(ev.button===0){ selAtDown=[[],[]]; selLast=null; } });
     // Ziehen-und-Ablegen einer Markierung schluckt das mouseup: drückt man auf den Aegis-Schlüssel (.secret-box, user-select:all markiert schon beim Drücken
     // alles) und bewegt die Maus, startet Chromium ein Ziehen — der Schlüssel lag ungemeldet in PRIMARY, auch nach Frist und Sperre (v1.22, gemessen m122)
-    document.addEventListener('dragstart',()=>{ const m=selHeld&&selMoved(); selHeld=false; selDrag=false; onSel(m); selAtDown=[[],[]]; });
+    document.addEventListener('dragstart',()=>{ const m=selHeld&&selMoved(); selHeld=false; selDrag=false; onSel(m); selAtDown=[[],[]]; selLast=null; });
     // Strg+A auch am Tastencode 65: bei nicht-lateinischer Belegung ist ev.key „ф“/„α“, Chromium markiert trotzdem — ohne Meldung lag z. B. eine per Strg+A
     // markierte Passphrase ohne Frist in PRIMARY (Audit run-11 a-1/b-1)
     document.addEventListener('keyup',ev=>{ if(ev.shiftKey||ev.key==='Shift'||((ev.ctrlKey||ev.metaKey)&&((ev.key||'').toLowerCase()==='a'||ev.keyCode===65))) onSel(); });
@@ -2119,8 +2132,9 @@ const App = (function(){
       const key=await bioKey(secret); secret.fill(0);
       const dek=await unwrapDek(blob, key, f.kdf, false, 'bio');
       if(!blob.k) bioAddK(f.kdf, blob.w);   // bio-AAD hat den Kopf bestätigt (v1.23, Notes a3-1)
-      const obj=await decryptBody(f.body, dek, f.kdf); const v=sanitizeVault(obj);
-      if(gen!==bioGen||DEK||pendingUnlock) return;                        // zwischendurch gesperrt oder anders entsperrt
+      const obj=await decryptBody(f.body, dek, f.kdf);
+      if(gen!==bioGen||DEK||pendingUnlock) return;                        // zwischendurch gesperrt oder anders entsperrt — VOR dem Aufbereiten (run-13 r2b-2)
+      const v=sanitizeVault(obj);
       if(v.totp){ pendingUnlock={dek, kdf:f.kdf, wrap:f.wrap, vault:v}; }
       else { DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0; saveLockState(); }
     }catch(e){
@@ -2182,6 +2196,7 @@ const App = (function(){
     if(doPin._busy||doUnlock._busy||doBio._busy||DEK||pendingUnlock) return; renderPinGate(); if(!PIN||pinHold) return; err('lock-err'); pinMsg('');
     const pin=$('lock-pin').value;
     if(!PIN_RE.test(pin)){ $('lock-pin').value=''; maskInputs('#screen-lock'); return pinMsg(tr('pin.format',{a:PIN_MIN,b:PIN_MAX})); }   // kein Fehlversuch: die Eingabe war nie eine PIN
+    /(?:)/.exec('');                                                    // PIN_RE.test legte die PIN in RegExp.input/lastMatch; scheitert parseFile danach, überschrieb nichts sie (run-13 r2b-1)
     let raw; try{ raw=vaultGet(); }catch(_){ $('lock-pin').value=''; maskInputs('#screen-lock'); return err('lock-err',tr('err.storeRead')); } if(!raw) return boot();
     let f; try{ f=parseFile(raw); }catch(e){ $('lock-pin').value=''; maskInputs('#screen-lock'); return err('lock-err',fileErrMsg(e)); }
     // fremder/veränderter Passphrase-Slot oder KDF-Header (Datei getauscht, Sync, manipuliert): der RAM-Slot passt nicht mehr — verwerfen,
@@ -2192,8 +2207,9 @@ const App = (function(){
     try{
       const pkey=await deriveKek(passBytes(pin), slot.pkdf);
       const dek=await unwrapDek(slot.blob, pkey, f.kdf, false, 'pin');
-      const obj=await decryptBody(f.body, dek, f.kdf); const v=sanitizeVault(obj);
-      if(gen!==bioGen||DEK||pendingUnlock||PIN!==slot){ $('lock-pin').value=''; maskInputs('#screen-lock'); return; }   // eine andere Pforte war schneller oder der Slot ist verworfen: nie überschreiben
+      const obj=await decryptBody(f.body, dek, f.kdf);
+      if(gen!==bioGen||DEK||pendingUnlock||PIN!==slot){ $('lock-pin').value=''; maskInputs('#screen-lock'); return; }   // eine andere Pforte war schneller oder der Slot ist verworfen: nie überschreiben — VOR dem Aufbereiten (run-13 r2b-2)
+      const v=sanitizeVault(obj);
       PIN.tries=0;
       if(v.totp){ pendingUnlock={dek, kdf:f.kdf, wrap:f.wrap, vault:v}; }   // Aegis-Hürde bleibt auch vor der PIN
       else { DEK=dek; KDF=f.kdf; WRAP=f.wrap; VAULT=v; failCount=0; lockedUntil=0; saveLockState(); }
@@ -2220,6 +2236,7 @@ const App = (function(){
     try{
       const p1=$('pin-new').value, p2=$('pin-rep').value, pass=$('pin-pass').value;
       if(!PIN_RE.test(p1)) return err('pin-err',tr('pin.format',{a:PIN_MIN,b:PIN_MAX}));
+      /(?:)/.exec('');                                                  // neue PIN aus den RegExp-Statics (run-13 r2b-1)
       if(p1!==p2) return err('pin-err',tr('pin.mismatch'));
       if(!pass) return err('pin-err',tr('err.cpWrong'));
       let dekX; try{ const kek=await deriveKek(passBytes(pass), KDF); dekX=await unwrapDek(WRAP, kek, KDF, true); }
@@ -2318,7 +2335,8 @@ const App = (function(){
   function openHelp(){ show('help-overlay'); $('help-overlay').scrollTop=0; }
   function closeHelp(){ hide('help-overlay'); }
   function toggleLang(){ setLang(LANG==='de'?'en':'de'); }
-  function relabel(){ if(!VAULT){ if(!pendingUnlock){ err('lock-err'); pinMsg(''); bioMsg(''); } return; } $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); relabelExtraRows(); renderList(); renderTrash(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
+  // Stärke-Balken über meterSetup/meterCp/meterForm in der neuen Sprache neu (run-13 r2b-5; leeres Feld → leerer Balken)
+  function relabel(){ meterSetup(); if(!VAULT){ if(!pendingUnlock){ err('lock-err'); pinMsg(''); bioMsg(''); } return; } meterCp(); meterForm(); $('add-title').textContent=editId?tr('add.titleEdit'):tr('add.titleNew'); relabelExtraRows(); renderList(); renderTrash(); renderSettings(); renderBackupMsg(); if(genValue) genNew(); if(currentId&&!$('detail-overlay').classList.contains('hidden')) openDetail(currentId); if(pendingProton&&pendingProton.kind==='pgp') $('proton-msg').textContent=tr('pt.needPass'); }
   function renderAll(){ renderList(); renderSettings(); renderBackupMsg(); }
   function kdfChanged(){ kdfTouched=true; }
 

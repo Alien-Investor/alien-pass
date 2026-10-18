@@ -13,6 +13,13 @@ rm -f build/release/bundle.ok
 # sind Klartext, ohne Schlüssel (fremder Klon) geht es genauso. Ohne Git (Selbstbau aus einem Archiv) wird wie bisher im Ordner gebaut, kein Release-Build.
 # Diese Datei bleibt Klartext und sourct das verschlüsselte release-quellen.sh bewusst nicht: Liste und Prüfungen stehen hier selbst.
 REPO="$(cd .. && pwd)"
+# Quellen des Bundles (Pfade relativ zum Projekt; dazu ganz vendor/). Liste wortgleich `feste_quellen desktop` in release-quellen.sh — weicht sie ab, bricht
+# make-release.sh ab. Stehen seit v1.23 Runde 2 (run-13 r2c-4) hier oben: die Prüfung auf nicht versionierte Eingaben unten nimmt genau diese Liste. Zwischen
+# DESK_SRC und desk_summen nur Kommentare (Prüfhelfer schneiden genau diesen Bereich aus).
+DESK_SRC="VERSION index.html app.js qr.js icon.svg build-www.sh assets/icon-only.png desktop/main.js desktop/preload.js desktop/atomic.js desktop/pack.mjs
+  desktop/build-desktop.sh desktop/package.json desktop/package-lock.json desktop/flatpak/alien-pass.sh desktop/flatpak/org.alieninvestor.pass.desktop
+  desktop/flatpak/org.alieninvestor.pass.yml"
+desk_summen() { (cd .. && { printf '%s\n' $DESK_SRC; find vendor -type f; } | LC_ALL=C sort | xargs -d '\n' sha256sum --); }   # cwd = desktop/
 # Gibt es ein Git-Verzeichnis, aber git scheitert (kein git im PATH, verbogenes GIT_DIR …), wird NICHT still im gemeinsamen Ordner gebaut (v1.23 Runde 1,
 # run-13 c-5: genau der R6-Fall, den das Abbild schließt) — Selbstbau ohne Git nur, wenn es wirklich kein Repo ist
 if [ "${PASS_IM_ABBILD:-}" != 1 ] && [ -e "$REPO/.git" ] && ! git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -20,8 +27,10 @@ if [ "${PASS_IM_ABBILD:-}" != 1 ] && [ -e "$REPO/.git" ] && ! git -C "$REPO" rev
 fi
 if [ "${PASS_IM_ABBILD:-}" != 1 ] && git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   [ -z "$(git -C "$REPO" status --porcelain --untracked-files=no)" ] || { echo "FEHLER: nicht committete Änderungen — gebaut wird HEAD, erst committen." >&2; exit 1; }
-  # Nicht versionierte Eingaben fehlten im Abbild STILL (v1.23 Runde 1, run-13 c-7); gitignorierte Build-Ordner zeigt git status nicht
-  ST="$(git -C "$REPO" status --porcelain --untracked-files=all -- vendor assets desktop index.html app.js qr.js icon.svg VERSION build-www.sh)"
+  # Nicht versionierte Eingaben fehlten im Abbild STILL (v1.23 Runde 1, run-13 c-7); gitignorierte Build-Ordner zeigt git status nicht. Seit Runde 2 (run-13 r2c-4)
+  # genau die Eingaben DIESES Builds (DESK_SRC + vendor/): vom Rest unter assets/ liest er nur icon-only.png, desktop/test/ gar nicht — eine nicht versionierte
+  # Datei dort blockierte ihn sonst mit falscher Begründung. Eine neue path:-Quelle im Manifest muss ohnehin in DESK_SRC stehen (Prüfung unten).
+  ST="$(git -C "$REPO" status --porcelain --untracked-files=all -- vendor $DESK_SRC)"
   NV="$(grep '^?? ' <<<"$ST" || true)"
   [ -z "$NV" ] || { echo "FEHLER: nicht versionierte Dateien unter den Quellen — sie fehlten im Abbild von HEAD (erst committen oder entfernen):" >&2; echo "$NV" >&2; exit 1; }
   # Reste abgebrochener Läufe (v1.23 Runde 1, run-13 c-9): nach SIGKILL/Absturz läuft der trap nicht — Abbild-Ordner und Worktree-Einträge (mit dem verlinkten
@@ -80,11 +89,7 @@ echo "Electron $EL_VER: Hash OK."
 
 # Prüfsummen der Quellen, aus denen das Bundle entsteht, VOR dem Bau (v1.23, Notes v1.14 c-2, run-13 R5): make-release.sh vergleicht sie mit dem Tag —
 # ein veraltetes oder aus einem anderen Stand gebautes Bundle geht so nicht neben der richtigen APK raus. Pfade relativ zum Projekt; ändert sich etwas
-# während des Baus: Abbruch. Liste wortgleich `feste_quellen desktop` in release-quellen.sh (dazu ganz vendor/) — weicht sie ab, bricht make-release.sh ab.
-DESK_SRC="VERSION index.html app.js qr.js icon.svg build-www.sh assets/icon-only.png desktop/main.js desktop/preload.js desktop/atomic.js desktop/pack.mjs
-  desktop/build-desktop.sh desktop/package.json desktop/package-lock.json desktop/flatpak/alien-pass.sh desktop/flatpak/org.alieninvestor.pass.desktop
-  desktop/flatpak/org.alieninvestor.pass.yml"
-desk_summen() { (cd .. && { printf '%s\n' $DESK_SRC; find vendor -type f; } | LC_ALL=C sort | xargs -d '\n' sha256sum --); }
+# während des Baus: Abbruch. Liste DESK_SRC und desk_summen oben (seit Runde 2 dort; wortgleich `feste_quellen desktop` in release-quellen.sh, dazu ganz vendor/).
 DESK_SUMS0="$(desk_summen)" || { echo "FEHLER: Quellenliste unvollständig (DESK_SRC)" >&2; exit 1; }
 summe0() { awk -v f="$1" '$2==f{print $1}' <<<"$DESK_SUMS0"; }   # Soll einer Quelle vor dem Bau
 # lock_gleich wortgleich release-quellen.sh (Steuertool R2-1 #2, ohne nicht installierte optionale Pakete; run-13 Punkt 15)
@@ -99,6 +104,10 @@ lock_gleich() {
     = "$(jq -S '.packages' "$d/node_modules/.package-lock.json")" ]
 }
 # Build-Werkzeuge (asar, fuses) frisch aus dem Lock — NACH der Summenbildung, dann gegen genau diese Lock geprüft (Steuertool R1 a-A5, R2-1 #2, run-13 R7)
+# Wie build-apk.sh (run-13 c-6, Nachtrag Runde 2): nichts im Hüllen-Ordner, das npm ci am Lock vorbei lenkt (script-shell, Registry, Entpack-Pfad)
+for c in .npmrc .prebuild-installrc npm-shrinkwrap.json; do
+  [ ! -e "$c" ] && [ ! -L "$c" ] || { echo "FEHLER: desktop/$c — lenkt npm/prebuild-install am Lock vorbei. Entfernen." >&2; exit 1; }
+done
 npm ci --ignore-scripts --no-audit --no-fund
 lock_gleich . || { echo "FEHLER: node_modules ≠ package-lock.json nach npm ci" >&2; exit 1; }
 # Jede Datei, die das Flatpak-Manifest einbindet (path:), muss in der Quellenliste stehen (Steuertool R1 a-A2/b-B2)

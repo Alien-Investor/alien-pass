@@ -159,6 +159,8 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
 - **Verschlüsseltes Backup** (`.vault`) und **Zusammenführen** zwischen Geräten: je Eintrag gewinnt
   die neuere Änderung, Löschungen werden ein Jahr lang mitgeführt. Die Datei darf eine andere
   Passphrase haben. Sync z.B. über Syncthing. Papierkorb-Inhalt reist dabei nie mit, nur die Löschung selbst.
+  Eine Datei aus einer neueren App-Version mit Eintragsfeldern oder -typen, die diese Version nicht kennt, öffnet die App nicht (seit v1.23) — statt
+  die unbekannten Teile still zu entfernen; dann erst die App aktualisieren. Ältere Versionen als v1.23 entfernen sie weiterhin still.
   Ein Gerät mit v1.4 oder älter leert den Papierkorb beim Zusammenführen — die Einträge bleiben dort gelöscht, sie tauchen nie wieder
   auf. Erst alle Geräte aktualisieren.
 - **Umzug aus Proton Pass direkt aus dem Export** — PGP-verschlüsselt (von Proton empfohlen), ZIP oder JSON: Logins inkl. TOTP,
@@ -276,8 +278,9 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
     einzelnen Grafikkarte in etwa zehn Minuten — als Schutz für die Tresordatei reicht das nie, jede weitere Ziffer verzehnfacht nur den Aufwand. Die PIN schützt allein diese Kopie. „Gesperrt“ heißt mit PIN nicht mehr „Schlüssel
     aus dem Speicher gelöscht“: Wer den Arbeitsspeicher des laufenden Programms auslesen kann, hat den verpackten Schlüssel und kann PINs
     offline raten — die drei Fehlversuche sind eine Regel im Code, keine kryptografische Grenze. Verworfen wird die PIN nach drei
-    Fehlversuchen, nach einem Passphrase-Wechsel, beim Löschen des Tresors, bei einer veränderten oder getauschten Tresordatei (die Kopie ist
-    an Kopfdaten und Passphrase-Slot der Datei gebunden), nach 24 Stunden und beim Beenden. „Jetzt sperren“ (Strg+L) ist der Riegel: danach
+    Fehlversuchen, nach einem Passphrase-Wechsel, beim Löschen des Tresors, bei einer getauschten Tresordatei, veränderten Kopfdaten oder verändertem
+    Passphrase-Slot (die Kopie ist an beide gebunden), nach 24 Stunden und beim Beenden. Ist nur der Inhalt der Datei beschädigt oder verändert, meldet die
+    App das, zählt keinen Fehlversuch und behält die PIN (seit v1.23). „Jetzt sperren“ (Strg+L) ist der Riegel: danach
     einmal die Passphrase, dann gilt die PIN wieder. Wer den Rechner mit anderen teilt oder unverschlüsselten Swap hat, lässt die PIN aus.
   - **„Hintergrund“ heißt am Desktop minimiert oder versteckt.** Ein Wechsel zu einem anderen Fenster (Alt+Tab) sperrt nicht, leert aber
     getippte Passphrasen und PINs.
