@@ -1,5 +1,22 @@
 # Changelog — Alien Pass
 
+## v1.24 — 2026-11-08
+
+Kleines Release: eigenes App-Symbol, eine Korrektur beim Teilen auf Android aus dem internen Audit der Schwester-App Alien Fitness, an Alien Pass
+nachgemessen, und eine Korrektur der Meldungen unten am Bildschirm. Keine Änderung an der Verschlüsselung oder am Dateiformat; weiterhin keine
+Internet-Berechtigung (nur Fingerabdruck).
+- **Neues App-Symbol:** Der Kopf im Symbol ist jetzt das eigene Alien-Investor-Logo, ohne Mund. Das bisherige Symbol beruhte auf dem Emoji „Alien“ aus
+  Twemoji.
+- **Android — Teilen:** Das Teilen-Plugin von Capacitor meldete beim Start der App einen Empfänger an, den jede andere App auf dem Gerät ansprechen
+  konnte, und das ohne Fehlerbehandlung: Eine präparierte Nachricht hätte Alien Pass beenden können, an die Daten kam sie nicht heran. Außerdem gab es dem
+  Teilen-Dialog einen Rückruf mit, über den andere Apps erfahren konnten, welches Ziel du gewählt hast. Beides ist entfernt. Backup und Aegis-QR teilst du
+  wie bisher.
+- **Meldungen unten am Bildschirm:** Lag eine aufgeklappte Auswahl, etwa die Kategorie im Formular oder „Sperren nach Inaktivität“, hinter einer Meldung,
+  kam ein Tipp darauf nicht an. Jetzt kommt er an.
+- **Handbuch, Desktop:** Der Abschnitt zur PIN sagt jetzt, wie es nach dem Verwerfen der PIN weitergeht: Danach öffnet nur die Passphrase den Tresor, eine
+  neue PIN richtest du in den Einstellungen ein. Außerdem nennt er genauer, was die PIN verwirft: eine getauschte Tresordatei oder veränderte Kopfdaten.
+  Ist nur der Inhalt beschädigt, meldet die App das und behält die PIN (so schon seit v1.23).
+
 ## v1.23 — 2026-10-18
 
 Härtungs-Release mit Korrekturen aus den internen Prüfungen der Schwester-Apps (Sachwert-Tresor, Alien Notes, BTC Steuertool), jeweils erst an

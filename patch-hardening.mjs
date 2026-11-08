@@ -690,10 +690,11 @@ const DELKEY_SRC = "    private static void deleteKey(String alias) {\n        t
 
 // 7) @capacitor/share ohne exportierten Receiver und ohne Rückruf (v1.24, Querfund Alien Fitness v2.9 Audit run-2 A1, 08.11.2026; in Pass an der
 //    ausgelieferten v1.23-APK gemessen): load() registriert beim App-Start einen EXPORTIERTEN Broadcast-Receiver (Aktion
-//    android.intent.extra.CHOSEN_COMPONENT, onReceive ohne Fehlerbehandlung) — jede andere App auf dem Gerät konnte Alien Pass damit abstürzen lassen;
-//    der Rückruf (implizite, veränderbare PendingIntent im Teilen-Dialog) verriet außerdem anderen Apps das gewählte Teilen-Ziel. app.js liest das
-//    Ergebnis (activityType) nie (Backup und Aegis-QR teilen nur). Darum fliegen Receiver und Rückruf raus: der Teilen-Dialog startet ohne IntentSender,
-//    Share.share() hängt weiter am Activity-Ergebnis, handleOnDestroy prüft broadcastReceiver != null. Upstream bis 8.0.3 unverändert exportiert.
+//    android.intent.extra.CHOSEN_COMPONENT, onReceive ohne Fehlerbehandlung) — jede andere App auf dem Gerät hätte Alien Pass damit abstürzen lassen
+//    können (laut Android-Quelltext, am Gerät nicht ausgelöst); der Rückruf (implizite, veränderbare PendingIntent im Teilen-Dialog) konnte außerdem
+//    anderen Apps das gewählte Teilen-Ziel verraten. app.js liest das Ergebnis (activityType) nie (Backup und Aegis-QR teilen nur). Darum fliegen Receiver
+//    und Rückruf raus: der Teilen-Dialog startet ohne IntentSender, Share.share() hängt weiter am Activity-Ergebnis, handleOnDestroy prüft
+//    broadcastReceiver != null. Upstream bis 8.0.3 weiter exportiert (8.0.3 prüft im Receiver nur eine Nonce, der Absturzweg bleibt).
 //    Exakter Textersatz in node_modules (Gradle baut das Plugin direkt von dort, im Abbild frisch aus npm ci); passen Version oder Text nicht, bricht der
 //    Build ab statt still ungepatcht zu bauen. Idempotent. Ersatztexte wortgleich Alien Fitness `apk/patch-hardening.mjs` (nur die Marke unterscheidet sich).
 //    Beweis am Bytecode der FERTIGEN APK: `share_ok` in build-apk.sh.
@@ -757,8 +758,9 @@ const DELKEY_SRC = "    private static void deleteKey(String alias) {\n        t
   } else console.log('Share-Plugin bereits gepatcht.');
   // Immer prüfen, auch auf dem „bereits gepatcht“-Weg (eine Marke allein beweist nichts). \b: unregisterReceiver (Aufräumen, mit Null-Prüfung) bleibt erlaubt.
   sp = readFileSync(SHARE_SRC, 'utf8');
-  // seit dem Diff-Review (08.11.2026): jede PendingIntent-Fabrik, createPendingResult, ChooserAction, ResultReceiver und Reflection ebenfalls verboten
-  if (/\bregisterReceiver|RECEIVER_EXPORTED|PendingIntent\.[A-Za-z]+\(|getIntentSender|createPendingResult|ChooserAction|ResultReceiver|\.getMethod\(|Class\.forName|EXTRA_CHOSEN_COMPONENT|\\u+[0-9a-fA-F]{4}/.test(sp)
+  // seit den Diff-Reviews (08.11.2026): jede PendingIntent-Fabrik, createPendingResult, ChooserAction, ResultReceiver, CHOOSER_-Extras, die
+  // CHOSEN_COMPONENT-Zeichenkette in jeder Form und Reflection ebenfalls verboten. Vorprüfung am Text — der Beweis ist share_ok am Bytecode (build-apk.sh).
+  if (/\bregisterReceiver|RECEIVER_EXPORTED|PendingIntent\.[A-Za-z]+\(|getIntentSender|createPendingResult|ChooserAction|ResultReceiver|\.getMethod\(|Class\.forName|CHOSEN_COMPONENT|CHOOSER_|getDeclared(Method|Constructor|Field)|getConstructor|java\.lang\.(reflect|invoke)|MethodHandle|\\u+[0-9a-fA-F]{4}/.test(sp)
       || (sp.match(/Intent\.createChooser\(/g) || []).length !== 1 || !sp.includes('            Intent chooser = Intent.createChooser(intent, dialogTitle);\n')
       || (sp.match(/public void load\(\)/g) || []).length !== 1 || !sp.includes('    @Override\n    public void load() {}\n')) {
     console.error('FEHLER: Share-Plugin enthält nach dem Patch noch Receiver/Rückruf (oder abweichende Form) — Build abgebrochen!');

@@ -68,7 +68,9 @@ description: |
   - No INTERNET permission; only USE_BIOMETRIC and USE_FINGERPRINT (up to Android 8.1) for the fingerprint sensor
     (plus the AndroidX-generated signature permission that grants nothing),
     FLAG_SECURE (no screenshots / recents preview), allowBackup=false + data extraction rules (no cloud, adb or D2D backup),
-    WebView excluded from the Android autofill framework (a third-party autofill service never sees the passphrase fields)
+    WebView excluded from the Android autofill framework (a third-party autofill service never sees the passphrase fields);
+    since v1.24 the build patches Capacitor's share plugin so it registers no receiver that other apps can reach and gives the
+    share sheet no callback that could reveal the chosen target
   - Strict CSP: connect-src 'none', no inline script; bundled Argon2 (hash-wasm) hash-checked in the build
   - German / English, offline in-app manual, open source (MIT)
 
