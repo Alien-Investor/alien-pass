@@ -205,10 +205,12 @@ input[type=range]{accent-color:var(--neon);padding:0;height:26px;}
 .seg button.on{color:var(--neon);background:var(--neon-dim);border-color:var(--neon-mid);}
 
 /* MISC */
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--neon-mid);color:var(--neon);padding:10px 18px;border-radius:4px;z-index:200;font-size:.8rem;letter-spacing:1px;box-shadow:0 0 20px rgba(0,255,204,.3);max-width:92vw;text-align:center;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--neon-mid);color:var(--neon);padding:10px 18px;border-radius:4px;pointer-events:none;z-index:200;font-size:.8rem;letter-spacing:1px;box-shadow:0 0 20px rgba(0,255,204,.3);max-width:92vw;text-align:center;}
 /* Toast mit Knopf („Rückgängig“ nach dem Löschen — Kit-Baustein aus Alien Notes v1.1, v1.9): toast(msg,{action:{label,fn},ms}); ohne Aktion trägt der Knopf keinen Text. Sperren räumt Toast und Aktion (hideToast). */
 .toast{display:flex;align-items:center;justify-content:center;gap:12px;width:max-content;}   /* max-content: ein fixiertes Element mit left:50% bekäme sonst nur die halbe Fensterbreite und bräche „2 Einträge im Papierkorb“ dreizeilig um (Sichtprüfung v1.9) */
-.toast-btn{flex-shrink:0;background:none;border:1px solid var(--neon-mid);border-radius:3px;color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:.66rem;letter-spacing:1px;text-transform:uppercase;padding:6px 10px;cursor:pointer;}
+/* Toast klickdurchlässig, nur der Knopf nimmt Tipps an (v1.24, Querfund Ausgaben-Tracker v1.8): der Toast (z 200) lag über offenen Kombi-Menüs (z 60) und fing
+   Tipps auf Einträge unter seiner Meldung ab — gemessen in verify-v124, Abschnitte 1 und 2. Wie Tracker v1.9 (Review: nie den ganzen Toast auf auto setzen). */
+.toast-btn{pointer-events:auto;flex-shrink:0;background:none;border:1px solid var(--neon-mid);border-radius:3px;color:var(--neon);font-family:'Orbitron',sans-serif;font-weight:700;font-size:.66rem;letter-spacing:1px;text-transform:uppercase;padding:6px 10px;cursor:pointer;}
 .toast-btn:hover{background:var(--neon-dim);}
 /* Rückfrage-Dialog (statt confirm(): der Android-Systemdialog erbt FLAG_SECURE nicht — Querfund Alien Notes, Gerät 25.09.2026; v1.9)
    z-index 150: über Handbuch/Detail (100), unter dem Toast (200). Text nur per textContent, pre-line für Absätze. Knöpfe teilen sich die Breite,

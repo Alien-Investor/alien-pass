@@ -212,7 +212,6 @@ Schlüsselableitung schafft, und schlägt eine passende Argon2-Stufe vor.
   Feldern nichts zu lernen (alle als Quelltext in `patch-hardening.mjs`; der
   Vendor-Hash-Check steht in `build-www.sh`, ebenfalls Klartext). Dazu kommt seit v1.24 eine Änderung an Capacitors Teilen-Plugin, ebenfalls dort:
   Es meldet beim App-Start keinen von außen erreichbaren Broadcast-Empfänger mehr an und gibt dem Teilen-Dialog keinen Rückruf mehr mit.
-  Der Build prüft das am Bytecode der fertigen APK.
 - **Fingerabdruck-Entsperren, ehrlich eingeordnet** (optional, nur Android-App): Der Datenschlüssel wird zusätzlich unter einem
   32-Byte-Zufallsschlüssel verpackt; den verwahrt der Android-Keystore, gebunden an eine starke Biometrie (Freigabe pro Nutzung mit
   Bestätigung, StrongBox falls vorhanden, ungültig bei neu eingerichtetem Fingerabdruck). Dieser Slot liegt *außerhalb* der `.vault`-Datei

@@ -757,7 +757,8 @@ const DELKEY_SRC = "    private static void deleteKey(String alias) {\n        t
   } else console.log('Share-Plugin bereits gepatcht.');
   // Immer prüfen, auch auf dem „bereits gepatcht“-Weg (eine Marke allein beweist nichts). \b: unregisterReceiver (Aufräumen, mit Null-Prüfung) bleibt erlaubt.
   sp = readFileSync(SHARE_SRC, 'utf8');
-  if (/\bregisterReceiver|RECEIVER_EXPORTED|PendingIntent\.getBroadcast|getIntentSender|EXTRA_CHOSEN_COMPONENT|\\u+[0-9a-fA-F]{4}/.test(sp)
+  // seit dem Diff-Review (08.11.2026): jede PendingIntent-Fabrik, createPendingResult, ChooserAction, ResultReceiver und Reflection ebenfalls verboten
+  if (/\bregisterReceiver|RECEIVER_EXPORTED|PendingIntent\.[A-Za-z]+\(|getIntentSender|createPendingResult|ChooserAction|ResultReceiver|\.getMethod\(|Class\.forName|EXTRA_CHOSEN_COMPONENT|\\u+[0-9a-fA-F]{4}/.test(sp)
       || (sp.match(/Intent\.createChooser\(/g) || []).length !== 1 || !sp.includes('            Intent chooser = Intent.createChooser(intent, dialogTitle);\n')
       || (sp.match(/public void load\(\)/g) || []).length !== 1 || !sp.includes('    @Override\n    public void load() {}\n')) {
     console.error('FEHLER: Share-Plugin enthält nach dem Patch noch Receiver/Rückruf (oder abweichende Form) — Build abgebrochen!');
