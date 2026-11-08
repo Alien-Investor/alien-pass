@@ -687,3 +687,80 @@ const DELKEY_SRC = "    private static void deleteKey(String alias) {\n        t
   if (bad.length) { console.error('FEHLER: Tastatur-Bitte unvollständig (' + bad.join(', ') + ') — Build abgebrochen!'); process.exit(1); }
   console.log('Tastatur-Bitte (NoLearnWebView + Layout) geprüft.');
 }
+
+// 7) @capacitor/share ohne exportierten Receiver und ohne Rückruf (v1.24, Querfund Alien Fitness v2.9 Audit run-2 A1, 08.11.2026; in Pass an der
+//    ausgelieferten v1.23-APK gemessen): load() registriert beim App-Start einen EXPORTIERTEN Broadcast-Receiver (Aktion
+//    android.intent.extra.CHOSEN_COMPONENT, onReceive ohne Fehlerbehandlung) — jede andere App auf dem Gerät konnte Alien Pass damit abstürzen lassen;
+//    der Rückruf (implizite, veränderbare PendingIntent im Teilen-Dialog) verriet außerdem anderen Apps das gewählte Teilen-Ziel. app.js liest das
+//    Ergebnis (activityType) nie (Backup und Aegis-QR teilen nur). Darum fliegen Receiver und Rückruf raus: der Teilen-Dialog startet ohne IntentSender,
+//    Share.share() hängt weiter am Activity-Ergebnis, handleOnDestroy prüft broadcastReceiver != null. Upstream bis 8.0.3 unverändert exportiert.
+//    Exakter Textersatz in node_modules (Gradle baut das Plugin direkt von dort, im Abbild frisch aus npm ci); passen Version oder Text nicht, bricht der
+//    Build ab statt still ungepatcht zu bauen. Idempotent. Ersatztexte wortgleich Alien Fitness `apk/patch-hardening.mjs` (nur die Marke unterscheidet sich).
+//    Beweis am Bytecode der FERTIGEN APK: `share_ok` in build-apk.sh.
+{
+  const SHARE_DIR = 'node_modules/@capacitor/share';
+  const SHARE_SRC = `${SHARE_DIR}/android/src/main/java/com/capacitorjs/plugins/share/SharePlugin.java`;
+  const SHARE_MARK = '// alien-pass: Receiver und Rueckruf entfernt (patch-hardening.mjs, Querfund Alien Fitness v2.9 A1)';
+  const shareVer = JSON.parse(readFileSync(`${SHARE_DIR}/package.json`, 'utf8')).version;
+  if (shareVer !== '6.0.4') {
+    console.error(`FEHLER: @capacitor/share ist ${shareVer}, der Patch kennt nur 6.0.4 — erst Review (Skill app-release, Schritt 0)!`);
+    process.exit(1);
+  }
+  let sp = readFileSync(SHARE_SRC, 'utf8');
+  if (!sp.includes(SHARE_MARK)) {
+    const LOAD_OLD = `    @Override
+    public void load() {
+        broadcastReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        chosenComponent = intent.getParcelableExtra(Intent.EXTRA_CHOSEN_COMPONENT, ComponentName.class);
+                    } else {
+                        chosenComponent = getParcelableExtraLegacy(intent, Intent.EXTRA_CHOSEN_COMPONENT);
+                    }
+                }
+            };
+        ContextCompat.registerReceiver(
+            getContext(),
+            broadcastReceiver,
+            new IntentFilter(Intent.EXTRA_CHOSEN_COMPONENT),
+            ContextCompat.RECEIVER_EXPORTED
+        );
+    }
+`;
+    const LOAD_NEW = `    ${SHARE_MARK}
+    @Override
+    public void load() {}
+`;
+    const PI_OLD = `            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                flags = flags | PendingIntent.FLAG_MUTABLE;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                flags = flags | PendingIntent.FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT;
+            }
+
+            // requestCode parameter is not used. Providing 0
+            PendingIntent pi = PendingIntent.getBroadcast(getContext(), 0, new Intent(Intent.EXTRA_CHOSEN_COMPONENT), flags);
+            Intent chooser = Intent.createChooser(intent, dialogTitle, pi.getIntentSender());
+`;
+    const PI_NEW = `            Intent chooser = Intent.createChooser(intent, dialogTitle);
+`;
+    if (sp.split(LOAD_OLD).length !== 2 || sp.split(PI_OLD).length !== 2) {
+      console.error(`FEHLER: ${SHARE_SRC} passt nicht zum erwarteten 6.0.4-Text — Patch nicht anwendbar, Build abgebrochen!`);
+      process.exit(1);
+    }
+    sp = sp.replace(LOAD_OLD, LOAD_NEW).replace(PI_OLD, PI_NEW);
+    writeFileSync(SHARE_SRC, sp);
+    console.log('Share-Plugin gepatcht (kein exportierter Receiver, kein Rückruf).');
+  } else console.log('Share-Plugin bereits gepatcht.');
+  // Immer prüfen, auch auf dem „bereits gepatcht“-Weg (eine Marke allein beweist nichts). \b: unregisterReceiver (Aufräumen, mit Null-Prüfung) bleibt erlaubt.
+  sp = readFileSync(SHARE_SRC, 'utf8');
+  if (/\bregisterReceiver|RECEIVER_EXPORTED|PendingIntent\.getBroadcast|getIntentSender|EXTRA_CHOSEN_COMPONENT|\\u+[0-9a-fA-F]{4}/.test(sp)
+      || (sp.match(/Intent\.createChooser\(/g) || []).length !== 1 || !sp.includes('            Intent chooser = Intent.createChooser(intent, dialogTitle);\n')
+      || (sp.match(/public void load\(\)/g) || []).length !== 1 || !sp.includes('    @Override\n    public void load() {}\n')) {
+    console.error('FEHLER: Share-Plugin enthält nach dem Patch noch Receiver/Rückruf (oder abweichende Form) — Build abgebrochen!');
+    process.exit(1);
+  }
+}
